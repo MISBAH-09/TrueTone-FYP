@@ -1,0 +1,58 @@
+# Python / Django
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Django stuff
+db.sqlite3
+db.sqlite3-journal
+staticfiles/
+media/
+
+# IDE / OS files
+.vscode/
+.idea/
+*.swp
+*.DS_Store
+Thumbs.db
+
+# Machine Learning Checkpoints (Optional)
+# If you don't use Git LFS, GitHub will warn you about files > 50MB
+# and outright block files > 100MB. Your skin_tone model is ~100MB.
+# Uncomment the following lines to ignore model files:
+# models/**/*.pt
+# models/**/*.pth
+
+# HuggingFace deployment folder (Optional: Ignore if you track it in a separate repo)
+hf-deploy/

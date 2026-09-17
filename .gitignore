@@ -1,0 +1,85 @@
+# =========================
+# Python / Django
+# =========================
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+*.log
+
+venv/
+.venv/
+env/
+ENV/
+
+db.sqlite3
+db.sqlite3-journal
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+
+# =========================
+# React / Node / Vite
+# =========================
+
+node_modules/
+frontend/node_modules/
+
+dist/
+build/
+
+frontend/dist/
+frontend/build/
+
+.vite/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+
+# =========================
+# IDE / OS
+# =========================
+
+.vscode/
+.idea/
+
+.DS_Store
+Thumbs.db
+
+
+# =========================
+# Python testing / coverage
+# =========================
+
+.pytest_cache/
+.coverage
+htmlcov/
+
+
+# =========================
+# Jupyter
+# =========================
+
+.ipynb_checkpoints/
+
+
+# =========================
+# ML temporary files
+# =========================
+
+*.zip
+*.rar
+*.7z
+
+# Uncomment these if you DON'T want model files in GitHub
+# *.pth
+# *.pt
+# *.h5
+# *.onnxgit status
