@@ -1,3 +1,4 @@
+.important
 # =========================
 # Python / Django
 # =========================
@@ -77,6 +78,9 @@ htmlcov/
 *.zip
 *.rar
 *.7z
+
+
+
 
 # Uncomment these if you DON'T want model files in GitHub
 # *.pth
