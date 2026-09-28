@@ -1,0 +1,23 @@
+export const QUALITY_THRESHOLDS = {
+  FACE_WIDTH_RATIO_MIN: 0.35,
+  FACE_WIDTH_RATIO_MAX: 0.55,
+  POSE_ANGLE_MAX_DEG: 15,
+  LIGHTING_MEAN_MIN: 20,
+  LIGHTING_MEAN_MAX: 200,
+  BLUR_VARIANCE_MIN: 50, // Set slightly lower initially, tune on device
+};
+
+export const TIMERS = {
+  NO_FACE_TIMEOUT_MS: 2500, // Time before triggering skin check
+  STABLE_CAPTURE_DELAY_MS: 500, // Time face must be stable before auto-capture
+  SKIN_CHECK_INTERVAL_MS: 1000,
+};
+
+export const CAPTURE_STATES = {
+  SEARCHING: "SEARCHING",
+  FACE_FOUND_CHECKING: "FACE_FOUND_CHECKING",
+  FACE_FOUND_STABLE: "FACE_FOUND_STABLE",
+  NO_FACE_SKIN: "NO_FACE_SKIN",
+  NO_FACE_NONE: "NO_FACE_NONE",
+  CAPTURED: "CAPTURED",
+};

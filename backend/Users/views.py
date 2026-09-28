@@ -18,7 +18,7 @@ from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from .models import User
+from .models import User, SkinScanHistory
 from .middleware import require_token
 
 logger = logging.getLogger('Users')
@@ -59,7 +59,7 @@ class Validations:
 
 # ─── Signup API ──────────────────────────────────────────────────────────────
 
-class signupAPI(APIView):
+class SignupAPI(APIView):
 
     @swagger_auto_schema(
         tags=["Authentication"],
@@ -189,7 +189,7 @@ class signupAPI(APIView):
 
 # ─── Login API ───────────────────────────────────────────────────────────────
 
-class loginAPI(APIView):
+class LoginAPI(APIView):
 
     @swagger_auto_schema(
         tags=["Authentication"],
@@ -280,7 +280,7 @@ class loginAPI(APIView):
 
 # ─── Get User By ID (Protected) ─────────────────────────────────────────────
 
-class getByIdApi(APIView):
+class GetByIdAPI(APIView):
 
     @swagger_auto_schema(
         tags=["User"],
@@ -308,13 +308,6 @@ class getByIdApi(APIView):
         try:
             user = request.auth_user
 
-            # Calculate age from date_of_birth
-            age = None
-            if user.date_of_birth:
-                today = date.today()
-                dob = user.date_of_birth
-                age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
-
             response_data['success'] = True
             response_data['message'] = 'User fetched successfully'
             response_data['data'] = {
@@ -325,14 +318,16 @@ class getByIdApi(APIView):
                 'last_name': user.last_name,
                 'profile': user.profile,
                 'token': user.token,
-                'age': age,
-                'gender': user.gender,
+                'age_bracket': user.age_bracket,
                 'skin_tone': user.skin_tone,
                 'skin_type': user.skin_type,
                 'skin_disease': user.skin_disease,
+                'allergies': user.allergies,
+                'is_pregnant_or_breastfeeding': user.is_pregnant_or_breastfeeding,
+                'current_products': user.current_products,
                 'onboarding_completed': user.onboarding_completed,
-                'created_at': user.created_at.isoformat(),
-                'updated_at': user.updated_at.isoformat()
+                'created_at': user.created_at.isoformat() if user.created_at else None,
+                'updated_at': user.updated_at.isoformat() if user.updated_at else None
             }
             return Response(response_data, status=status.HTTP_200_OK)
         except Exception as e:
@@ -344,7 +339,7 @@ class getByIdApi(APIView):
 
 # ─── Update User (Protected) ────────────────────────────────────────────────
 
-class updateAPI(APIView):
+class UpdateAPI(APIView):
 
     @swagger_auto_schema(
         tags=["User"],
@@ -393,7 +388,11 @@ class updateAPI(APIView):
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
-        updatable_fields = {'username', 'email', 'first_name', 'last_name', 'password', 'profile'}
+        updatable_fields = {
+            'username', 'email', 'first_name', 'last_name', 'password', 'profile',
+            'skin_type', 'skin_tone', 'skin_disease', 'age_bracket', 'allergies', 
+            'is_pregnant_or_breastfeeding', 'current_products'
+        }
         if not request.data or not any(field in request.data for field in updatable_fields):
             return Response(
                 {'success': False, 'message': 'No data provided to update', 'data': None},
@@ -406,6 +405,18 @@ class updateAPI(APIView):
         last_name = request.data.get('last_name', user.last_name)
         password = request.data.get('password', None)
         profile = request.data.get('profile', user.profile)
+        
+        skin_type = request.data.get('skin_type', user.skin_type)
+        skin_tone = request.data.get('skin_tone', user.skin_tone)
+        skin_disease = request.data.get('skin_disease', user.skin_disease)
+        age_bracket = request.data.get('age_bracket', user.age_bracket)
+        allergies = request.data.get('allergies', user.allergies)
+        
+        is_pregnant = request.data.get('is_pregnant_or_breastfeeding', user.is_pregnant_or_breastfeeding)
+        if 'is_pregnant_or_breastfeeding' in request.data:
+            is_pregnant = str(is_pregnant).lower() in ('true', '1', 't', 'yes', 'y')
+            
+        current_products = request.data.get('current_products', user.current_products)
 
         # Username validation
         if 'username' in request.data:
@@ -446,6 +457,13 @@ class updateAPI(APIView):
         else:
             password = user.password
 
+        # Check if skin profile changed
+        skin_changed = (
+            user.skin_type != skin_type or
+            user.skin_tone != skin_tone or
+            user.skin_disease != skin_disease
+        )
+
         # Save updates
         try:
             user.username = username
@@ -454,8 +472,27 @@ class updateAPI(APIView):
             user.last_name = last_name
             user.password = password
             user.profile = profile
+            user.skin_type = skin_type
+            user.skin_tone = skin_tone
+            user.skin_disease = skin_disease
+            user.age_bracket = age_bracket
+            user.allergies = allergies
+            user.is_pregnant_or_breastfeeding = is_pregnant
+            user.current_products = current_products
             user.updated_at = timezone.now()
             user.save()
+
+            # Log to history if manually changed
+            if skin_changed:
+                SkinScanHistory.objects.create(
+                    user=user,
+                    source='manual',
+                    skin_type=skin_type,
+                    skin_tone=skin_tone,
+                    skin_disease=skin_disease,
+                    confidence_score=0.0
+                )
+
         except IntegrityError as e:
             if '1062' in str(e):
                 if 'username' in str(e):
@@ -478,6 +515,13 @@ class updateAPI(APIView):
             'first_name': user.first_name,
             'last_name': user.last_name,
             'profile': user.profile,
+            'skin_type': user.skin_type,
+            'skin_tone': user.skin_tone,
+            'skin_disease': user.skin_disease,
+            'age_bracket': user.age_bracket,
+            'allergies': user.allergies,
+            'is_pregnant_or_breastfeeding': user.is_pregnant_or_breastfeeding,
+            'current_products': user.current_products,
             'created_at': user.created_at.isoformat(),
             'updated_at': user.updated_at.isoformat()
         }
@@ -487,7 +531,7 @@ class updateAPI(APIView):
 
 # ─── Fetch All Users (Protected) ────────────────────────────────────────────
 
-class fetchAllUsersAPI(APIView):
+class FetchAllUsersAPI(APIView):
 
     @swagger_auto_schema(
         tags=["User"],
@@ -535,12 +579,12 @@ class fetchAllUsersAPI(APIView):
 
 # ─── Onboarding API (Protected) ─────────────────────────────────────────────
 
-class onboardingAPI(APIView):
+class OnboardingAPI(APIView):
 
     @swagger_auto_schema(
         tags=["Onboarding"],
         operation_summary="Complete user onboarding",
-        operation_description="Save onboarding data (gender, DOB, skin info or image)",
+        operation_description="Save onboarding data (age bracket, skin info or image, allergies, pregnancy status)",
         manual_parameters=[
             openapi.Parameter(
                 'Authorization',
@@ -552,14 +596,16 @@ class onboardingAPI(APIView):
         ],
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=['gender', 'date_of_birth'],
+            required=['age_bracket'],
             properties={
-                'gender': openapi.Schema(type=openapi.TYPE_STRING, example="male"),
-                'date_of_birth': openapi.Schema(type=openapi.TYPE_STRING, example="2000-01-15"),
+                'age_bracket': openapi.Schema(type=openapi.TYPE_STRING, example="18-24"),
                 'skin_tone': openapi.Schema(type=openapi.TYPE_STRING, example="fair"),
                 'skin_type': openapi.Schema(type=openapi.TYPE_STRING, example="oily"),
-                'skin_disease': openapi.Schema(type=openapi.TYPE_STRING, example="comedonal_acne,eczema"),
+                'skin_disease': openapi.Schema(type=openapi.TYPE_STRING, example="common_acne,eczema"),
                 'skin_image': openapi.Schema(type=openapi.TYPE_STRING, description="Base64 encoded skin image"),
+                'allergies': openapi.Schema(type=openapi.TYPE_STRING, example="fragrance,parfum"),
+                'is_pregnant_or_breastfeeding': openapi.Schema(type=openapi.TYPE_BOOLEAN, example=False),
+                'current_products': openapi.Schema(type=openapi.TYPE_STRING, example="80001,80009"),
             },
         ),
         responses={
@@ -578,25 +624,23 @@ class onboardingAPI(APIView):
 
         user = request.auth_user
 
-        gender = request.data.get('gender', '')
-        date_of_birth = request.data.get('date_of_birth')
+        age_bracket = request.data.get('age_bracket', '')
         skin_tone = request.data.get('skin_tone', '')
         skin_type = request.data.get('skin_type', '')
         skin_disease = request.data.get('skin_disease', '')
         skin_image = request.data.get('skin_image')
+        allergies = request.data.get('allergies', '')
+        is_pregnant_or_breastfeeding = request.data.get('is_pregnant_or_breastfeeding', False)
+        current_products = request.data.get('current_products', '')
 
         # Validate required fields
-        if not gender:
-            response_data['message'] = 'Gender is required'
+        if not age_bracket:
+            response_data['message'] = 'Age bracket is required'
             return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
 
-        if not date_of_birth:
-            response_data['message'] = 'Date of birth is required'
-            return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
-
-        valid_genders = ['male', 'female', 'prefer_not_to_say']
-        if gender not in valid_genders:
-            response_data['message'] = f'Invalid gender. Choose from: {valid_genders}'
+        valid_age_brackets = ['teen', '18-24', '25-34', '35+']
+        if age_bracket not in valid_age_brackets:
+            response_data['message'] = f'Invalid age bracket. Choose from: {valid_age_brackets}'
             return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
 
         # Must have either image or manual skin info
@@ -607,7 +651,6 @@ class onboardingAPI(APIView):
         # If image uploaded, run ML analysis to get skin info
         if skin_image:
             try:
-                # Decode base64 image
                 b64_data = skin_image
                 if ',' in b64_data:
                     b64_data = b64_data.split(',')[1]
@@ -618,11 +661,14 @@ class onboardingAPI(APIView):
                 result = pipeline.analyze_all(image_bytes, 'onboarding_upload.jpg')
 
                 if result.get('status') == 'success':
-                    skin_profile = result.get('skin_profile', {})
-                    skin_type = skin_profile.get('type', '')
-                    skin_tone = skin_profile.get('tone', '')
-                    disease = skin_profile.get('disease', 'none')
-                    skin_disease = disease if disease != 'none' else ''
+                    predictions = result.get('predictions', {})
+                    skin_type = predictions.get('skin_type', {}).get('label', '')
+                    skin_tone = predictions.get('skin_tone', {}).get('label', '')
+                    disease_entry = predictions.get('skin_disease', {})
+                    skin_disease = (
+                        disease_entry.get('label', '')
+                        if disease_entry.get('disease_detected') else ''
+                    )
                     logger.info(f"ML analysis for {user.username}: type={skin_type}, tone={skin_tone}, disease={skin_disease}")
                 else:
                     response_data['message'] = result.get('message', 'Image analysis failed')
@@ -633,12 +679,14 @@ class onboardingAPI(APIView):
                 return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
 
         # Save onboarding data
-        user.gender = gender
-        user.date_of_birth = date_of_birth
+        user.age_bracket = age_bracket
         user.skin_tone = skin_tone
         user.skin_type = skin_type
         user.skin_disease = skin_disease
         user.skin_image = skin_image
+        user.allergies = allergies
+        user.is_pregnant_or_breastfeeding = bool(is_pregnant_or_breastfeeding)
+        user.current_products = current_products
         user.onboarding_completed = True
         user.save()
 
@@ -649,9 +697,176 @@ class onboardingAPI(APIView):
         response_data['data'] = {
             'id': user.id,
             'onboarding_completed': True,
+            'age_bracket': age_bracket,
             'skin_type': skin_type,
             'skin_tone': skin_tone,
             'skin_disease': skin_disease,
+            'allergies': allergies,
+            'is_pregnant_or_breastfeeding': user.is_pregnant_or_breastfeeding,
         }
 
         return Response(response_data, status=status.HTTP_200_OK)
+
+
+class ConfirmSkinScanAPI(APIView):
+
+    @swagger_auto_schema(
+        tags=["Skin Analysis"],
+        operation_summary="Confirm and save a fresh skin scan to the user's profile",
+        operation_description=(
+            "Call this AFTER showing the user their analyze_all results and "
+            "getting explicit confirmation to update their profile. Only "
+            "meaningful for the 'all' mode (all 3 models) - a single-model "
+            "quick check should never call this, since it would silently "
+            "wipe the other two fields."
+        ),
+        manual_parameters=[
+            openapi.Parameter('Authorization', openapi.IN_HEADER, type=openapi.TYPE_STRING, required=True)
+        ],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['predictions'],
+            properties={
+                'predictions': openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    description="The exact 'predictions' object returned by /api/analyze_all",
+                ),
+            },
+        ),
+        responses={200: "Profile updated and logged to history", 400: "Validation error", 401: "Unauthorized"}
+    )
+    @require_token
+    def post(self, request):
+        import json
+        import base64
+        import time
+        from django.core.files.base import ContentFile
+
+        response_data = {'success': False, 'message': '', 'data': None}
+        user = request.auth_user
+
+        predictions_raw = request.data.get('predictions')
+        if isinstance(predictions_raw, str):
+            try:
+                predictions = json.loads(predictions_raw)
+            except json.JSONDecodeError:
+                predictions = None
+        else:
+            predictions = predictions_raw
+
+        if not predictions or not isinstance(predictions, dict):
+            response_data['message'] = "Missing 'predictions' object from a prior analyze_all call"
+            return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+
+        skin_type_pred = predictions.get('skin_type', {})
+        skin_tone_pred = predictions.get('skin_tone', {})
+        disease_pred = predictions.get('skin_disease', {})
+
+        if not skin_type_pred.get('label') or not skin_tone_pred.get('label'):
+            response_data['message'] = (
+                "predictions must include both skin_type and skin_tone - "
+                "only the 'all' mode scan produces a complete enough profile to save"
+            )
+            return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+
+        new_skin_type = skin_type_pred.get('label', '')
+        new_skin_tone = skin_tone_pred.get('label', '')
+        new_disease = disease_pred.get('label', '') if disease_pred.get('disease_detected') else ''
+
+        # keep a record of what changed, for the response (and for the user's peace of mind)
+        changes = {}
+        if user.skin_type and user.skin_type != new_skin_type:
+            changes['skin_type'] = {'from': user.skin_type, 'to': new_skin_type}
+        if user.skin_tone and user.skin_tone != new_skin_tone:
+            changes['skin_tone'] = {'from': user.skin_tone, 'to': new_skin_tone}
+        if user.skin_disease != new_disease:
+            changes['skin_disease'] = {'from': user.skin_disease, 'to': new_disease}
+
+        # 1. Update the live profile (what Recommendations reads)
+        user.skin_type = new_skin_type
+        user.skin_tone = new_skin_tone
+        user.skin_disease = new_disease
+        user.save()
+
+        # Process Images
+        original_image = request.FILES.get('original_image')
+        processed_image_base64 = request.data.get('processed_image')
+        
+        processed_image_file = None
+        if processed_image_base64:
+            try:
+                if ';base64,' in processed_image_base64:
+                    format, imgstr = processed_image_base64.split(';base64,')
+                    ext = format.split('/')[-1]
+                else:
+                    imgstr = processed_image_base64
+                    ext = 'jpg'
+                processed_image_file = ContentFile(base64.b64decode(imgstr), name=f'processed_{user.id}_{int(time.time())}.{ext}')
+            except Exception as e:
+                logger.error(f"Error decoding base64 image: {e}")
+
+        # 2. Log to history
+        scan_record = SkinScanHistory.objects.create(
+            user=user,
+            skin_type=new_skin_type,
+            skin_type_confidence=skin_type_pred.get('confidence'),
+            skin_tone=new_skin_tone,
+            skin_tone_confidence=skin_tone_pred.get('confidence'),
+            skin_disease=new_disease,
+            skin_disease_confidence=disease_pred.get('confidence'),
+            disease_detected=bool(disease_pred.get('disease_detected')),
+            source='full_scan',
+        )
+
+        if original_image:
+            scan_record.image_original = original_image
+        if processed_image_file:
+            scan_record.image_processed = processed_image_file
+        
+        if original_image or processed_image_file:
+            scan_record.save()
+
+        logger.info(f"Skin scan confirmed + saved for {user.username}: {changes}")
+
+        response_data['success'] = True
+        response_data['message'] = 'Profile updated from new scan'
+        response_data['data'] = {
+            'skin_type': new_skin_type,
+            'skin_tone': new_skin_tone,
+            'skin_disease': new_disease,
+            'changes': changes,
+        }
+        return Response(response_data, status=status.HTTP_200_OK)
+
+
+class SkinScanHistoryAPI(APIView):
+
+    @swagger_auto_schema(
+        tags=["Skin Analysis"],
+        operation_summary="List this user's confirmed skin scan history",
+        manual_parameters=[
+            openapi.Parameter('Authorization', openapi.IN_HEADER, type=openapi.TYPE_STRING, required=True)
+        ],
+        responses={200: "List of past scans, newest first"}
+    )
+    @require_token
+    def get(self, request):
+        user = request.auth_user
+        scans = SkinScanHistory.objects.filter(user=user).order_by('-scanned_at')
+
+        data = [{
+            'id': s.id,
+            'skin_type': s.skin_type,
+            'skin_type_confidence': s.skin_type_confidence,
+            'skin_tone': s.skin_tone,
+            'skin_tone_confidence': s.skin_tone_confidence,
+            'skin_disease': s.skin_disease,
+            'skin_disease_confidence': s.skin_disease_confidence,
+            'disease_detected': s.disease_detected,
+            'source': s.source,
+            'image_original': request.build_absolute_uri(s.image_original.url) if s.image_original else None,
+            'image_processed': request.build_absolute_uri(s.image_processed.url) if s.image_processed else None,
+            'scanned_at': s.scanned_at.isoformat(),
+        } for s in scans]
+
+        return Response({'success': True, 'message': '', 'data': data}, status=status.HTTP_200_OK)

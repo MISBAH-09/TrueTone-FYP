@@ -3,10 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { Upload, FileText, ChevronRight, ChevronLeft, Loader2, CheckCircle2 } from "lucide-react";
 import { submitOnboarding } from "../services/user";
 
-const genderOptions = [
-  { value: "male", label: "Male", emoji: "👨" },
-  { value: "female", label: "Female", emoji: "👩" },
-  { value: "prefer_not_to_say", label: "Prefer not to say", emoji: "🤐" },
+// gender removed - not used by any recommendation-matching logic, see
+// backend/Users/models.py for the reasoning.
+
+const ageBrackets = [
+  { value: "teen", label: "Teen", desc: "Under 18" },
+  { value: "18-24", label: "18–24", desc: "" },
+  { value: "25-34", label: "25–34", desc: "" },
+  { value: "35+", label: "35+", desc: "" },
 ];
 
 const skinTones = [
@@ -19,10 +23,14 @@ const skinTypes = [
   { value: "oily", label: "Oily", desc: "Shiny, enlarged pores" },
   { value: "combination", label: "Combination", desc: "Oily T-zone, dry cheeks" },
   { value: "dry", label: "Dry", desc: "Tight, flaky skin" },
+  { value: "normal", label: "Normal", desc: "Balanced, few concerns" },
 ];
 
+// values match pipeline_engine.py's SKIN_DISEASE_CLASSES exactly, so
+// manual entries line up with what the CNN model would output for the
+// same condition.
 const skinDiseases = [
-  { value: "comedonal_acne", label: "Comedonal Acne", desc: "Blackheads & whiteheads" },
+  { value: "common_acne", label: "Acne", desc: "Blackheads, whiteheads & breakouts" },
   { value: "cystic_acne", label: "Cystic Acne", desc: "Deep, painful breakouts" },
   { value: "eczema", label: "Eczema", desc: "Itchy, inflamed patches" },
   { value: "psoriasis", label: "Psoriasis", desc: "Thick, scaly skin patches" },
@@ -39,14 +47,16 @@ const Onboarding = () => {
   const [error, setError] = useState("");
 
   // Form state
-  const [gender, setGender] = useState("");
-  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [ageBracket, setAgeBracket] = useState("");
   const [inputMethod, setInputMethod] = useState(""); // "image" or "manual"
   const [skinImage, setSkinImage] = useState(null);
   const [skinImagePreview, setSkinImagePreview] = useState("");
   const [skinTone, setSkinTone] = useState("");
   const [skinType, setSkinType] = useState("");
   const [selectedDiseases, setSelectedDiseases] = useState([]);
+  const [allergiesText, setAllergiesText] = useState("");
+  const [isPregnantOrBreastfeeding, setIsPregnantOrBreastfeeding] = useState(false);
+  const [currentProductsText, setCurrentProductsText] = useState("");
   const fileInputRef = useRef(null);
 
   // ─── Image handling ───────────────────────────────────────
@@ -73,13 +83,13 @@ const Onboarding = () => {
 
   // ─── Navigation validation ────────────────────────────────
   const canProceed = () => {
-    if (step === 1) return !!gender;
-    if (step === 2) return !!dateOfBirth;
-    if (step === 3) return !!inputMethod;
-    if (step === 4) {
+    if (step === 1) return !!ageBracket;
+    if (step === 2) return !!inputMethod;
+    if (step === 3) {
       if (inputMethod === "image") return !!skinImage;
       return !!skinTone && !!skinType;
     }
+    if (step === 4) return true; // allergies/pregnancy/current products are all optional
     return false;
   };
 
@@ -90,8 +100,10 @@ const Onboarding = () => {
 
     try {
       const payload = {
-        gender,
-        date_of_birth: dateOfBirth,
+        age_bracket: ageBracket,
+        allergies: allergiesText,
+        is_pregnant_or_breastfeeding: isPregnantOrBreastfeeding,
+        current_products: currentProductsText,
       };
 
       if (inputMethod === "image") {
@@ -113,7 +125,7 @@ const Onboarding = () => {
   };
 
   // ─── Step labels ──────────────────────────────────────────
-  const stepLabels = ["Gender", "Date of Birth", "Input Method", inputMethod === "image" ? "Upload Photo" : "Skin Info"];
+  const stepLabels = ["Age", "Input Method", inputMethod === "image" ? "Upload Photo" : "Skin Info", "Safety Info"];
 
   return (
     <div className="min-h-screen bg-slate-50 py-10 px-4">
@@ -163,53 +175,35 @@ const Onboarding = () => {
             </div>
           )}
 
-          {/* ─── STEP 1: Gender ────────────────────────────── */}
+          {/* ─── STEP 1: Age bracket ───────────────────────── */}
           {step === 1 && (
             <div>
-              <h2 className="text-xl font-semibold text-slate-900 mb-2">What's your gender?</h2>
-              <p className="text-sm text-slate-500 mb-6">This helps us tailor skincare recommendations.</p>
-              <div className="grid gap-4">
-                {genderOptions.map((opt) => (
+              <h2 className="text-xl font-semibold text-slate-900 mb-2">What's your age range?</h2>
+              <p className="text-sm text-slate-500 mb-6">
+                We only ask for a range, not your exact birthdate - it's enough to personalize recommendations.
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                {ageBrackets.map((opt) => (
                   <button
                     key={opt.value}
                     type="button"
-                    onClick={() => setGender(opt.value)}
-                    className={`flex items-center gap-4 rounded-2xl border px-6 py-5 text-left transition-all ${
-                      gender === opt.value
+                    onClick={() => setAgeBracket(opt.value)}
+                    className={`flex flex-col items-center gap-1 rounded-2xl border px-6 py-6 text-center transition-all ${
+                      ageBracket === opt.value
                         ? "border-emerald-600 bg-emerald-50 text-emerald-900 shadow-sm ring-1 ring-emerald-600"
                         : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400 hover:bg-slate-50"
                     }`}
                   >
-                    <span className="text-2xl">{opt.emoji}</span>
-                    <span className="text-base font-semibold">{opt.label}</span>
+                    <span className="text-lg font-semibold">{opt.label}</span>
+                    {opt.desc && <span className="text-xs text-slate-500">{opt.desc}</span>}
                   </button>
                 ))}
               </div>
             </div>
           )}
 
-          {/* ─── STEP 2: Date of Birth ────────────────────── */}
+          {/* ─── STEP 2: Choose Input Method ──────────────── */}
           {step === 2 && (
-            <div>
-              <h2 className="text-xl font-semibold text-slate-900 mb-2">When were you born?</h2>
-              <p className="text-sm text-slate-500 mb-6">Your age affects skincare needs and product recommendations.</p>
-              <input
-                type="date"
-                value={dateOfBirth}
-                onChange={(e) => setDateOfBirth(e.target.value)}
-                max={new Date().toISOString().split("T")[0]}
-                className="w-full h-14 px-5 rounded-2xl border border-slate-200 bg-slate-50 text-slate-800 text-base focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              />
-              {dateOfBirth && (
-                <p className="mt-3 text-sm text-slate-500">
-                  Selected: <span className="font-medium text-slate-700">{new Date(dateOfBirth).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</span>
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* ─── STEP 3: Choose Input Method ──────────────── */}
-          {step === 3 && (
             <div>
               <h2 className="text-xl font-semibold text-slate-900 mb-2">How would you like to share your skin info?</h2>
               <p className="text-sm text-slate-500 mb-6">Upload a photo for AI analysis or enter details manually.</p>
@@ -245,8 +239,8 @@ const Onboarding = () => {
             </div>
           )}
 
-          {/* ─── STEP 4: Image Upload OR Manual Questions ─── */}
-          {step === 4 && inputMethod === "image" && (
+          {/* ─── STEP 3: Image Upload OR Manual Questions ─── */}
+          {step === 3 && inputMethod === "image" && (
             <div>
               <h2 className="text-xl font-semibold text-slate-900 mb-2">Upload a skin photo</h2>
               <p className="text-sm text-slate-500 mb-6">Our AI will analyze your skin condition from the photo.</p>
@@ -288,7 +282,7 @@ const Onboarding = () => {
             </div>
           )}
 
-          {step === 4 && inputMethod === "manual" && (
+          {step === 3 && inputMethod === "manual" && (
             <div className="space-y-8">
               {/* Skin Tone */}
               <div>
@@ -370,6 +364,70 @@ const Onboarding = () => {
                     </button>
                   ))}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* ─── STEP 4: Safety info (allergies, pregnancy, current products) ─── */}
+          {step === 4 && (
+            <div className="space-y-8">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900 mb-1">Known allergies or ingredient sensitivities</h2>
+                <p className="text-sm text-slate-500 mb-4">
+                  We'll never recommend a product containing these. Separate with commas (e.g. fragrance, parfum, tea tree oil).
+                </p>
+                <textarea
+                  value={allergiesText}
+                  onChange={(e) => setAllergiesText(e.target.value)}
+                  placeholder="e.g. fragrance, parfum"
+                  rows={2}
+                  className="w-full px-5 py-4 rounded-2xl border border-slate-200 bg-slate-50 text-slate-800 text-base focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900 mb-1">Are you pregnant or breastfeeding?</h2>
+                <p className="text-sm text-slate-500 mb-4">
+                  Some active ingredients (like retinoids) aren't recommended during pregnancy or breastfeeding.
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsPregnantOrBreastfeeding(true)}
+                    className={`rounded-2xl border px-6 py-4 text-base font-semibold transition-all ${
+                      isPregnantOrBreastfeeding
+                        ? "border-emerald-600 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400"
+                    }`}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsPregnantOrBreastfeeding(false)}
+                    className={`rounded-2xl border px-6 py-4 text-base font-semibold transition-all ${
+                      !isPregnantOrBreastfeeding
+                        ? "border-emerald-600 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400"
+                    }`}
+                  >
+                    No
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900 mb-1">Products you're currently using</h2>
+                <p className="text-sm text-slate-500 mb-4">
+                  Optional - helps us avoid recommending something you already own.
+                </p>
+                <textarea
+                  value={currentProductsText}
+                  onChange={(e) => setCurrentProductsText(e.target.value)}
+                  placeholder="e.g. CeraVe Foaming Facial Cleanser"
+                  rows={2}
+                  className="w-full px-5 py-4 rounded-2xl border border-slate-200 bg-slate-50 text-slate-800 text-base focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
               </div>
             </div>
           )}

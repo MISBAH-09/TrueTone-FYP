@@ -10,11 +10,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "^1.0.1",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
     "axios": "^1.16.0",
     "framer-motion": "^12.38.0",
     "lucide-react": "^0.563.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-image-crop": "^11.1.2",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.13.0"
   },
   "devDependencies": {

@@ -22,11 +22,13 @@ import os
 import sys
 import time
 import uuid
+import base64
 import logging
 import threading
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torchvision.transforms as T
@@ -55,10 +57,10 @@ class Config:
     SKIN_DISEASE_MODEL = str(BASE_DIR / "models" / "skin_disease" / "best_model.pth")
 
     SKIN_TYPE_CLASSES    = ["combination", "dry", "normal", "oily"]
-    SKIN_TONE_CLASSES    = ["dark", "fair", "medium"]
+    SKIN_TONE_CLASSES    = ["fair", "medium", "dark"]
     SKIN_DISEASE_CLASSES = [
         "common_acne", "cystic_acne", "eczema",
-        "psoriasis", "rosacea", "tinea", "none",
+        "psoriasis", "rosacea", "tinea",
     ]
 
     SKIN_TYPE_ARCH    = "efficientnet_b0"
@@ -77,7 +79,7 @@ class Config:
 
 
 TRANSFORM = T.Compose([
-    T.Resize((Config.IMAGE_SIZE + 32, Config.IMAGE_SIZE + 32)),
+    T.Resize(Config.IMAGE_SIZE + 32),
     T.CenterCrop(Config.IMAGE_SIZE),
     T.ToTensor(),
     T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
@@ -268,7 +270,9 @@ def load_model(model_path, arch, num_classes_hint, device=Config.DEVICE):
 # ═══════════════════════════════════════════════════════════════
 #  IMAGE VALIDATION & PREPROCESSING
 # ═══════════════════════════════════════════════════════════════
-def validate_and_preprocess_bytes(image_bytes, filename="upload.jpg"):
+
+
+def validate_and_preprocess_bytes(image_bytes, filename="upload.jpg", skip_face_check=False):
     """Validate raw bytes and return (tensor, pil_image, image_info)."""
     ext = Path(filename).suffix.lower()
     if ext not in Config.ALLOWED_EXTENSIONS:
@@ -295,6 +299,27 @@ def validate_and_preprocess_bytes(image_bytes, filename="upload.jpg"):
         raise ImageValidationError(f"Failed to open image: {e}", "CORRUPT_IMAGE")
 
     pil_img = pil_img.convert("RGB")
+    from inference.face_crop import crop_face_natural
+    pil_img, crop_box, _landmarks, _found, num_faces = crop_face_natural(pil_img)
+
+    if num_faces > 1 and not skip_face_check:
+        raise ImageValidationError("Multiple faces detected! Please crop to a single face before uploading.", "MULTIPLE_FACES")
+    elif num_faces == 0 and not skip_face_check:
+        import cv2
+        img_np = np.array(pil_img)
+        hsv = cv2.cvtColor(img_np, cv2.COLOR_RGB2HSV)
+        lower_skin1 = np.array([0, 20, 70], dtype=np.uint8)
+        upper_skin1 = np.array([20, 255, 255], dtype=np.uint8)
+        lower_skin2 = np.array([160, 20, 70], dtype=np.uint8)
+        upper_skin2 = np.array([180, 255, 255], dtype=np.uint8)
+        skin_mask = cv2.bitwise_or(cv2.inRange(hsv, lower_skin1, upper_skin1), cv2.inRange(hsv, lower_skin2, upper_skin2))
+        skin_ratio = np.sum(skin_mask > 0) / (img_np.shape[0] * img_np.shape[1])
+        
+        if skin_ratio > 0.15:
+            raise ImageValidationError("No face detected! Do you want to proceed with this skin image?", "NO_FACE_SKIN")
+        else:
+            raise ImageValidationError("Please add a facial image. No face or skin was detected in this photo.", "NO_FACE_NO_SKIN")
+
     w, h = pil_img.size
     if w < Config.MIN_DIMENSION or h < Config.MIN_DIMENSION:
         raise ImageValidationError(
@@ -303,7 +328,28 @@ def validate_and_preprocess_bytes(image_bytes, filename="upload.jpg"):
         )
 
     tensor = TRANSFORM(pil_img).unsqueeze(0)
-    info = {"filename": filename, "size_bytes": size, "width": w, "height": h}
+    
+    display_transform = T.Compose([
+        T.Resize(Config.IMAGE_SIZE + 32),
+        T.CenterCrop(Config.IMAGE_SIZE),
+    ])
+    display_pil = display_transform(pil_img)
+    display_img_np = np.array(display_pil, dtype=np.float32) / 255.0
+
+    buf = io.BytesIO()
+    display_pil.save(buf, format="JPEG", quality=92)
+    display_image_base64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+    
+    info = {
+        "filename": filename,
+        "size_bytes": size,
+        "width": w,
+        "height": h,
+        "display_img_np": display_img_np,
+        "display_pil": display_pil,
+        "display_image_base64": display_image_base64,
+        "crop_box": crop_box,
+    }
     return tensor, pil_img, info
 
 
@@ -323,11 +369,11 @@ def validate_and_preprocess_file(image_path):
 # ═══════════════════════════════════════════════════════════════
 #  THREAD-SAFE INFERENCE
 # ═══════════════════════════════════════════════════════════════
-@torch.no_grad()
-def _infer_one(model, tensor, class_labels, device, confidence_threshold):
+def _infer_one(model, tensor, class_labels, device, confidence_threshold, display_img_np=None, display_pil=None, model_name=None):
     tensor = tensor.to(device)
-    logits = model(tensor)
-    probs = torch.softmax(logits, dim=1)[0]
+    with torch.no_grad():
+        logits = model(tensor)
+        probs = torch.softmax(logits, dim=1)[0]
     n = probs.shape[0]
 
     if n != len(class_labels):
@@ -335,12 +381,102 @@ def _infer_one(model, tensor, class_labels, device, confidence_threshold):
 
     top_idx = probs.argmax().item()
     top_prob = probs[top_idx].item()
+    is_confident = top_prob >= confidence_threshold
+    
+    heatmap_base64 = None
+    marker_base64 = None
+    zone_overlay_base64 = None
+    legend = None
+
+    if model_name == "skin_disease" and display_img_np is not None:
+        try:
+            from inference.gradcam import generate_heatmap
+            disease_name = class_labels[top_idx] if top_idx < len(class_labels) else "condition"
+            marker_base64, heatmap_base64 = generate_heatmap(model, tensor, display_img_np, top_idx, task_type="skin_disease", label=disease_name)
+            legend = {
+                "title": "Disease Risk Hotspot",
+                "min_label": "Low Risk",
+                "max_label": "High Risk",
+                "score": round(top_prob, 3),
+                "marker_pos_pct": round(max(10.0, min(90.0, top_prob * 100)), 1),
+                "color_hex": "#ef4444",
+                "palette": ["#fde047", "#f97316", "#dc2626"],
+            }
+        except Exception as e:
+            logger.error(f"GradCAM failed: {e}")
+    elif model_name == "skin_type" and display_img_np is not None:
+        try:
+            from inference.gradcam import generate_heatmap
+            pred_class = class_labels[top_idx] if top_idx < len(class_labels) else "normal"
+            marker_base64, heatmap_base64 = generate_heatmap(model, tensor, display_img_np, top_idx, task_type="skin_type", label=pred_class)
+            
+            if pred_class in ["oily", "combination"]:
+                title = "Oiliness / Shine"
+                min_l = "Slightly oily"
+                max_l = "Very oily"
+                pal = ["#fef08a", "#f97316", "#ea580c"]
+            elif pred_class == "dry":
+                title = "Moisture / Dryness"
+                min_l = "Slightly dry"
+                max_l = "Very dry"
+                pal = ["#bae6fd", "#38bdf8", "#2563eb"]
+            else:
+                title = "Balanced Skin"
+                min_l = "Normal balance"
+                max_l = "Optimal"
+                pal = ["#a7f3d0", "#34d399", "#059669"]
+
+            legend = {
+                "title": title,
+                "min_label": min_l,
+                "max_label": max_l,
+                "score": round(top_prob, 3),
+                "marker_pos_pct": round(max(15.0, min(85.0, float(top_prob) * 100)), 1),
+                "color_hex": pal[-1],
+                "palette": pal,
+            }
+            zone_overlay_base64 = marker_base64
+
+        except Exception as e:
+            logger.error(f"Overlay for skin_type failed: {e}")
+    elif model_name == "skin_tone" and display_img_np is not None:
+        try:
+            from inference.gradcam import generate_heatmap
+            pred_class = class_labels[top_idx] if top_idx < len(class_labels) else "fair"
+            marker_base64, heatmap_base64 = generate_heatmap(model, tensor, display_img_np, top_idx, task_type="skin_tone", label=pred_class)
+            
+            norm_class = str(pred_class or "").lower()
+            if "fair" in norm_class:
+                marker_pos_pct = round(16.0 + (1.0 - float(top_prob)) * 8.0, 1)
+            elif "dark" in norm_class:
+                marker_pos_pct = round(84.0 - (1.0 - float(top_prob)) * 8.0, 1)
+            else:
+                marker_pos_pct = 50.0
+
+            legend = {
+                "title": "Skin Tone Undertone",
+                "min_label": "Fair",
+                "max_label": "Dark",
+                "score": round(top_prob, 3),
+                "marker_pos_pct": marker_pos_pct,
+                "color_hex": "#d97706",
+                "palette": ["#fde68a", "#d97706", "#78350f"],
+            }
+            zone_overlay_base64 = marker_base64
+
+        except Exception as e:
+            logger.error(f"Overlay for skin_tone failed: {e}")
 
     return {
         "predicted_class": class_labels[top_idx] if top_idx < len(class_labels) else f"class_{top_idx}",
         "confidence": round(top_prob, 4),
         "all_probs": {cls: round(probs[i].item(), 4) for i, cls in enumerate(class_labels)},
-        "low_confidence": top_prob < confidence_threshold,
+        "low_confidence": not is_confident,
+        "is_confident": is_confident,
+        "heatmap_base64": heatmap_base64,
+        "marker_base64": marker_base64,
+        "zone_overlay_base64": zone_overlay_base64,
+        "legend": legend,
     }
 
 
@@ -364,24 +500,48 @@ def _aggregate(type_res, tone_res, disease_res, image_info, latencies, request_i
         and not disease_res["low_confidence"]
     )
 
+    clean_info = {
+        "filename": image_info.get("filename"),
+        "size_bytes": image_info.get("size_bytes"),
+        "width": image_info.get("width"),
+        "height": image_info.get("height"),
+        "crop_box": image_info.get("crop_box"),
+        "display_image_base64": image_info.get("display_image_base64"),
+    }
+
     return {
         "status": "success",
         "request_id": request_id,
-        "image_info": image_info,
+        "image_info": clean_info,
         "predictions": {
             "skin_type": {
                 "label": type_res["predicted_class"],
                 "confidence": type_res["confidence"],
+                "is_confident": type_res["is_confident"],
+                "heatmap_base64": type_res["heatmap_base64"],
+                "marker_base64": type_res["marker_base64"],
+                "zone_overlay_base64": type_res.get("zone_overlay_base64"),
+                "legend": type_res.get("legend"),
                 "distribution": type_res["all_probs"],
             },
             "skin_tone": {
                 "label": tone_res["predicted_class"],
                 "confidence": tone_res["confidence"],
+                "is_confident": tone_res["is_confident"],
+                "heatmap_base64": tone_res["heatmap_base64"],
+                "marker_base64": tone_res["marker_base64"],
+                "zone_overlay_base64": tone_res.get("zone_overlay_base64"),
+                "legend": tone_res.get("legend"),
                 "distribution": tone_res["all_probs"],
             },
             "skin_disease": {
                 "label": disease_res["predicted_class"],
                 "confidence": disease_res["confidence"],
+                "is_confident": disease_res["is_confident"],
+                "heatmap_base64": disease_res["heatmap_base64"],
+                "marker_base64": disease_res["marker_base64"],
+                "zone_overlay_base64": disease_res.get("zone_overlay_base64"),
+                "legend": disease_res.get("legend"),
                 "disease_detected": disease_flag,
                 "distribution": disease_res["all_probs"],
             },
@@ -457,14 +617,14 @@ class SkinAnalysisPipeline:
         ms = (time.perf_counter() - t0) * 1000
         logger.info(f"All 3 models loaded in {ms:.0f} ms")
 
-    def analyze_all(self, image_bytes, filename="upload.jpg"):
+    def analyze_all(self, image_bytes, filename="upload.jpg", skip_face_check=False):
         """Analyze image from raw bytes. Returns result dict."""
         request_id = uuid.uuid4().hex[:8]
         latencies = {}
 
         try:
             t = time.perf_counter()
-            tensor, pil_img, info = validate_and_preprocess_bytes(image_bytes, filename)
+            tensor, pil_img, info = validate_and_preprocess_bytes(image_bytes, filename, skip_face_check)
             latencies["preprocess_ms"] = round((time.perf_counter() - t) * 1000, 2)
         except ImageValidationError as e:
             return {
@@ -508,7 +668,8 @@ class SkinAnalysisPipeline:
         for name, (mdl, labels, thresh) in jobs.items():
             starts[name] = time.perf_counter()
             futures[name] = self._executor.submit(
-                _infer_one, mdl, tensor, labels, Config.DEVICE, thresh
+                _infer_one, mdl, tensor, labels, Config.DEVICE, thresh,
+                info.get("display_img_np"), info.get("display_pil"), name
             )
 
         results = {}
@@ -547,7 +708,7 @@ class SkinAnalysisPipeline:
     #  SELECTIVE INFERENCE HELPERS
     # ─────────────────────────────────────────────────────────────
 
-    def _preprocess_request(self, image_bytes, filename):
+    def _preprocess_request(self, image_bytes, filename, skip_face_check=False):
         """
         Shared image validation + preprocessing step.
         Returns (tensor, info, error_response_or_None, request_id, latencies).
@@ -556,7 +717,7 @@ class SkinAnalysisPipeline:
         latencies = {}
         try:
             t = time.perf_counter()
-            tensor, _pil, info = validate_and_preprocess_bytes(image_bytes, filename)
+            tensor, _pil, info = validate_and_preprocess_bytes(image_bytes, filename, skip_face_check)
             latencies["preprocess_ms"] = round((time.perf_counter() - t) * 1000, 2)
             return tensor, info, None, request_id, latencies
         except ImageValidationError as e:
@@ -585,7 +746,10 @@ class SkinAnalysisPipeline:
         for key in job_keys:
             mdl, labels, thresh = all_jobs[key]
             starts[key] = time.perf_counter()
-            futures[key] = self._executor.submit(_infer_one, mdl, tensor, labels, Config.DEVICE, thresh)
+            futures[key] = self._executor.submit(
+                _infer_one, mdl, tensor, labels, Config.DEVICE, thresh,
+                info.get("display_img_np"), info.get("display_pil"), key
+            )
 
         results, errors = {}, {}
         for key, fut in futures.items():
@@ -599,13 +763,22 @@ class SkinAnalysisPipeline:
         latencies["inference_wall_ms"] = round((time.perf_counter() - t_all) * 1000, 2)
         latencies["total_ms"] = round(latencies["preprocess_ms"] + latencies["inference_wall_ms"], 2)
 
+        clean_info = {
+            "filename": info.get("filename"),
+            "size_bytes": info.get("size_bytes"),
+            "width": info.get("width"),
+            "height": info.get("height"),
+            "crop_box": info.get("crop_box"),
+            "display_image_base64": info.get("display_image_base64"),
+        }
+
         if errors:
             return {
                 "status": "partial_error",
                 "request_id": request_id,
                 "errors": errors,
                 "results": results,
-                "image_info": info,
+                "image_info": clean_info,
                 "latency_ms": latencies,
             }
 
@@ -617,6 +790,11 @@ class SkinAnalysisPipeline:
             entry = {
                 "label": r["predicted_class"],
                 "confidence": r["confidence"],
+                "is_confident": r["is_confident"],
+                "heatmap_base64": r["heatmap_base64"],
+                "marker_base64": r["marker_base64"],
+                "zone_overlay_base64": r.get("zone_overlay_base64"),
+                "legend": r.get("legend"),
                 "distribution": r["all_probs"],
             }
             if key == "skin_disease":
@@ -638,7 +816,7 @@ class SkinAnalysisPipeline:
         return {
             "status": "success",
             "request_id": request_id,
-            "image_info": info,
+            "image_info": clean_info,
             "predictions": predictions,
             "warnings": warnings,
             "latency_ms": latencies,
@@ -649,36 +827,36 @@ class SkinAnalysisPipeline:
     # ─────────────────────────────────────────────────────────────
 
 
-    def analyze_skin(self, image_bytes, filename="upload.jpg"):
+    def analyze_skin(self, image_bytes, filename="upload.jpg", skip_face_check=False):
         """
         Run skin_type + skin_tone in parallel.
         Useful when disease analysis is not required.
         """
-        tensor, info, err, req_id, lats = self._preprocess_request(image_bytes, filename)
+        tensor, info, err, req_id, lats = self._preprocess_request(image_bytes, filename, skip_face_check)
         if err:
             return err
         return self._run_selective(tensor, info, lats, req_id, ["skin_type", "skin_tone"])
 
-    def analyze_skin_type(self, image_bytes, filename="upload.jpg"):
+    def analyze_skin_type(self, image_bytes, filename="upload.jpg", skip_face_check=False):
         """Run only the skin-type model (combination / dry / normal / oily)."""
-        tensor, info, err, req_id, lats = self._preprocess_request(image_bytes, filename)
+        tensor, info, err, req_id, lats = self._preprocess_request(image_bytes, filename, skip_face_check)
         if err:
             return err
         return self._run_selective(tensor, info, lats, req_id, ["skin_type"])
 
-    def analyze_skin_tone(self, image_bytes, filename="upload.jpg"):
+    def analyze_skin_tone(self, image_bytes, filename="upload.jpg", skip_face_check=False):
         """Run only the skin-tone model (dark / fair / medium)."""
-        tensor, info, err, req_id, lats = self._preprocess_request(image_bytes, filename)
+        tensor, info, err, req_id, lats = self._preprocess_request(image_bytes, filename, skip_face_check)
         if err:
             return err
         return self._run_selective(tensor, info, lats, req_id, ["skin_tone"])
 
-    def analyze_skin_disease(self, image_bytes, filename="upload.jpg"):
+    def analyze_skin_disease(self, image_bytes, filename="upload.jpg", skip_face_check=False):
         """
         Run only the skin-disease model.
         Returns disease_detected flag alongside the prediction.
         """
-        tensor, info, err, req_id, lats = self._preprocess_request(image_bytes, filename)
+        tensor, info, err, req_id, lats = self._preprocess_request(image_bytes, filename, skip_face_check)
         if err:
             return err
         return self._run_selective(tensor, info, lats, req_id, ["skin_disease"])

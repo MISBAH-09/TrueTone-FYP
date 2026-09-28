@@ -1,103 +1,201 @@
-import { useState } from "react";
-import { Upload, Camera, Search, CheckCircle2, XCircle } from "lucide-react";
-
-const ingredients = [
-  { name: "Aqua (Water)", safe: true, note: "Base ingredient, safe for all skin types." },
-  { name: "Glycerin", safe: true, note: "Humectant, great for hydration." },
-  { name: "Niacinamide", safe: true, note: "Brightens skin and supports barrier." },
-  { name: "Sodium Lauryl Sulfate (SLS)", safe: false, note: "Can be harsh and drying for sensitive skin." },
-  { name: "Fragrance (Parfum)", safe: false, note: "Common irritant for sensitive skin." },
-  { name: "Parabens", safe: false, note: "Preservative linked to irritation for some users." },
-];
+import { useState, useRef } from "react";
+import { Upload, Camera, CheckCircle2, XCircle, AlertTriangle, Loader2 } from "lucide-react";
+import { scanProductImage } from "../services/scanner";
+import { ManualCropScreen } from "../components/Upload/ManualCropScreen";
 
 const ProductScanner = () => {
-  const [scanned, setScanned] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [image, setImage] = useState(null);
+  const [preview, setPreview] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState(null);
+  const [cropSrc, setCropSrc] = useState(null);
+  
+  const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
 
-  const filtered = ingredients.filter((item) => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setCropSrc(URL.createObjectURL(file));
+      setResult(null);
+      setError("");
+    }
+  };
 
-  const handleScan = () => {
+  const handleApplyCrop = (croppedFile) => {
+    setImage(croppedFile);
+    setPreview(URL.createObjectURL(croppedFile));
+    setCropSrc(null);
+  };
+
+  const handleCancelCrop = () => {
+    setCropSrc(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleScan = async () => {
+    if (!image) return;
+    
     setLoading(true);
-    setTimeout(() => {
+    setError("");
+    setResult(null);
+    
+    try {
+      const response = await scanProductImage(image);
+      if (response.success) {
+        setResult(response.data);
+      } else {
+        setError(response.message || "Failed to scan product");
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || "An error occurred during scanning");
+    } finally {
       setLoading(false);
-      setScanned(true);
-    }, 1400);
+    }
+  };
+
+  const resetScanner = () => {
+    setImage(null);
+    setPreview("");
+    setResult(null);
+    setError("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   return (
     <div className="min-h-screen bg-slate-50 px-6 py-8">
-      <div className="mx-auto max-w-5xl space-y-8">
+      <div className="mx-auto max-w-4xl space-y-8 animate-fadeIn">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Product Scanner</h1>
-          <p className="mt-2 text-slate-600">Check ingredient safety and spot harmful components with a simple scan.</p>
+          <p className="mt-2 text-slate-600">Scan a product label to instantly extract ingredients and check them against your TrueTone profile.</p>
         </div>
 
-        {!scanned ? (
-          <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-            <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-sm text-slate-500">Upload or scan a product label to begin.</p>
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <button onClick={handleScan} className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700 transition">
-                    <Upload className="w-4 h-4" /> Upload Label
+        {error && (
+          <div className="rounded-2xl bg-rose-50 border border-rose-200 p-4 text-sm font-semibold text-rose-700">
+            {error}
+          </div>
+        )}
+
+        {cropSrc && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
+            <ManualCropScreen
+              imageSrc={cropSrc}
+              onApply={handleApplyCrop}
+              onCancel={handleCancelCrop}
+            />
+          </div>
+        )}
+
+        {!result && !loading && (
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm text-center">
+            {preview ? (
+              <div className="space-y-6">
+                <div className="relative mx-auto h-64 w-64 overflow-hidden rounded-2xl border-4 border-slate-100 shadow-inner">
+                  <img src={preview} alt="Preview" className="h-full w-full object-cover" />
+                </div>
+                <div className="flex justify-center gap-4">
+                  <button onClick={resetScanner} className="rounded-full border border-slate-300 px-6 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                    Cancel
                   </button>
-                  <button onClick={handleScan} className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-5 py-3 text-sm text-slate-700 hover:bg-slate-100 transition">
+                  <button onClick={handleScan} className="rounded-full bg-emerald-600 px-8 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700">
+                    Extract Ingredients
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="py-12 space-y-6">
+                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                  <Camera className="h-8 w-8" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Upload Product Label</h3>
+                  <p className="text-sm text-slate-500 mt-1 max-w-sm mx-auto">Make sure the text is clear and readable so Gemini can extract the ingredients accurately.</p>
+                </div>
+                
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  accept="image/*"
+                  className="hidden"
+                />
+                
+                <input
+                  type="file"
+                  ref={cameraInputRef}
+                  onChange={handleFileSelect}
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                />
+                
+                <div className="flex justify-center gap-4">
+                  <button 
+                    onClick={() => fileInputRef.current?.click()} 
+                    className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
+                  >
+                    <Upload className="w-4 h-4" /> Upload
+                  </button>
+                  <button 
+                    onClick={() => cameraInputRef.current?.click()} 
+                    className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 transition"
+                  >
                     <Camera className="w-4 h-4" /> Scan Label
                   </button>
                 </div>
               </div>
-              <div className="relative max-w-md flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search ingredient"
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-11 py-3 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-            </div>
+            )}
           </div>
-        ) : loading ? (
-          <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-              <Search className="h-6 w-6" />
-            </div>
-            <p className="mt-6 text-slate-700">Scanning label and analyzing ingredients...</p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-sm">
-                <p className="text-3xl font-bold text-slate-900">{ingredients.length}</p>
-                <p className="text-sm text-slate-500">Ingredients scanned</p>
-              </div>
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-sm">
-                <p className="text-3xl font-bold text-emerald-600">{ingredients.filter((i) => i.safe).length}</p>
-                <p className="text-sm text-slate-500">Safe ingredients</p>
-              </div>
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-sm">
-                <p className="text-3xl font-bold text-rose-600">{ingredients.filter((i) => !i.safe).length}</p>
-                <p className="text-sm text-slate-500">Flagged ingredients</p>
-              </div>
-            </div>
+        )}
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-slate-900">Ingredient analysis</h2>
-                <button onClick={() => setScanned(false)} className="text-sm text-slate-600 hover:text-slate-900">Scan again</button>
+        {loading && (
+          <div className="rounded-3xl border border-slate-200 bg-white p-16 shadow-sm text-center space-y-6">
+            <Loader2 className="mx-auto h-12 w-12 animate-spin text-emerald-500" />
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Extracting Ingredients</h3>
+              <p className="text-sm text-slate-500 mt-1">AI is analyzing the label against your TrueTone profile...</p>
+            </div>
+          </div>
+        )}
+
+        {result && (
+          <div className="space-y-6 animate-slideUp">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold text-slate-900">Analysis Results</h2>
+              <button onClick={resetScanner} className="text-sm font-medium text-emerald-600 hover:text-emerald-700">Scan Another Product</button>
+            </div>
+            
+            <div className={`rounded-3xl border p-6 md:p-8 flex items-start gap-4 ${result.is_safe ? "bg-emerald-50 border-emerald-200" : "bg-rose-50 border-rose-200"}`}>
+              {result.is_safe ? (
+                <CheckCircle2 className="h-8 w-8 text-emerald-600 shrink-0" />
+              ) : (
+                <AlertTriangle className="h-8 w-8 text-rose-600 shrink-0" />
+              )}
+              
+              <div>
+                <h3 className={`text-lg font-bold ${result.is_safe ? "text-emerald-900" : "text-rose-900"}`}>
+                  {result.is_safe ? "Safe for your profile!" : "Safety Warnings Found"}
+                </h3>
+                {result.flags && result.flags.length > 0 ? (
+                  <ul className="mt-3 space-y-2">
+                    {result.flags.map((flag, idx) => (
+                      <li key={idx} className={`text-sm font-medium ${result.is_safe ? "text-emerald-700" : "text-rose-700"}`}>• {flag}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-emerald-700 mt-1">We found no concerning ingredients based on your current profile.</p>
+                )}
               </div>
-              <div className="space-y-3">
-                {filtered.map((item) => (
-                  <div key={item.name} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className={`mt-0.5 flex h-9 w-9 items-center justify-center rounded-2xl ${item.safe ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600"}`}>
-                      {item.safe ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                    </div>
-                    <div>
-                      <p className="font-medium text-slate-900">{item.name}</p>
-                      <p className="text-sm text-slate-600">{item.note}</p>
-                    </div>
-                  </div>
+            </div>
+            
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">
+              <h3 className="text-lg font-bold text-slate-900 mb-4">Extracted Ingredients ({result.ingredients.length})</h3>
+              <div className="flex flex-wrap gap-2">
+                {result.ingredients.map((ing, idx) => (
+                  <span key={idx} className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 border border-slate-200">
+                    {ing}
+                  </span>
                 ))}
               </div>
             </div>
