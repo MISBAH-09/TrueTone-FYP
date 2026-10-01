@@ -57,9 +57,19 @@ const Dashboard = () => {
     ? profile.allergies.split(',').map(a => a.trim()).filter(a => a).join(', ')
     : "None recorded";
 
-  const pregnancyStatus = profile?.is_pregnant_or_breastfeeding 
-    ? "Pregnant / Breastfeeding" 
-    : "Not Pregnant";
+  const genderLabel = profile?.gender
+    ? profile.gender === "female"
+      ? "Female"
+      : profile.gender === "male"
+        ? "Male"
+        : "Prefer not to say"
+    : "Not set";
+
+  const pregnancyStatus = profile?.gender === "male"
+    ? "Not applicable"
+    : profile?.is_pregnant_or_breastfeeding
+      ? "Pregnant / Breastfeeding"
+      : "Not Pregnant";
 
   return (
     <div className="min-h-screen bg-slate-50 px-6 py-8 text-slate-900">
@@ -105,6 +115,10 @@ const Dashboard = () => {
                 <div>
                   <p className="text-xs text-slate-400 mb-1">Age Bracket</p>
                   <p className="font-medium text-slate-800">{ageBracket}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400 mb-1">Gender</p>
+                  <p className="font-medium text-slate-800">{genderLabel}</p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-400 mb-1">Pregnancy Status</p>

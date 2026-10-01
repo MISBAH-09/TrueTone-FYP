@@ -43,6 +43,7 @@ const Profile = () => {
   const [skinTone, setSkinTone] = useState("");
   const [skinType, setSkinType] = useState("");
   const [skinDisease, setSkinDisease] = useState("");
+  const [gender, setGender] = useState("");
   const [allergiesText, setAllergiesText] = useState("");
   const [isPregnantOrBreastfeeding, setIsPregnantOrBreastfeeding] = useState(false);
   const [currentProductsText, setCurrentProductsText] = useState("");
@@ -59,6 +60,7 @@ const Profile = () => {
           setSkinTone(p.skin_tone || "");
           setSkinType(p.skin_type || "");
           setSkinDisease(p.skin_disease || "");
+          setGender(p.gender || "");
           setAllergiesText(p.allergies || "");
           setIsPregnantOrBreastfeeding(p.is_pregnant_or_breastfeeding || false);
           setCurrentProductsText(p.current_products || "");
@@ -90,8 +92,9 @@ const Profile = () => {
         skin_tone: skinTone,
         skin_type: skinType,
         skin_disease: skinDisease,
+        gender,
         allergies: allergiesText,
-        is_pregnant_or_breastfeeding: isPregnantOrBreastfeeding,
+        is_pregnant_or_breastfeeding: gender === "male" ? false : isPregnantOrBreastfeeding,
         current_products: currentProductsText,
       };
       
@@ -307,20 +310,49 @@ const Profile = () => {
           </div>
 
           <div className="space-y-3">
-            <label className="block text-sm font-bold text-slate-900">Pregnancy Status</label>
-            <p className="text-xs text-slate-500">Helps us flag ingredients to avoid (like retinoids).</p>
-            <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 hover:bg-slate-50 transition">
-              <input
-                type="checkbox"
-                checked={isPregnantOrBreastfeeding}
-                onChange={(e) => setIsPregnantOrBreastfeeding(e.target.checked)}
-                className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-              />
-              <span className="text-sm font-medium text-slate-700">
-                I am currently pregnant or breastfeeding
-              </span>
-            </label>
+            <label className="block text-sm font-bold text-slate-900">Gender</label>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { value: "female", label: "Woman" },
+                { value: "male", label: "Man" },
+                { value: "prefer_not_to_say", label: "Prefer not to say" },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    setGender(option.value);
+                    if (option.value === "male") setIsPregnantOrBreastfeeding(false);
+                  }}
+                  className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition-all ${
+                    gender === option.value
+                      ? "border-emerald-600 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {gender !== "male" && (
+            <div className="space-y-3">
+              <label className="block text-sm font-bold text-slate-900">Pregnancy Status</label>
+              <p className="text-xs text-slate-500">Helps us flag ingredients to avoid (like retinoids).</p>
+              <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 hover:bg-slate-50 transition">
+                <input
+                  type="checkbox"
+                  checked={isPregnantOrBreastfeeding}
+                  onChange={(e) => setIsPregnantOrBreastfeeding(e.target.checked)}
+                  className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                />
+                <span className="text-sm font-medium text-slate-700">
+                  I am currently pregnant or breastfeeding
+                </span>
+              </label>
+            </div>
+          )}
 
           <div className="space-y-3">
             <label className="block text-sm font-bold text-slate-900">Current Routine</label>

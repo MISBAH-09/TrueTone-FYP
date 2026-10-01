@@ -45,7 +45,14 @@ class User(models.Model):
     # ─── Onboarding fields (finalized 7-question set) ─────────
     onboarding_completed = models.BooleanField(default=False)
 
+    GENDER_CHOICES = [
+        ('male', 'Male'),
+        ('female', 'Female'),
+        ('prefer_not_to_say', 'Prefer not to say'),
+    ]
+
     age_bracket = models.CharField(max_length=10, choices=AGE_BRACKET_CHOICES, blank=True, default='')
+    gender = models.CharField(max_length=20, choices=GENDER_CHOICES, blank=True, default='')
     skin_tone = models.CharField(max_length=20, choices=SKIN_TONE_CHOICES, blank=True, default='')
     skin_type = models.CharField(max_length=20, choices=SKIN_TYPE_CHOICES, blank=True, default='')
     skin_disease = models.CharField(max_length=255, blank=True, default='')  # comma-separated,

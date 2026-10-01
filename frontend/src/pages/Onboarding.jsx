@@ -54,10 +54,12 @@ const Onboarding = () => {
   const [skinTone, setSkinTone] = useState("");
   const [skinType, setSkinType] = useState("");
   const [selectedDiseases, setSelectedDiseases] = useState([]);
+  const [gender, setGender] = useState("");
   const [allergiesText, setAllergiesText] = useState("");
   const [isPregnantOrBreastfeeding, setIsPregnantOrBreastfeeding] = useState(false);
   const [currentProductsText, setCurrentProductsText] = useState("");
   const fileInputRef = useRef(null);
+  const showPregnancyQuestion = gender !== "male" && gender !== "";
 
   // ─── Image handling ───────────────────────────────────────
   const handleImageUpload = (e) => {
@@ -83,7 +85,7 @@ const Onboarding = () => {
 
   // ─── Navigation validation ────────────────────────────────
   const canProceed = () => {
-    if (step === 1) return !!ageBracket;
+    if (step === 1) return !!ageBracket && !!gender;
     if (step === 2) return !!inputMethod;
     if (step === 3) {
       if (inputMethod === "image") return !!skinImage;
@@ -101,8 +103,9 @@ const Onboarding = () => {
     try {
       const payload = {
         age_bracket: ageBracket,
+        gender,
         allergies: allergiesText,
-        is_pregnant_or_breastfeeding: isPregnantOrBreastfeeding,
+        is_pregnant_or_breastfeeding: gender === "male" ? false : isPregnantOrBreastfeeding,
         current_products: currentProductsText,
       };
 
@@ -177,27 +180,56 @@ const Onboarding = () => {
 
           {/* ─── STEP 1: Age bracket ───────────────────────── */}
           {step === 1 && (
-            <div>
-              <h2 className="text-xl font-semibold text-slate-900 mb-2">What's your age range?</h2>
-              <p className="text-sm text-slate-500 mb-6">
-                We only ask for a range, not your exact birthdate - it's enough to personalize recommendations.
-              </p>
-              <div className="grid grid-cols-2 gap-4">
-                {ageBrackets.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setAgeBracket(opt.value)}
-                    className={`flex flex-col items-center gap-1 rounded-2xl border px-6 py-6 text-center transition-all ${
-                      ageBracket === opt.value
-                        ? "border-emerald-600 bg-emerald-50 text-emerald-900 shadow-sm ring-1 ring-emerald-600"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400 hover:bg-slate-50"
-                    }`}
-                  >
-                    <span className="text-lg font-semibold">{opt.label}</span>
-                    {opt.desc && <span className="text-xs text-slate-500">{opt.desc}</span>}
-                  </button>
-                ))}
+            <div className="space-y-8">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-900 mb-2">What's your age range?</h2>
+                <p className="text-sm text-slate-500 mb-6">
+                  We only ask for a range, not your exact birthdate - it's enough to personalize recommendations.
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  {ageBrackets.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setAgeBracket(opt.value)}
+                      className={`flex flex-col items-center gap-1 rounded-2xl border px-6 py-6 text-center transition-all ${
+                        ageBracket === opt.value
+                          ? "border-emerald-600 bg-emerald-50 text-emerald-900 shadow-sm ring-1 ring-emerald-600"
+                          : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span className="text-lg font-semibold">{opt.label}</span>
+                      {opt.desc && <span className="text-xs text-slate-500">{opt.desc}</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900 mb-1">What gender best describes you?</h2>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { value: "female", label: "Woman" },
+                    { value: "male", label: "Man" },
+                    { value: "prefer_not_to_say", label: "Prefer not to say" },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        setGender(option.value);
+                        if (option.value === "male") setIsPregnantOrBreastfeeding(false);
+                      }}
+                      className={`rounded-2xl border px-4 py-4 text-sm font-semibold transition-all ${
+                        gender === option.value
+                          ? "border-emerald-600 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600"
+                          : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           )}
@@ -385,36 +417,38 @@ const Onboarding = () => {
                 />
               </div>
 
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900 mb-1">Are you pregnant or breastfeeding?</h2>
-                <p className="text-sm text-slate-500 mb-4">
-                  Some active ingredients (like retinoids) aren't recommended during pregnancy or breastfeeding.
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setIsPregnantOrBreastfeeding(true)}
-                    className={`rounded-2xl border px-6 py-4 text-base font-semibold transition-all ${
-                      isPregnantOrBreastfeeding
-                        ? "border-emerald-600 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400"
-                    }`}
-                  >
-                    Yes
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsPregnantOrBreastfeeding(false)}
-                    className={`rounded-2xl border px-6 py-4 text-base font-semibold transition-all ${
-                      !isPregnantOrBreastfeeding
-                        ? "border-emerald-600 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400"
-                    }`}
-                  >
-                    No
-                  </button>
+              {showPregnancyQuestion && (
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900 mb-1">Are you pregnant or breastfeeding?</h2>
+                  <p className="text-sm text-slate-500 mb-4">
+                    Some active ingredients (like retinoids) aren't recommended during pregnancy or breastfeeding.
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setIsPregnantOrBreastfeeding(true)}
+                      className={`rounded-2xl border px-6 py-4 text-base font-semibold transition-all ${
+                        isPregnantOrBreastfeeding
+                          ? "border-emerald-600 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600"
+                          : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400"
+                      }`}
+                    >
+                      Yes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsPregnantOrBreastfeeding(false)}
+                      className={`rounded-2xl border px-6 py-4 text-base font-semibold transition-all ${
+                        !isPregnantOrBreastfeeding
+                          ? "border-emerald-600 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600"
+                          : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400"
+                      }`}
+                    >
+                      No
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div>
                 <h2 className="text-lg font-semibold text-slate-900 mb-1">Products you're currently using</h2>

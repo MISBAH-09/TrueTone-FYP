@@ -319,6 +319,7 @@ class GetByIdAPI(APIView):
                 'profile': user.profile,
                 'token': user.token,
                 'age_bracket': user.age_bracket,
+                'gender': user.gender,
                 'skin_tone': user.skin_tone,
                 'skin_type': user.skin_type,
                 'skin_disease': user.skin_disease,
@@ -390,7 +391,7 @@ class UpdateAPI(APIView):
 
         updatable_fields = {
             'username', 'email', 'first_name', 'last_name', 'password', 'profile',
-            'skin_type', 'skin_tone', 'skin_disease', 'age_bracket', 'allergies', 
+            'skin_type', 'skin_tone', 'skin_disease', 'age_bracket', 'gender', 'allergies', 
             'is_pregnant_or_breastfeeding', 'current_products'
         }
         if not request.data or not any(field in request.data for field in updatable_fields):
@@ -410,6 +411,7 @@ class UpdateAPI(APIView):
         skin_tone = request.data.get('skin_tone', user.skin_tone)
         skin_disease = request.data.get('skin_disease', user.skin_disease)
         age_bracket = request.data.get('age_bracket', user.age_bracket)
+        gender = request.data.get('gender', user.gender)
         allergies = request.data.get('allergies', user.allergies)
         
         is_pregnant = request.data.get('is_pregnant_or_breastfeeding', user.is_pregnant_or_breastfeeding)
@@ -476,6 +478,7 @@ class UpdateAPI(APIView):
             user.skin_tone = skin_tone
             user.skin_disease = skin_disease
             user.age_bracket = age_bracket
+            user.gender = gender
             user.allergies = allergies
             user.is_pregnant_or_breastfeeding = is_pregnant
             user.current_products = current_products
@@ -519,6 +522,7 @@ class UpdateAPI(APIView):
             'skin_tone': user.skin_tone,
             'skin_disease': user.skin_disease,
             'age_bracket': user.age_bracket,
+            'gender': user.gender,
             'allergies': user.allergies,
             'is_pregnant_or_breastfeeding': user.is_pregnant_or_breastfeeding,
             'current_products': user.current_products,
@@ -630,6 +634,7 @@ class OnboardingAPI(APIView):
         skin_disease = request.data.get('skin_disease', '')
         skin_image = request.data.get('skin_image')
         allergies = request.data.get('allergies', '')
+        gender = request.data.get('gender', '')
         is_pregnant_or_breastfeeding = request.data.get('is_pregnant_or_breastfeeding', False)
         current_products = request.data.get('current_products', '')
 
@@ -680,12 +685,13 @@ class OnboardingAPI(APIView):
 
         # Save onboarding data
         user.age_bracket = age_bracket
+        user.gender = gender
         user.skin_tone = skin_tone
         user.skin_type = skin_type
         user.skin_disease = skin_disease
         user.skin_image = skin_image
         user.allergies = allergies
-        user.is_pregnant_or_breastfeeding = bool(is_pregnant_or_breastfeeding)
+        user.is_pregnant_or_breastfeeding = bool(is_pregnant_or_breastfeeding) if gender != 'male' else False
         user.current_products = current_products
         user.onboarding_completed = True
         user.save()
@@ -698,6 +704,7 @@ class OnboardingAPI(APIView):
             'id': user.id,
             'onboarding_completed': True,
             'age_bracket': age_bracket,
+            'gender': user.gender,
             'skin_type': skin_type,
             'skin_tone': skin_tone,
             'skin_disease': skin_disease,
