@@ -487,13 +487,13 @@ class UpdateAPI(APIView):
 
             # Log to history if manually changed
             if skin_changed:
-                SkinScanHistory.objects.create(
+                                SkinScanHistory.objects.create(
                     user=user,
                     source='manual',
                     skin_type=skin_type,
                     skin_tone=skin_tone,
                     skin_disease=skin_disease,
-                    confidence_score=0.0
+                    disease_detected=bool(skin_disease),
                 )
 
         except IntegrityError as e:
@@ -778,7 +778,12 @@ class ConfirmSkinScanAPI(APIView):
 
         new_skin_type = skin_type_pred.get('label', '')
         new_skin_tone = skin_tone_pred.get('label', '')
-        new_disease = disease_pred.get('label', '') if disease_pred.get('disease_detected') else ''
+        if disease_pred.get('disease_detected'):
+            new_disease = disease_pred.get('label', '')
+        elif disease_pred.get('is_confident') is False:
+            new_disease = user.skin_disease  # unclear result: keep what's already on file
+        else:
+            new_disease = ''  # healthy
 
         # keep a record of what changed, for the response (and for the user's peace of mind)
         changes = {}

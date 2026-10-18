@@ -23,8 +23,7 @@ const skinTypes = [
 ];
 
 const skinDiseases = [
-  { value: "common_acne", label: "Acne", desc: "Blackheads, whiteheads & breakouts" },
-  { value: "cystic_acne", label: "Cystic Acne", desc: "Deep, painful breakouts" },
+  { value: "common_acne", label: "Acne", desc: "Blackheads, whiteheads, pimples & deep breakouts" },
   { value: "eczema", label: "Eczema", desc: "Itchy, inflamed patches" },
   { value: "psoriasis", label: "Psoriasis", desc: "Thick, scaly skin patches" },
   { value: "rosacea", label: "Rosacea", desc: "Facial redness & flushing" },
@@ -59,7 +58,7 @@ const Profile = () => {
           setAgeBracket(p.age_bracket || "");
           setSkinTone(p.skin_tone || "");
           setSkinType(p.skin_type || "");
-          setSkinDisease(p.skin_disease || "");
+          setSkinDisease(p.skin_disease === "cystic_acne" ? "common_acne" : p.skin_disease || "");
           setGender(p.gender || "");
           setAllergiesText(p.allergies || "");
           setIsPregnantOrBreastfeeding(p.is_pregnant_or_breastfeeding || false);

@@ -87,6 +87,19 @@ const MODES = [
 const capitalize = (s) =>
   s ? s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
 
+const DISEASE_LABELS = {
+  common_acne: "Acne",
+  cystic_acne: "Acne",
+  eczema: "Eczema",
+  healthy: "Healthy",
+  psoriasis: "Psoriasis",
+  rosacea: "Rosacea",
+  tinea: "Tinea",
+};
+
+const labelFor = (key, value) =>
+  key === "skin_disease" ? DISEASE_LABELS[value] || capitalize(value) : capitalize(value);
+
 const pctBar = (value) => `${Math.round(value * 100)}%`;
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
@@ -221,10 +234,11 @@ const SkinAnalysis = () => {
           updates.skin_type = resultsData.predictions.skin_type.label;
         if (resultsData.predictions?.skin_tone?.label)
           updates.skin_tone = resultsData.predictions.skin_tone.label;
-        if (resultsData.predictions?.skin_disease) {
-          updates.skin_disease = resultsData.predictions.skin_disease.disease_detected
-            ? resultsData.predictions.skin_disease.label
-            : "";
+                if (resultsData.predictions?.skin_disease) {
+          const d = resultsData.predictions.skin_disease;
+          if (d.disease_detected) updates.skin_disease = d.label;
+          else if (d.is_confident && d.is_healthy) updates.skin_disease = "";
+          // unclear result: leave the saved condition as it is
         }
 
         if (Object.keys(updates).length > 0) {
@@ -616,7 +630,9 @@ const SkinAnalysis = () => {
                   <ul className="mt-2 space-y-1 text-xs text-emerald-700">
                     {Object.entries(savedChanges).map(([field, change]) => (
                       <li key={field}>
-                        {field.replace("_", " ")}: {change.from || "(none)"} → {change.to || "(none)"}
+                        {field.replace("_", " ")}:{" "}
+                        {(field === "skin_disease" ? labelFor("skin_disease", change.from) : change.from) || "(none)"} →{" "}
+                        {(field === "skin_disease" ? labelFor("skin_disease", change.to) : change.to) || "(none)"}
                       </li>
                     ))}
                   </ul>
@@ -717,10 +733,16 @@ const SkinAnalysis = () => {
                       diseaseDetected={
                         results.predictions.skin_disease.disease_detected
                       }
+                                            uncertain={
+                        !results.predictions.skin_disease.disease_detected &&
+                        results.predictions.skin_disease.is_confident === false
+                      }
                       legend={results.predictions.skin_disease.legend}
-                      badgeTitle={
+                                            badgeTitle={
                         results.predictions.skin_disease.disease_detected
-                          ? capitalize(results.predictions.skin_disease.label)
+                          ? labelFor("skin_disease", results.predictions.skin_disease.label)
+                          : results.predictions.skin_disease.is_confident === false
+                          ? "Unclear Result"
                           : "No Condition Detected"
                       }
                     />
@@ -778,7 +800,7 @@ const SkinAnalysis = () => {
                             <p className="text-xs text-slate-500">
                               Top prediction:{" "}
                               <span className="font-bold text-slate-800">
-                                {capitalize(pred.label)}
+                                {labelFor(key, pred.label)}
                               </span>{" "}
                               ({Math.round(pred.confidence * 100)}%)
                             </p>
@@ -808,7 +830,7 @@ const SkinAnalysis = () => {
                                           : "text-slate-600"
                                       }`}
                                     >
-                                      {capitalize(cls)}
+                                      {labelFor(key, cls)}
                                       {isTop && (
                                         <CheckCircle2 className="ml-1.5 inline h-3.5 w-3.5 text-emerald-600" />
                                       )}
@@ -833,20 +855,29 @@ const SkinAnalysis = () => {
                       </div>
                     </div>
 
-                    {/* Condition Status Alert */}
+                                        {/* Condition Status Alert */}
                     {key === "skin_disease" && (
                       <div
                         className={`mt-4 rounded-2xl px-4 py-3 text-sm font-medium ${
                           pred.disease_detected
                             ? "bg-rose-50 text-rose-800 border border-rose-200"
+                            : pred.is_confident === false
+                            ? "bg-amber-50 text-amber-800 border border-amber-200"
                             : "bg-emerald-50 text-emerald-800 border border-emerald-200"
                         }`}
                       >
                         {pred.disease_detected ? (
                           <span className="flex items-center gap-2">
                             <ShieldAlert className="h-4 w-4 shrink-0 text-rose-600" />
-                            {capitalize(pred.label)} detected. TrueTone is an AI
+                            {labelFor(key, pred.label)} detected. TrueTone is an AI
                             screening aid. Please consult a dermatologist.
+                          </span>
+                        ) : pred.is_confident === false ? (
+                          <span className="flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+                            We couldn't match this photo to a condition we screen for.
+                            Try a clearer, well-lit photo, or consult a dermatologist
+                            if you have concerns.
                           </span>
                         ) : (
                           <span className="flex items-center gap-2">

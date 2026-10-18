@@ -31,8 +31,7 @@ const skinTypes = [
 // same condition.
 const skinDiseases = [
   { value: "common_acne", label: "Acne", desc: "Blackheads, whiteheads & breakouts" },
-  { value: "cystic_acne", label: "Cystic Acne", desc: "Deep, painful breakouts" },
-  { value: "eczema", label: "Eczema", desc: "Itchy, inflamed patches" },
+  { value: "common_acne", label: "Acne", desc: "Blackheads, whiteheads, pimples & deep breakouts" },
   { value: "psoriasis", label: "Psoriasis", desc: "Thick, scaly skin patches" },
   { value: "rosacea", label: "Rosacea", desc: "Facial redness & flushing" },
   { value: "tinea", label: "Tinea", desc: "Fungal skin infection" },

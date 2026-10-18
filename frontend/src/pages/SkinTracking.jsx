@@ -12,8 +12,9 @@ import { getSkinScanHistory } from "../services/analysis";
 
 const LABEL = {
   common_acne: "Acne",
-  cystic_acne: "Cystic Acne",
+  cystic_acne: "Acne",
   eczema: "Eczema",
+  healthy: "None detected",
   psoriasis: "Psoriasis",
   rosacea: "Rosacea",
   tinea: "Tinea",
@@ -92,7 +93,11 @@ const SkinTracking = () => {
   // Confidence trend on the disease-confidence score - a rough, honest signal
   // only shown when there are at least two scans to compare.
   let trend = null;
-  if (previous && latest.skin_disease_confidence != null && previous.skin_disease_confidence != null) {
+    if (
+    previous &&
+    latest.disease_detected && previous.disease_detected &&
+    latest.skin_disease_confidence != null && previous.skin_disease_confidence != null
+  ) {
     const delta = latest.skin_disease_confidence - previous.skin_disease_confidence;
     if (Math.abs(delta) < 0.03) trend = "flat";
     else trend = delta > 0 ? "up" : "down";

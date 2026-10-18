@@ -7,6 +7,7 @@ export const HotspotOverlay = ({
   baseImage,
   badgeTitle,
   diseaseDetected,
+  uncertain,
   legend,
 }) => {
   const [showOriginal, setShowOriginal] = useState(false);
@@ -45,7 +46,7 @@ export const HotspotOverlay = ({
         <div className="absolute top-4 right-4 z-10">
           <span
             className={`px-4 py-1.5 rounded-full text-white text-xs sm:text-sm font-bold shadow-md tracking-wide ${
-              diseaseDetected ? 'bg-rose-500' : 'bg-emerald-500'
+              diseaseDetected ? 'bg-rose-500' : uncertain ? 'bg-amber-500' : 'bg-emerald-500'
             }`}
           >
             {badgeTitle}
