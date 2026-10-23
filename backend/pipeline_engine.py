@@ -15,11 +15,21 @@ Usage (CLI):
     from pipeline_engine import get_pipeline
     pipeline = get_pipeline()
     result = pipeline.analyze_file("test_images/000045.jpg")
+
+CHANGELOG (v2 disease model - 7 classes)
+    * skin_disease model is now EfficientNet-B3 with 7 outputs (added "healthy").
+    * "healthy" is NOT a disease: disease_detected is False for it.
+    * No Grad-CAM "risk hotspot" is generated when the prediction is "healthy".
+    * Class order is verified against classes.json at startup (fails loudly
+      instead of silently mislabeling).
+    * common_acne + cystic_acne are reported as a single "common_acne" result
+      (probabilities summed; UI shows it as "Acne") - see Config.SKIN_DISEASE_GROUPS.
 """
 
 import io
 import os
 import sys
+import json
 import time
 import uuid
 import base64
@@ -54,18 +64,45 @@ class Config:
 
     SKIN_TYPE_MODEL    = str(BASE_DIR / "models" / "skin_type" / "best_model.pth")
     SKIN_TONE_MODEL    = str(BASE_DIR / "models" / "skin_tone" / "best_model.pt")
-    SKIN_DISEASE_MODEL = str(BASE_DIR / "models" / "skin_disease" / "best_model.pth")
+
+    # NEW disease model (7 classes). Keep the old best_model.pth next to it
+    # as a rollback - just point this path back to it if needed.
+    SKIN_DISEASE_MODEL        = str(BASE_DIR / "models" / "skin_disease" / "EfficientNet_B3_v2_7class.pth")
+    SKIN_DISEASE_CLASSES_FILE = str(BASE_DIR / "models" / "skin_disease" / "classes.json")
 
     SKIN_TYPE_CLASSES    = ["combination", "dry", "normal", "oily"]
     SKIN_TONE_CLASSES    = ["fair", "medium", "dark"]
+
+    # ORDER MATTERS - this is the exact output order of the trained model
+    # (alphabetical, saved in classes.json at training time):
+    #   comedonal_acne, cystic_acne, eczema, healthy, psoriasis, rosacea, tinea_ringworm
+    # Names below are the app-facing names (the app already used "common_acne"
+    # and "tinea"), so the frontend does not need to change.
     SKIN_DISEASE_CLASSES = [
-        "common_acne", "cystic_acne", "eczema",
+        "common_acne", "cystic_acne", "eczema", "healthy",
         "psoriasis", "rosacea", "tinea",
     ]
 
+    # training-time name -> app-facing name (used only to verify classes.json)
+    SKIN_DISEASE_LABEL_MAP = {
+        "comedonal_acne": "common_acne",
+        "tinea_ringworm": "tinea",
+    }
+
+    # Predictions in this set mean "no condition found" (not a disease)
+    HEALTHY_LABELS = {"healthy", "none"}
+
+    # The model has separate outputs for common_acne and cystic_acne, but the
+    # app reports ONE acne result: their probabilities are summed.
+    # The merged result is deliberately named "common_acne" because the rest of
+    # the app (onboarding, profile, saved scans, recommendations) already uses
+    # that value for acne; the UI displays it as "Acne".
+    #   {reported label: [model class names to merge]}
+    SKIN_DISEASE_GROUPS = {"common_acne": ["common_acne", "cystic_acne"]}
+
     SKIN_TYPE_ARCH    = "efficientnet_b0"
     SKIN_TONE_ARCH    = "efficientnet_b0"
-    SKIN_DISEASE_ARCH = "efficientnet_b0"
+    SKIN_DISEASE_ARCH = "efficientnet_b3"
 
     IMAGE_SIZE        = 224
     CONFIDENCE_THRESH = 0.50
@@ -267,6 +304,34 @@ def load_model(model_path, arch, num_classes_hint, device=Config.DEVICE):
     return net
 
 
+def _verify_disease_classes():
+    """
+    Fail loudly at startup if the class order the disease model was trained
+    with (classes.json) does not match Config.SKIN_DISEASE_CLASSES.
+    A wrong order would silently mislabel every prediction.
+    """
+    path = Path(Config.SKIN_DISEASE_CLASSES_FILE)
+    if not path.exists():
+        logger.warning(
+            f"classes.json not found at {path} - disease class order NOT verified. "
+            "Copy the classes.json that was saved with the .pth next to it."
+        )
+        return
+
+    with open(path) as f:
+        trained = json.load(f)
+
+    expected = [Config.SKIN_DISEASE_LABEL_MAP.get(c, c) for c in trained]
+    if expected != Config.SKIN_DISEASE_CLASSES:
+        raise ModelLoadError(
+            "Disease class order mismatch!\n"
+            f"  classes.json (mapped): {expected}\n"
+            f"  Config.SKIN_DISEASE_CLASSES: {Config.SKIN_DISEASE_CLASSES}\n"
+            "Fix Config.SKIN_DISEASE_CLASSES so it matches the trained order."
+        )
+    logger.info(f"Disease class order verified against classes.json: {expected}")
+
+
 # ═══════════════════════════════════════════════════════════════
 #  IMAGE VALIDATION & PREPROCESSING
 # ═══════════════════════════════════════════════════════════════
@@ -369,6 +434,31 @@ def validate_and_preprocess_file(image_path):
 # ═══════════════════════════════════════════════════════════════
 #  THREAD-SAFE INFERENCE
 # ═══════════════════════════════════════════════════════════════
+def _group_probs(raw_probs, class_labels):
+    """
+    Merge model classes into app-facing groups (Config.SKIN_DISEASE_GROUPS) by
+    summing their probabilities, e.g. common_acne + cystic_acne -> "acne".
+    Returns (labels, probs, members) where members[i] lists the original model
+    output indices that make up labels[i].
+    """
+    member_to_group = {
+        m: g for g, ms in Config.SKIN_DISEASE_GROUPS.items() for m in ms
+    }
+    labels, probs, members, seen = [], [], [], {}
+    for i, lbl in enumerate(class_labels):
+        g = member_to_group.get(lbl, lbl)
+        if g in seen:
+            j = seen[g]
+            probs[j] += raw_probs[i]
+            members[j].append(i)
+        else:
+            seen[g] = len(labels)
+            labels.append(g)
+            probs.append(raw_probs[i])
+            members.append([i])
+    return labels, probs, members
+
+
 def _infer_one(model, tensor, class_labels, device, confidence_threshold, display_img_np=None, display_pil=None, model_name=None):
     tensor = tensor.to(device)
     with torch.no_grad():
@@ -379,20 +469,34 @@ def _infer_one(model, tensor, class_labels, device, confidence_threshold, displa
     if n != len(class_labels):
         class_labels = class_labels[:n]
 
-    top_idx = probs.argmax().item()
-    top_prob = probs[top_idx].item()
+    raw_probs = probs.tolist()
+    if model_name == "skin_disease":
+        # merge common_acne + cystic_acne into a single "acne" result
+        class_labels, prob_list, members = _group_probs(raw_probs, class_labels)
+    else:
+        prob_list = raw_probs
+        members = [[i] for i in range(len(class_labels))]
+
+    top_idx = max(range(len(prob_list)), key=lambda i: prob_list[i])
+    top_prob = prob_list[top_idx]
     is_confident = top_prob >= confidence_threshold
+    # actual model output to explain with Grad-CAM (strongest member of the group)
+    cam_idx = max(members[top_idx], key=lambda i: raw_probs[i])
+
+    top_label = class_labels[top_idx] if top_idx < len(class_labels) else f"class_{top_idx}"
+    # "healthy" prediction from the disease model -> nothing to highlight
+    is_healthy_pred = (model_name == "skin_disease") and (top_label in Config.HEALTHY_LABELS)
     
     heatmap_base64 = None
     marker_base64 = None
     zone_overlay_base64 = None
     legend = None
 
-    if model_name == "skin_disease" and display_img_np is not None:
+    if model_name == "skin_disease" and display_img_np is not None and not is_healthy_pred:
         try:
             from inference.gradcam import generate_heatmap
             disease_name = class_labels[top_idx] if top_idx < len(class_labels) else "condition"
-            marker_base64, heatmap_base64 = generate_heatmap(model, tensor, display_img_np, top_idx, task_type="skin_disease", label=disease_name)
+            marker_base64, heatmap_base64 = generate_heatmap(model, tensor, display_img_np, cam_idx, task_type="skin_disease", label=disease_name)
             legend = {
                 "title": "Disease Risk Hotspot",
                 "min_label": "Low Risk",
@@ -468,11 +572,12 @@ def _infer_one(model, tensor, class_labels, device, confidence_threshold, displa
             logger.error(f"Overlay for skin_tone failed: {e}")
 
     return {
-        "predicted_class": class_labels[top_idx] if top_idx < len(class_labels) else f"class_{top_idx}",
+        "predicted_class": top_label,
         "confidence": round(top_prob, 4),
-        "all_probs": {cls: round(probs[i].item(), 4) for i, cls in enumerate(class_labels)},
+        "all_probs": {cls: round(prob_list[i], 4) for i, cls in enumerate(class_labels)},
         "low_confidence": not is_confident,
         "is_confident": is_confident,
+        "is_healthy": is_healthy_pred,
         "heatmap_base64": heatmap_base64,
         "marker_base64": marker_base64,
         "zone_overlay_base64": zone_overlay_base64,
@@ -483,6 +588,12 @@ def _infer_one(model, tensor, class_labels, device, confidence_threshold, displa
 # ═══════════════════════════════════════════════════════════════
 #  RESULT AGGREGATION
 # ═══════════════════════════════════════════════════════════════
+DISEASE_LOW_CONF_MSG = (
+    "Disease confidence low ({pct}). This image may not match any condition "
+    "we screen for. Consult a dermatologist."
+)
+
+
 def _aggregate(type_res, tone_res, disease_res, image_info, latencies, request_id):
     warnings = []
     if type_res["low_confidence"]:
@@ -490,13 +601,12 @@ def _aggregate(type_res, tone_res, disease_res, image_info, latencies, request_i
     if tone_res["low_confidence"]:
         warnings.append(f"Skin tone confidence low ({tone_res['confidence']:.0%}).")
     if disease_res["low_confidence"]:
-        warnings.append(
-            f"Disease confidence low ({disease_res['confidence']:.0%}). "
-            "Consult a dermatologist."
-        )
+        warnings.append(DISEASE_LOW_CONF_MSG.format(pct=f"{disease_res['confidence']:.0%}"))
 
+    # A disease is only "detected" if the model is confident AND the top
+    # class is an actual condition (not "healthy").
     disease_flag = (
-        disease_res["predicted_class"] != "none"
+        disease_res["predicted_class"] not in Config.HEALTHY_LABELS
         and not disease_res["low_confidence"]
     )
 
@@ -543,6 +653,7 @@ def _aggregate(type_res, tone_res, disease_res, image_info, latencies, request_i
                 "zone_overlay_base64": disease_res.get("zone_overlay_base64"),
                 "legend": disease_res.get("legend"),
                 "disease_detected": disease_flag,
+                "is_healthy": disease_res.get("is_healthy", False),
                 "distribution": disease_res["all_probs"],
             },
         },
@@ -591,6 +702,8 @@ class SkinAnalysisPipeline:
         )
 
     def _load_models(self):
+        _verify_disease_classes()
+
         tasks = [
             (Config.SKIN_TYPE_MODEL, Config.SKIN_TYPE_ARCH,
              len(Config.SKIN_TYPE_CLASSES), "skin_type"),
@@ -614,6 +727,19 @@ class SkinAnalysisPipeline:
         self.model_type = loaded["skin_type"]
         self.model_tone = loaded["skin_tone"]
         self.model_disease = loaded["skin_disease"]
+
+        # Safety net: the loaded disease model must have exactly as many
+        # outputs as we have labels, otherwise labels would be wrong.
+        try:
+            n_out = self.model_disease.classifier[-1].out_features
+        except (AttributeError, IndexError, TypeError):
+            n_out = len(Config.SKIN_DISEASE_CLASSES)  # can't inspect; skip check
+        if n_out != len(Config.SKIN_DISEASE_CLASSES):
+            raise ModelLoadError(
+                f"Disease model has {n_out} outputs but Config.SKIN_DISEASE_CLASSES "
+                f"has {len(Config.SKIN_DISEASE_CLASSES)} labels."
+            )
+
         ms = (time.perf_counter() - t0) * 1000
         logger.info(f"All 3 models loaded in {ms:.0f} ms")
 
@@ -799,17 +925,17 @@ class SkinAnalysisPipeline:
             }
             if key == "skin_disease":
                 entry["disease_detected"] = (
-                    r["predicted_class"] != "none" and not r["low_confidence"]
+                    r["predicted_class"] not in Config.HEALTHY_LABELS
+                    and not r["low_confidence"]
                 )
+                entry["is_healthy"] = r.get("is_healthy", False)
             predictions[key] = entry
 
             # Confidence warnings
             if r["low_confidence"]:
                 label = key.replace("_", " ")
                 if key == "skin_disease":
-                    warnings.append(
-                        f"Disease confidence low ({r['confidence']:.0%}). Consult a dermatologist."
-                    )
+                    warnings.append(DISEASE_LOW_CONF_MSG.format(pct=f"{r['confidence']:.0%}"))
                 else:
                     warnings.append(f"{label.capitalize()} confidence low ({r['confidence']:.0%}).")
 
@@ -900,8 +1026,6 @@ def get_pipeline():
 #  CLI TEST
 # ═══════════════════════════════════════════════════════════════
 if __name__ == "__main__":
-    import json
-
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
     image = sys.argv[1] if len(sys.argv) > 1 else "test_images/000045.jpg"

@@ -174,7 +174,12 @@ def _is_blocked_by_pregnancy(product_ingredients, is_pregnant):
             return True, f"Contains {ing['inci_name']}, not recommended during pregnancy/breastfeeding"
     return False, None
 
+ACNE_TAGS = {"common_acne", "cystic_acne"}
 
+
+def _pretty_condition(c):
+    """Display name for a condition tag; both acne types read simply as 'acne'."""
+    return "acne" if c in ACNE_TAGS else c.replace("_", " ")
 # ═══════════════════════════════════════════════════════════════
 #  SCORING  (soft ranking - runs on whatever survives the filters)
 # ═══════════════════════════════════════════════════════════════
@@ -189,11 +194,14 @@ def _score_product(product, product_ingredients, profile: UserProfile):
         reasons.append(f"Suited to {profile.skin_type} skin")
 
     # condition match
-    user_conditions = {c.lower() for c in profile.skin_conditions}
+        user_conditions = {c.lower() for c in profile.skin_conditions}
+    # Acne is no longer split by type: match anything tagged for either type
+    if user_conditions & ACNE_TAGS:
+        user_conditions |= ACNE_TAGS
     matched_conditions = user_conditions & set(product["suitable_conditions"])
     if matched_conditions:
         score += Config.WEIGHT_CONDITION_MATCH
-        reasons.append(f"Targets {', '.join(sorted(matched_conditions))}")
+        reasons.append(f"Targets {', '.join(sorted({_pretty_condition(c) for c in matched_conditions}))}")
 
     # ingredient-level good_for / avoid_for
     good_hits, avoid_hits = 0, 0
@@ -202,9 +210,8 @@ def _score_product(product, product_ingredients, profile: UserProfile):
             good_hits += 1
         if user_conditions & set(ing["avoid_for_conditions"]):
             avoid_hits += 1
-            warnings.append(
-                f"{ing['inci_name']} may not suit {'/'.join(sorted(user_conditions & set(ing['avoid_for_conditions'])))}"
-            )
+            avoided = {_pretty_condition(c) for c in user_conditions & set(ing["avoid_for_conditions"])}
+            warnings.append(f"{ing['inci_name']} may not suit {'/'.join(sorted(avoided))}")
 
     score += min(good_hits * Config.WEIGHT_INGREDIENT_GOOD_FOR, Config.WEIGHT_INGREDIENT_GOOD_FOR_CAP)
     score += max(avoid_hits * Config.WEIGHT_INGREDIENT_AVOID_FOR, Config.WEIGHT_INGREDIENT_AVOID_FOR_CAP)
