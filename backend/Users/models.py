@@ -96,6 +96,7 @@ class SkinScanHistory(models.Model):
     SOURCE_CHOICES = [
         ('onboarding', 'Onboarding'),
         ('full_scan', 'Full scan (all 3 models)'),
+        ('disease_scan', 'Disease check'),
         ('manual', 'Manual entry'),
     ]
 

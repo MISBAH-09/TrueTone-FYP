@@ -721,11 +721,10 @@ class ConfirmSkinScanAPI(APIView):
         tags=["Skin Analysis"],
         operation_summary="Confirm and save a fresh skin scan to the user's profile",
         operation_description=(
-            "Call this AFTER showing the user their analyze_all results and "
-            "getting explicit confirmation to update their profile. Only "
-            "meaningful for the 'all' mode (all 3 models) - a single-model "
-            "quick check should never call this, since it would silently "
-            "wipe the other two fields."
+            "Call this after the user confirms the scanned photo is theirs. "
+            "A full scan updates skin type, tone, and condition. A disease-only "
+            "check updates the condition and adds a Skin Tracking entry, and "
+            "leaves skin type and tone as they already are."
         ),
         manual_parameters=[
             openapi.Parameter('Authorization', openapi.IN_HEADER, type=openapi.TYPE_STRING, required=True)
@@ -769,29 +768,43 @@ class ConfirmSkinScanAPI(APIView):
         skin_tone_pred = predictions.get('skin_tone', {})
         disease_pred = predictions.get('skin_disease', {})
 
-        if not skin_type_pred.get('label') or not skin_tone_pred.get('label'):
+        disease_only = (
+            isinstance(disease_pred, dict)
+            and 'skin_disease' in predictions
+            and not skin_type_pred.get('label')
+            and not skin_tone_pred.get('label')
+        )
+        full_scan = bool(skin_type_pred.get('label') and skin_tone_pred.get('label'))
+
+        if not disease_only and not full_scan:
             response_data['message'] = (
-                "predictions must include both skin_type and skin_tone - "
-                "only the 'all' mode scan produces a complete enough profile to save"
+                "predictions must include a disease result, or both skin type and skin tone"
             )
             return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
 
-        new_skin_type = skin_type_pred.get('label', '')
-        new_skin_tone = skin_tone_pred.get('label', '')
+        if disease_only:
+            new_skin_type = user.skin_type
+            new_skin_tone = user.skin_tone
+            source = 'disease_scan'
+        else:
+            new_skin_type = skin_type_pred.get('label', '')
+            new_skin_tone = skin_tone_pred.get('label', '')
+            source = 'full_scan'
         new_disease = disease_pred.get('label', '') if disease_pred.get('disease_detected') else ''
 
         # keep a record of what changed, for the response (and for the user's peace of mind)
         changes = {}
-        if user.skin_type and user.skin_type != new_skin_type:
+        if not disease_only and user.skin_type and user.skin_type != new_skin_type:
             changes['skin_type'] = {'from': user.skin_type, 'to': new_skin_type}
-        if user.skin_tone and user.skin_tone != new_skin_tone:
+        if not disease_only and user.skin_tone and user.skin_tone != new_skin_tone:
             changes['skin_tone'] = {'from': user.skin_tone, 'to': new_skin_tone}
         if user.skin_disease != new_disease:
             changes['skin_disease'] = {'from': user.skin_disease, 'to': new_disease}
 
-        # 1. Update the live profile (what Recommendations reads)
-        user.skin_type = new_skin_type
-        user.skin_tone = new_skin_tone
+        # 1. Update the live profile (what Recommendations and the dashboard read)
+        if not disease_only:
+            user.skin_type = new_skin_type
+            user.skin_tone = new_skin_tone
         user.skin_disease = new_disease
         user.save()
 
@@ -822,7 +835,7 @@ class ConfirmSkinScanAPI(APIView):
             skin_disease=new_disease,
             skin_disease_confidence=disease_pred.get('confidence'),
             disease_detected=bool(disease_pred.get('disease_detected')),
-            source='full_scan',
+            source=source,
         )
 
         if original_image:

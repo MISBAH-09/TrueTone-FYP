@@ -213,6 +213,13 @@ const SkinAnalysis = () => {
 
       setStage("results");
 
+      // Disease checks wait for an explicit "this is my photo" answer
+      // before anything is written to the profile or Skin Tracking.
+      if (selectedMode.key === "skin_disease") {
+        setSaveState("confirming");
+        return;
+      }
+
       // Auto-update user profile in background if logged in
       const token = localStorage.getItem("truetone_token");
       if (token) {
@@ -576,8 +583,34 @@ const SkinAnalysis = () => {
               </div>
             </div>
 
-            {/* Confirm-save panel - only for a full ("all") scan */}
-            {saveState === "confirming" && (
+            {/* Disease check asks if the photo is the user's before saving */}
+            {saveState === "confirming" && selectedMode?.key === "skin_disease" && (
+              <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6">
+                <p className="text-sm font-semibold text-emerald-900">
+                  Is this your own photo?
+                </p>
+                <p className="mt-1 text-xs text-emerald-700">
+                  If yes, this condition is saved on your profile and added to Skin Tracking.
+                  If this is someone else's photo, nothing is saved.
+                </p>
+                <div className="mt-4 flex gap-3">
+                  <button
+                    onClick={handleConfirmSave}
+                    className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition"
+                  >
+                    Yes, this is me
+                  </button>
+                  <button
+                    onClick={() => setSaveState("skipped")}
+                    className="rounded-full border border-emerald-300 bg-white px-5 py-2 text-sm text-emerald-800 hover:bg-emerald-100 transition"
+                  >
+                    No, just checking
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {saveState === "confirming" && selectedMode?.key !== "skin_disease" && (
               <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6">
                 <p className="text-sm font-semibold text-emerald-900">
                   Update your saved profile with this result?
@@ -609,9 +642,22 @@ const SkinAnalysis = () => {
               </div>
             )}
 
+            {saveState === "skipped" && (
+              <div className="rounded-3xl border border-slate-200 bg-white p-6">
+                <p className="text-sm font-semibold text-slate-800">Nothing was saved.</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Your profile and Skin Tracking stay as they were.
+                </p>
+              </div>
+            )}
+
             {saveState === "saved" && (
               <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6">
-                <p className="text-sm font-semibold text-emerald-900">Profile updated.</p>
+                <p className="text-sm font-semibold text-emerald-900">
+                  {selectedMode?.key === "skin_disease"
+                    ? "Profile and Skin Tracking updated."
+                    : "Profile updated."}
+                </p>
                 {savedChanges && Object.keys(savedChanges).length > 0 ? (
                   <ul className="mt-2 space-y-1 text-xs text-emerald-700">
                     {Object.entries(savedChanges).map(([field, change]) => (
@@ -625,12 +671,20 @@ const SkinAnalysis = () => {
                     No change from your last saved profile - logged anyway for your tracking history.
                   </p>
                 )}
-                <a
-                  href="/recommendations"
-                  className="mt-3 inline-block text-sm font-semibold text-emerald-700 underline"
-                >
-                  View updated recommendations →
-                </a>
+                <div className="mt-3 flex flex-wrap gap-4">
+                  <a
+                    href="/dashboard"
+                    className="text-sm font-semibold text-emerald-700 underline"
+                  >
+                    View profile on dashboard
+                  </a>
+                  <a
+                    href="/skin-tracking"
+                    className="text-sm font-semibold text-emerald-700 underline"
+                  >
+                    Open Skin Tracking
+                  </a>
+                </div>
               </div>
             )}
 

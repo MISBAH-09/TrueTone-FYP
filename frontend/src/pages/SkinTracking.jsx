@@ -73,8 +73,8 @@ const SkinTracking = () => {
         </div>
         <h1 className="text-2xl font-bold text-slate-900">No tracked scans yet</h1>
         <p className="text-sm text-slate-500 max-w-sm">
-          Run a full ("all models") scan from Skin Analysis and confirm saving it to your profile -
-          it'll show up here, so you can watch how your skin changes over time.
+          Run a disease check in Skin Analysis and confirm the photo is yours.
+          That scan is saved here, and your profile condition is updated with it.
         </p>
         <a
           href="/skin-analysis"
