@@ -12,7 +12,17 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-export const askChatbot = async (message, history) => {
-  const { data } = await api.post("/ask/", { message, history });
+export const askChatbot = async (message, sessionId) => {
+  const { data } = await api.post("/ask/", { message, session_id: sessionId || null });
+  return data;
+};
+
+export const getChatSessions = async () => {
+  const { data } = await api.get("/sessions/");
+  return data;
+};
+
+export const getChatSession = async (sessionId) => {
+  const { data } = await api.get(`/sessions/${sessionId}/`);
   return data;
 };

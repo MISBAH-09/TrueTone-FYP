@@ -1,26 +1,52 @@
-import os
+import base64
 import json
 import logging
-from PIL import Image
-import google.generativeai as genai
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from django.conf import settings
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from Users.middleware import require_token
-from recommendation_engine import get_engine, UserProfile, Config
+from groq_client import groq_chat
+from recommendation_engine import get_engine, UserProfile
+from .models import ProductScan
 
 logger = logging.getLogger("Scanner")
+
+
+def _profile_for(user):
+    return UserProfile(
+        skin_type=user.skin_type,
+        skin_conditions=user.skin_disease_list(),
+        skin_tone=user.skin_tone,
+        age_bracket=user.age_bracket,
+        allergies=user.allergies_list(),
+        is_pregnant_or_breastfeeding=user.is_pregnant_or_breastfeeding,
+        current_product_ids=user.current_products_list(),
+    )
+
+
+def _scan_payload(scan, request):
+    return {
+        'id': scan.id,
+        'ingredients': scan.ingredients,
+        'score': scan.score,
+        'is_safe': scan.is_safe,
+        'reasons': scan.reasons,
+        'warnings': scan.warnings,
+        'flags': scan.flags,
+        'matched_ingredients': scan.matched_ingredients,
+        'image': request.build_absolute_uri(scan.image.url) if scan.image else None,
+        'created_at': scan.created_at.isoformat(),
+    }
 
 class ScanProductAPI(APIView):
 
     @swagger_auto_schema(
         tags=["Product Scanner"],
-        operation_summary="Extract ingredients from a product image using Gemini 1.5 Flash",
+        operation_summary="Extract ingredients from a product image and score them",
         consumes=['multipart/form-data'],
         manual_parameters=[
             openapi.Parameter(
@@ -50,43 +76,32 @@ class ScanProductAPI(APIView):
             
         image_file = request.FILES['image']
         
-        # Configure Gemini
-        gemini_api_key = os.environ.get("GEMINI_API_KEY")
-        if not gemini_api_key:
-            return Response({'success': False, 'message': 'Gemini API Key is not configured on the server.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
-        genai.configure(api_key=gemini_api_key)
-        
         try:
-            # Load image for Gemini
-            img = Image.open(image_file)
-            
-            # Setup Gemini Vision Model
-            model = genai.GenerativeModel('gemini-2.5-flash')
+            raw = image_file.read()
+            mime = image_file.content_type or "image/jpeg"
+            if mime not in ("image/jpeg", "image/png", "image/gif", "image/webp"):
+                mime = "image/jpeg"
+            data_url = f"data:{mime};base64,{base64.b64encode(raw).decode()}"
             
             prompt = """
             Read the ingredients listed on this product label.
-            To completely avoid copyright/recitation filters, you MUST prefix every single ingredient name with the exact string "ING: ". 
-            This breaks the contiguous string matching. Do not output the list normally.
-            Return ONLY a valid JSON array of strings containing these prefixed ingredient names.
-            Do not include any markdown formatting, backticks, or other text in your response.
-            Just the raw JSON array. For example: ["ING: Aqua", "ING: Glycerin", "ING: Niacinamide"]
+            Return ONLY a valid JSON array of ingredient name strings.
+            Do not include any markdown formatting, backticks, or other text.
+            Example: ["Aqua", "Glycerin", "Niacinamide"]
             """
+            response_text = groq_chat(
+                [{
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": data_url}},
+                    ],
+                }],
+                temperature=0,
+                max_tokens=700,
+            ).strip()
             
-            response = model.generate_content([prompt, img])
-            
-            try:
-                response_text = response.text.strip()
-            except ValueError as ve:
-                error_msg = str(ve)
-                if "finish_reason" in error_msg:
-                    return Response({
-                        'success': False, 
-                        'message': "The AI blocked the response due to safety/recitation filters. Please try taking a picture of a smaller section of the ingredients, or hold the camera closer."
-                    }, status=status.HTTP_400_BAD_REQUEST)
-                raise ve
-            
-            # Clean up potential markdown formatting from Gemini response if it didn't listen
+            # Clean up markdown if the model wrapped the JSON
             if response_text.startswith("```json"):
                 response_text = response_text[7:]
             if response_text.startswith("```"):
@@ -95,6 +110,10 @@ class ScanProductAPI(APIView):
                 response_text = response_text[:-3]
                 
             response_text = response_text.strip()
+            start = response_text.find("[")
+            end = response_text.rfind("]")
+            if start != -1 and end != -1:
+                response_text = response_text[start:end + 1]
             
             ingredients = json.loads(response_text)
             
@@ -110,62 +129,47 @@ class ScanProductAPI(APIView):
                 cleaned_ingredients.append(ing)
             
             ingredients = cleaned_ingredients
-                
-            # Now we have the ingredients, let's run them against the user's profile
+
             engine = get_engine()
-            
-            profile = UserProfile(
-                skin_type=user.skin_type,
-                skin_conditions=user.skin_disease_list(),
-                skin_tone=user.skin_tone,
-                age_bracket=user.age_bracket,
-                allergies=user.allergies_list(),
-                is_pregnant_or_breastfeeding=user.is_pregnant_or_breastfeeding,
-                current_product_ids=user.current_products_list(),
+            scored = engine.score_scanned_ingredients(ingredients, _profile_for(user))
+
+            image_file.seek(0)
+            scan = ProductScan.objects.create(
+                user=user,
+                ingredients=ingredients,
+                score=scored["score"],
+                is_safe=scored["is_safe"],
+                reasons=scored["reasons"],
+                warnings=scored["warnings"],
+                flags=scored["flags"],
+                matched_ingredients=scored["matched_ingredients"],
+                image=image_file,
             )
-            
-            # Map ingredients using alias map (we can reuse engine logic if we add it, but for now we just do direct checks)
-            # Actually, recommendation_engine._is_blocked_by_allergy requires a product string, or we can check manually.
-            
-            flags = []
-            safe = True
-            
-            # 1. Pregnancy check
-            if profile.is_pregnant_or_breastfeeding:
-                pregnancy_unsafe = ["retinol", "retinoid", "tretinoin", "adapalene", "salicylic acid", "bha", "hydroquinone"]
-                found_unsafe = [ing for ing in ingredients if any(bad.lower() in ing.lower() for bad in pregnancy_unsafe)]
-                if found_unsafe:
-                    safe = False
-                    flags.append(f"Not safe for pregnancy/breastfeeding (Contains: {', '.join(found_unsafe)})")
-            
-            # 2. Allergy check
-            if profile.allergies:
-                found_allergens = [ing for ing in ingredients if any(allergy.lower() in ing.lower() for allergy in profile.allergies)]
-                if found_allergens:
-                    safe = False
-                    flags.append(f"Contains your allergens: {', '.join(found_allergens)}")
-                    
-            # 3. Acne check (comedogenic ingredients)
-            if "common_acne" in profile.skin_conditions or "cystic_acne" in profile.skin_conditions or profile.skin_type == "oily":
-                pore_clogging = ["coconut oil", "cocoa butter", "isopropyl myristate", "isopropyl palmitate", "mineral oil"]
-                found_clogging = [ing for ing in ingredients if any(bad.lower() in ing.lower() for bad in pore_clogging)]
-                if found_clogging:
-                    flags.append(f"May clog pores for acne-prone/oily skin (Contains: {', '.join(found_clogging)})")
-                    # We might not mark it completely unsafe, just a flag
-            
+
+            data = _scan_payload(scan, request)
+            data["unmatched_ingredients"] = scored["unmatched_ingredients"]
             return Response({
                 'success': True,
-                'message': 'Ingredients extracted successfully',
-                'data': {
-                    'ingredients': ingredients,
-                    'is_safe': safe,
-                    'flags': flags
-                }
+                'message': 'Ingredients extracted and scored',
+                'data': data,
             }, status=status.HTTP_200_OK)
             
         except json.JSONDecodeError:
-            logger.error(f"Failed to parse Gemini output as JSON: {response_text}")
+            logger.error(f"Failed to parse ingredient list as JSON: {response_text}")
             return Response({'success': False, 'message': 'Failed to extract ingredients clearly from the image.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
             logger.error(f"Scanner API error: {e}")
             return Response({'success': False, 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ScanHistoryAPI(APIView):
+
+    @require_token
+    def get(self, request):
+        user = request.auth_user
+        scans = ProductScan.objects.filter(user=user)
+        return Response({
+            'success': True,
+            'message': '',
+            'data': [_scan_payload(scan, request) for scan in scans],
+        }, status=status.HTTP_200_OK)

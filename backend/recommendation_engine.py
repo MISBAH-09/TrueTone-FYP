@@ -119,6 +119,7 @@ class DataStore:
 
     def __init__(self):
         self.ingredients_by_id = {}
+        self.ingredients_by_name = {}
         self.products_by_id = {}
         self.product_ingredient_ids = {}   # product_id -> [ingredient_id, ...]
         self.brands_by_id = {}
@@ -129,6 +130,9 @@ class DataStore:
             row["good_for_conditions"] = _split_list(row.get("good_for_conditions", ""))
             row["avoid_for_conditions"] = _split_list(row.get("avoid_for_conditions", ""))
             self.ingredients_by_id[row["ingredient_id"]] = row
+            inci = (row.get("inci_name") or "").strip().lower()
+            if inci:
+                self.ingredients_by_name[inci] = row
 
         for row in _read_csv(Config.BRANDS_CSV):
             self.brands_by_id[row["brand_id"]] = row
@@ -151,6 +155,23 @@ class DataStore:
     def ingredients_for_product(self, product_id):
         ids = self.product_ingredient_ids.get(product_id, [])
         return [self.ingredients_by_id[i] for i in ids if i in self.ingredients_by_id]
+
+    def resolve_ingredient(self, name):
+        """Match an OCR ingredient string to the ingredient catalog."""
+        key = (name or "").strip().lower()
+        if not key:
+            return None
+        exact = self.ingredients_by_name.get(key)
+        if exact:
+            return exact
+        best = None
+        for inci, row in self.ingredients_by_name.items():
+            if len(inci) < 4:
+                continue
+            if inci in key or key in inci:
+                if best is None or len(inci) > len(best[0]):
+                    best = (inci, row)
+        return best[1] if best else None
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -194,7 +215,7 @@ def _score_product(product, product_ingredients, profile: UserProfile):
         reasons.append(f"Suited to {profile.skin_type} skin")
 
     # condition match
-        user_conditions = {c.lower() for c in profile.skin_conditions}
+    user_conditions = {c.lower() for c in profile.skin_conditions}
     # Acne is no longer split by type: match anything tagged for either type
     if user_conditions & ACNE_TAGS:
         user_conditions |= ACNE_TAGS
@@ -361,6 +382,95 @@ class RecommendationEngine:
                 "warnings": current_warnings,
             },
             "alternatives": alternatives,
+        }
+
+    def score_scanned_ingredients(self, ingredient_names, profile: UserProfile):
+        """
+        Score a product that is not in the catalog, using the ingredients
+        Gemini read off the label. Same allergy, pregnancy, and ingredient
+        fit rules as recommend(). Skin-type and age bonuses need a catalog
+        product, so they are not applied here.
+        """
+        matched = []
+        unmatched = []
+        seen = set()
+        for raw in ingredient_names:
+            row = self.store.resolve_ingredient(raw)
+            if row is None:
+                unmatched.append(raw)
+                continue
+            if row["ingredient_id"] in seen:
+                continue
+            seen.add(row["ingredient_id"])
+            matched.append(row)
+
+        flags = []
+        blocked = False
+
+        allergy_hits = []
+        for name in list(ingredient_names) + [row["inci_name"] for row in matched]:
+            for allergy in profile.allergies:
+                needle = allergy.strip().lower()
+                if needle and needle in name.lower() and name not in allergy_hits:
+                    allergy_hits.append(name)
+        if allergy_hits:
+            blocked = True
+            flags.append(f"Contains your allergens: {', '.join(allergy_hits)}")
+
+        if profile.is_pregnant_or_breastfeeding:
+            unsafe = [
+                row["inci_name"] for row in matched
+                if str(row.get("avoid_if_pregnant", "")).strip().lower() == "yes"
+            ]
+            if unsafe:
+                blocked = True
+                flags.append(
+                    f"Not safe for pregnancy/breastfeeding (Contains: {', '.join(unsafe)})"
+                )
+
+        user_conditions = {c.lower() for c in profile.skin_conditions}
+        if user_conditions & ACNE_TAGS:
+            user_conditions |= ACNE_TAGS
+
+        good_hits, avoid_hits = 0, 0
+        reasons, warnings = [], []
+        for ing in matched:
+            good = user_conditions & set(ing.get("good_for_conditions") or [])
+            avoid = user_conditions & set(ing.get("avoid_for_conditions") or [])
+            if good:
+                good_hits += 1
+                reasons.append(
+                    f"{ing['inci_name']} is used for {', '.join(sorted({_pretty_condition(c) for c in good}))}"
+                )
+            if avoid:
+                avoid_hits += 1
+                warnings.append(
+                    f"{ing['inci_name']} may not suit {'/'.join(sorted({_pretty_condition(c) for c in avoid}))}"
+                )
+            if (user_conditions & ACNE_TAGS or (profile.skin_type or "").lower() == "oily"):
+                try:
+                    rating = float(ing.get("comedogenic_rating") or 0)
+                except (TypeError, ValueError):
+                    rating = 0
+                if rating >= 3:
+                    warnings.append(f"{ing['inci_name']} is more likely to clog pores (rating {rating:g})")
+
+        score = min(good_hits * Config.WEIGHT_INGREDIENT_GOOD_FOR, Config.WEIGHT_INGREDIENT_GOOD_FOR_CAP)
+        score += max(avoid_hits * Config.WEIGHT_INGREDIENT_AVOID_FOR, Config.WEIGHT_INGREDIENT_AVOID_FOR_CAP)
+
+        if not user_conditions:
+            reasons.append("No skin condition is on your profile, so this score is only the ingredient fit we could measure.")
+        if not matched:
+            warnings.append("None of these ingredient names are in the TrueTone ingredient list, so the score is 0.")
+
+        return {
+            "score": round(score, 2),
+            "is_safe": not blocked,
+            "reasons": reasons,
+            "warnings": warnings,
+            "flags": flags,
+            "matched_ingredients": [row["inci_name"] for row in matched],
+            "unmatched_ingredients": unmatched,
         }
 
 

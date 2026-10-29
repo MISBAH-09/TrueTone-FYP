@@ -19,12 +19,26 @@ export default defineConfig({
       '/recommendations': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
+        bypass(req) {
+          if (req.headers.accept && req.headers.accept.includes('text/html')) {
+            return '/index.html';
+          }
+        },
       },
       '/scanner': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
       '/chatbot': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        bypass(req) {
+          if (req.headers.accept && req.headers.accept.includes('text/html')) {
+            return '/index.html';
+          }
+        },
+      },
+      '/media': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       }

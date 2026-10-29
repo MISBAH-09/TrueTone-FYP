@@ -23,3 +23,8 @@ export const scanProductImage = async (imageFile) => {
   });
   return data;
 };
+
+export const getScanHistory = async () => {
+  const { data } = await api.get("/history/");
+  return data;
+};

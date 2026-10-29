@@ -1,7 +1,4 @@
-import os
-import json
 import logging
-import google.generativeai as genai
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -10,9 +7,16 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from Users.middleware import require_token
+from groq_client import groq_chat
 from recommendation_engine import get_engine, UserProfile
+from .models import ChatSession, ChatMessage
 
 logger = logging.getLogger("Chatbot")
+
+GREETING = (
+    "Hi! I'm TrueTone AI. Ask me about your skincare routine, ingredients, "
+    "or product safety, and I'll answer based on your specific profile and recommendations!"
+)
 
 class ChatbotAskAPI(APIView):
 
@@ -39,16 +43,10 @@ class ChatbotAskAPI(APIView):
             return Response({'success': False, 'message': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
             
         message = request.data.get('message')
-        history = request.data.get('history', [])
+        session_id = request.data.get('session_id')
         
         if not message:
             return Response({'success': False, 'message': 'Message is required.'}, status=status.HTTP_400_BAD_REQUEST)
-            
-        gemini_api_key = os.environ.get("GEMINI_API_KEY")
-        if not gemini_api_key:
-            return Response({'success': False, 'message': 'Gemini API Key is not configured on the server.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
-        genai.configure(api_key=gemini_api_key)
         
         # Build user profile for context
         profile = UserProfile(
@@ -68,9 +66,9 @@ class ChatbotAskAPI(APIView):
             recommendations_text = ""
             for category, products in rec_result["recommendations"].items():
                 if products:
-                    recommendations_text += f"\\n{category.title()} Recommendations:\\n"
+                    recommendations_text += f"\n{category.title()} Recommendations:\n"
                     for p in products[:3]: # Only send top 3 per category to save context
-                        recommendations_text += f"- {p.name} ({p.brand_name}) - Match Score: {p.score}. Reasons: {', '.join(p.reasons[:2])}\\n"
+                        recommendations_text += f"- {p.name} ({p.brand_name}) - Match Score: {p.score}. Reasons: {', '.join(p.reasons[:2])}\n"
         except Exception as e:
             logger.error(f"Error fetching recommendations for chatbot context: {e}")
             recommendations_text = "Recommendations currently unavailable."
@@ -100,29 +98,81 @@ GUIDELINES:
 6. Do not use emojis in your responses. Use markdown formatting instead.
 """
 
+        created_session = None
         try:
-            model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_prompt)
-            
-            # Convert history to Gemini format if needed
-            # Gemini expects [{'role': 'user'|'model', 'parts': ['text']}]
-            formatted_history = []
-            for msg in history:
-                role = 'user' if msg.get('role') == 'user' else 'model'
-                text = msg.get('text', msg.get('parts', [''])[0])
-                if text:
-                    formatted_history.append({'role': role, 'parts': [text]})
-                
-            chat = model.start_chat(history=formatted_history)
-            response = chat.send_message(message)
-            
+            if session_id:
+                session = ChatSession.objects.get(id=session_id, user=user)
+            else:
+                title = message.strip().replace("\n", " ")[:80] or "New chat"
+                session = ChatSession.objects.create(user=user, title=title)
+                created_session = session
+
+            messages = [{"role": "system", "content": system_prompt}]
+            for msg in session.messages.order_by('created_at'):
+                if not msg.text:
+                    continue
+                role = 'user' if msg.role == 'user' else 'assistant'
+                messages.append({"role": role, "content": msg.text})
+            messages.append({"role": "user", "content": message.strip()})
+
+            reply = groq_chat(messages).strip()
+
+            ChatMessage.objects.create(session=session, role='user', text=message.strip())
+            ChatMessage.objects.create(session=session, role='assistant', text=reply)
+            session.save()
+
             return Response({
                 'success': True,
                 'message': 'Message processed successfully',
                 'data': {
-                    'reply': response.text
+                    'reply': reply,
+                    'session_id': session.id,
+                    'title': session.title,
                 }
             }, status=status.HTTP_200_OK)
             
+        except ChatSession.DoesNotExist:
+            return Response({'success': False, 'message': 'Chat not found.'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
+            if created_session is not None and not created_session.messages.exists():
+                created_session.delete()
             logger.error(f"Chatbot API error: {e}")
             return Response({'success': False, 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ChatSessionListAPI(APIView):
+
+    @require_token
+    def get(self, request):
+        sessions = ChatSession.objects.filter(user=request.auth_user)
+        data = [{
+            'id': s.id,
+            'title': s.title,
+            'updated_at': s.updated_at.isoformat(),
+        } for s in sessions]
+        return Response({'success': True, 'message': '', 'data': data}, status=status.HTTP_200_OK)
+
+
+class ChatSessionDetailAPI(APIView):
+
+    @require_token
+    def get(self, request, session_id):
+        try:
+            session = ChatSession.objects.get(id=session_id, user=request.auth_user)
+        except ChatSession.DoesNotExist:
+            return Response({'success': False, 'message': 'Chat not found.'}, status=status.HTTP_404_NOT_FOUND)
+        messages = [{
+            'id': m.id,
+            'role': m.role,
+            'text': m.text,
+        } for m in session.messages.all()]
+        return Response({
+            'success': True,
+            'message': '',
+            'data': {
+                'id': session.id,
+                'title': session.title,
+                'greeting': GREETING,
+                'messages': messages,
+            },
+        }, status=status.HTTP_200_OK)
