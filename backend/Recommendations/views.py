@@ -10,8 +10,8 @@ Setup:
   3. Add 'Recommendations' to INSTALLED_APPS in truetone/settings.py
   4. Add `path('api/recommendations/', include('Recommendations.urls'))`
      to truetone/urls.py
-  5. Copy your 4 finalized CSVs to backend/data/fyp_dataset/ (matching
-     recommendation_engine.py's Config.DATA_DIR)
+  5. Load the catalog tables with `py manage.py load_catalog`. The
+     recommendation engine reads those tables, not the CSV files.
 
 Endpoints:
     POST /api/recommendations/get   — logged-in user -> ranked recommendations

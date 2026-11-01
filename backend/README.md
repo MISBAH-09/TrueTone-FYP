@@ -85,7 +85,7 @@ backend/
 |   |-- selfie_multiclass_256x256.tflite
 |
 |-- data/                       # Datasets and CSV files
-|   |-- fyp_dataset/            # CSV dataset for recommendations
+|   |-- fyp_dataset/            # Source CSVs loaded into the catalog tables
 |
 |-- templates/                  # HTML templates
 |   |-- index.html              # Frontend template
@@ -649,7 +649,7 @@ Handles Google Gemini 2.5 Flash API integration for robust OCR ingredient extrac
 
 ### `Recommendations` App
 
-Scores user profiles against `data/fyp_dataset/` CSVs to provide safe and personalized skincare matches.
+Scores user profiles against the catalog tables in Postgres to provide safe and personalized skincare matches.
 
 ### `Chatbot` App
 
