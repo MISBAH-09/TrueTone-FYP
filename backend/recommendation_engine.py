@@ -8,9 +8,8 @@ returns ranked product recommendations, grouped by category.
 Framework-agnostic — works with Django, FastAPI, or CLI, same as
 pipeline_engine.py.
 
-Data source: 4 CSVs (ingredients_master, products_template,
-product_ingredients_template, brands_pakistan). Swap load_data() for a
-database query later without touching the scoring logic below it.
+Data source: the Catalog tables in Postgres (brands, ingredients, products,
+and product-ingredient links). Scoring below does not read the CSV files.
 
 Usage:
     from recommendation_engine import get_engine, UserProfile
@@ -28,10 +27,8 @@ Usage:
     result = engine.recommend(profile)
 """
 
-import csv
 import logging
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger("truetone.recommender")
@@ -41,14 +38,6 @@ logger = logging.getLogger("truetone.recommender")
 #  CONFIGURATION
 # ═══════════════════════════════════════════════════════════════
 class Config:
-    BASE_DIR = Path(__file__).resolve().parent
-    DATA_DIR = BASE_DIR / "data" / "fyp_dataset"
-
-    INGREDIENTS_CSV = DATA_DIR / "ingredients.csv"
-    PRODUCTS_CSV = DATA_DIR / "products.csv"
-    PRODUCT_INGREDIENTS_CSV = DATA_DIR / "product_ingredients.csv"
-    BRANDS_CSV = DATA_DIR / "brands.csv"
-
     VALID_AGE_BRACKETS = ["teen", "18-24", "25-34", "35+"]
     VALID_SKIN_TYPES = ["oily", "dry", "combination", "normal"]
     VALID_SKIN_TONES = ["fair", "medium", "dark"]
@@ -104,11 +93,6 @@ class ScoredProduct:
 # ═══════════════════════════════════════════════════════════════
 #  DATA LOADING
 # ═══════════════════════════════════════════════════════════════
-def _read_csv(path):
-    with open(path, newline="", encoding="utf-8-sig") as f:
-        return list(csv.DictReader(f))
-
-
 def _split_list(raw):
     """CSV cells like 'acne, hyperpigmentation' -> ['acne', 'hyperpigmentation']."""
     if not raw:
@@ -117,7 +101,7 @@ def _split_list(raw):
 
 
 class DataStore:
-    """Loads the 4 CSVs once and indexes them for fast lookup."""
+    """Loads the catalog tables once and indexes them for fast lookup."""
 
     def __init__(self):
         self.ingredients_by_id = {}
@@ -128,34 +112,69 @@ class DataStore:
         self._load()
 
     def _load(self):
-        for row in _read_csv(Config.INGREDIENTS_CSV):
-            row["good_for_conditions"] = _split_list(row.get("good_for_conditions", ""))
-            row["avoid_for_conditions"] = _split_list(row.get("avoid_for_conditions", ""))
+        from Catalog.models import Brand, Ingredient, Product, ProductIngredient
+
+        for ingredient in Ingredient.objects.defer("embedding").iterator():
+            row = {
+                "ingredient_id": str(ingredient.ingredient_id),
+                "inci_name": ingredient.inci_name or "",
+                "functions": ingredient.functions or "",
+                "is_common_allergen": ingredient.is_common_allergen,
+                "allergen_source": ingredient.allergen_source or "",
+                "comedogenic_rating": ingredient.comedogenic_rating,
+                "is_fungal_acne_trigger": ingredient.is_fungal_acne_trigger,
+                "cosing_restriction": ingredient.cosing_restriction or "",
+                "chemical_description": ingredient.chemical_description or "",
+                "good_for_conditions": _split_list(ingredient.good_for_conditions),
+                "avoid_for_conditions": _split_list(ingredient.avoid_for_conditions),
+                "avoid_if_pregnant": ingredient.avoid_if_pregnant or "",
+                "not_recommended_below_age": ingredient.not_recommended_below_age or "",
+                "tone_caution_note": ingredient.tone_caution_note or "",
+            }
             self.ingredients_by_id[row["ingredient_id"]] = row
-            inci = (row.get("inci_name") or "").strip().lower()
+            inci = row["inci_name"].strip().lower()
             if inci:
                 self.ingredients_by_name[inci] = row
 
-        for row in _read_csv(Config.BRANDS_CSV):
-            self.brands_by_id[row["brand_id"]] = row
+        for brand in Brand.objects.iterator():
+            self.brands_by_id[str(brand.brand_id)] = {
+                "brand_id": str(brand.brand_id),
+                "name": brand.name or "",
+                "country": brand.country or "",
+                "available_in_pk": brand.available_in_pk,
+            }
 
-        for row in _read_csv(Config.PRODUCTS_CSV):
-            row["suitable_skin_types"] = _split_list(row.get("suitable_skin_types", ""))
-            row["suitable_conditions"] = _split_list(row.get("suitable_conditions", ""))
+        for product in Product.objects.defer("embedding").iterator():
+            row = {
+                "product_id": str(product.product_id),
+                "brand_id": "" if product.brand_id is None else str(product.brand_id),
+                "name": product.name or "",
+                "category": product.category or "",
+                "price_pkr": product.price_pkr,
+                "available_in_pakistan": product.available_in_pakistan,
+                "purchase_link": product.purchase_link or "",
+                "image_url": product.image_url or "",
+                "raw_ingredient_text": product.raw_ingredient_text or "",
+                "source": product.source or "",
+                "safety_advisory": product.safety_advisory or "",
+                "age_relevance": product.age_relevance or "",
+                "suitable_skin_types": _split_list(product.suitable_skin_types),
+                "suitable_conditions": _split_list(product.suitable_conditions),
+            }
             self.products_by_id[row["product_id"]] = row
 
-        for row in _read_csv(Config.PRODUCT_INGREDIENTS_CSV):
-            pid = row["product_id"]
-            self.product_ingredient_ids.setdefault(pid, []).append(row["ingredient_id"])
+        for link in ProductIngredient.objects.order_by("product_id", "position_index", "id").iterator():
+            product_id = str(link.product_id)
+            self.product_ingredient_ids.setdefault(product_id, []).append(str(link.ingredient_id))
 
         logger.info(
             f"Loaded {len(self.ingredients_by_id)} ingredients, "
             f"{len(self.products_by_id)} products, "
-            f"{len(self.brands_by_id)} brands"
+            f"{len(self.brands_by_id)} brands from the catalog database"
         )
 
     def ingredients_for_product(self, product_id):
-        ids = self.product_ingredient_ids.get(product_id, [])
+        ids = self.product_ingredient_ids.get(str(product_id), [])
         return [self.ingredients_by_id[i] for i in ids if i in self.ingredients_by_id]
 
     def resolve_ingredient(self, name):
@@ -405,6 +424,7 @@ class RecommendationEngine:
         pregnancy check that would have blocked it from a fresh recommendation),
         then returns other products in the same category, scored normally.
         """
+        current_product_id = str(current_product_id)
         current = self.store.products_by_id.get(current_product_id)
         if not current:
             return {"error": f"Unknown product_id: {current_product_id}"}

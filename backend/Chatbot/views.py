@@ -9,6 +9,7 @@ from drf_yasg import openapi
 from Users.middleware import require_token
 from groq_client import groq_chat
 from recommendation_engine import get_engine, UserProfile
+from Catalog.retrieval import rag_payload, retrieve_for_question, retrieved_prompt
 from .models import ChatSession, ChatMessage
 
 logger = logging.getLogger("Chatbot")
@@ -72,6 +73,13 @@ class ChatbotAskAPI(APIView):
         except Exception as e:
             logger.error(f"Error fetching recommendations for chatbot context: {e}")
             recommendations_text = "Recommendations currently unavailable."
+
+        try:
+            retrieved = retrieve_for_question(message, profile)
+        except Exception as exc:
+            logger.error(f"Catalog retrieval failed: {exc}")
+            retrieved = []
+        rag = rag_payload(user, profile, retrieved) if retrieved else None
             
         # Build system prompt
         system_prompt = f"""
@@ -89,9 +97,12 @@ USER PROFILE:
 TOP PRODUCT RECOMMENDATIONS FOR THIS USER:
 {recommendations_text}
 
+RETRIEVED CATALOG ROWS FOR THIS QUESTION:
+{retrieved_prompt(retrieved)}
+
 GUIDELINES:
 1. Always prioritize the user's specific skin type, conditions, and allergies in your advice.
-2. If the user asks for product recommendations, suggest products from the list above first.
+2. Base ingredient and product claims on the retrieved catalog rows when they are relevant. If the user asks for product recommendations, suggest products from the list above first.
 3. If they ask about a product not on the list, evaluate it against their allergies and pregnancy status.
 4. Keep answers concise, helpful, and friendly. Do not use overly technical jargon without explaining it.
 5. If the user asks a non-skincare related question, politely decline and steer the conversation back to skincare.
@@ -118,7 +129,7 @@ GUIDELINES:
             reply = groq_chat(messages).strip()
 
             ChatMessage.objects.create(session=session, role='user', text=message.strip())
-            ChatMessage.objects.create(session=session, role='assistant', text=reply)
+            ChatMessage.objects.create(session=session, role='assistant', text=reply, rag_trace=rag)
             session.save()
 
             return Response({
@@ -128,6 +139,7 @@ GUIDELINES:
                     'reply': reply,
                     'session_id': session.id,
                     'title': session.title,
+                    'rag': rag,
                 }
             }, status=status.HTTP_200_OK)
             
@@ -165,6 +177,7 @@ class ChatSessionDetailAPI(APIView):
             'id': m.id,
             'role': m.role,
             'text': m.text,
+            'rag': m.rag_trace,
         } for m in session.messages.all()]
         return Response({
             'success': True,

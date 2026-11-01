@@ -12,3 +12,5 @@ dj-database-url>=1.0.0
 python-dotenv>=1.0.0
 mediapipe
 grad-cam
+pgvector>=0.3.6
+sentence-transformers>=3.0.0
