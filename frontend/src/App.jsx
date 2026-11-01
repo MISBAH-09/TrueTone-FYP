@@ -9,10 +9,12 @@ import Recommendations from "./pages/Recommendations";
 import SkinTracking from "./pages/SkinTracking";
 import Chatbot from "./pages/Chatbot";
 import Profile from "./pages/Profile";
+import PipelineInspector from "./pages/PipelineInspector";
 import NotFound from "./pages/NotFound";
 import AppLayout from "./components/AppLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
-
+import EvaluationLab from "./pages/EvaluationLab";
+import ModelReport from "./pages/ModelReport";
 const App = () => (
   <BrowserRouter>
     <Routes>
@@ -29,6 +31,9 @@ const App = () => (
         <Route path="/skin-tracking" element={<SkinTracking />} />
         <Route path="/chatbot" element={<Chatbot />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/inspector" element={<PipelineInspector />} />
+        <Route path="/evaluation" element={<EvaluationLab />} />
+        <Route path="/report" element={<ModelReport />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />

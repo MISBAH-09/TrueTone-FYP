@@ -43,7 +43,39 @@ def _scored_product_to_dict(p):
         "reasons": p.reasons,
         "warnings": p.warnings,
         "safety_advisory": p.safety_advisory,
+        "breakdown": p.breakdown,
+        "max_score": p.max_score,
     }
+
+
+# inspector-patch: dry-run support for the Pipeline Inspector page
+def _read_profile_override(request):
+    """
+    Optional dry run. The Inspector page sends the profile it
+    just scanned as JSON: {"profile_override": {"skin_type", "skin_tone",
+    "skin_conditions": []}}. Returns a sanitised dict, or None for a normal request.
+    Nothing is saved - age, allergies and pregnancy still come from the saved profile.
+    """
+    import json
+    import re
+    try:
+        body = json.loads(request.body or b"{}")
+    except (ValueError, TypeError):
+        return None
+    raw = body.get("profile_override") if isinstance(body, dict) else None
+    if not isinstance(raw, dict):
+        return None
+    clean = {}
+    if raw.get("skin_type") in ("oily", "dry", "combination", "normal"):
+        clean["skin_type"] = raw["skin_type"]
+    if raw.get("skin_tone") in ("fair", "medium", "dark"):
+        clean["skin_tone"] = raw["skin_tone"]
+    if isinstance(raw.get("skin_conditions"), list):
+        clean["skin_conditions"] = [
+            c.strip().lower() for c in raw["skin_conditions"]
+            if isinstance(c, str) and re.fullmatch(r"[A-Za-z_]{1,40}", c.strip())
+        ][:5]
+    return clean or None
 
 
 @csrf_exempt
@@ -80,6 +112,17 @@ def get_recommendations(request):
         current_product_ids=user.current_products_list(),
     )
 
+    profile_source = "saved_profile"
+    override = _read_profile_override(request)
+    if override:
+        if "skin_type" in override:
+            profile.skin_type = override["skin_type"]
+        if "skin_tone" in override:
+            profile.skin_tone = override["skin_tone"]
+        if "skin_conditions" in override:
+            profile.skin_conditions = override["skin_conditions"]
+        profile_source = "scan_preview"
+
     try:
         engine = get_engine()
         result = engine.recommend(profile)
@@ -101,6 +144,15 @@ def get_recommendations(request):
         "recommendations": recommendations,
         "excluded_for_safety": result["excluded_for_safety"],
         "not_relevant_count": result["not_relevant_count"],
+        "profile_used": {
+            "source": profile_source,
+            "skin_type": profile.skin_type,
+            "skin_tone": profile.skin_tone,
+            "skin_conditions": list(profile.skin_conditions),
+            "age_bracket": profile.age_bracket,
+            "allergies": list(profile.allergies),
+            "is_pregnant_or_breastfeeding": profile.is_pregnant_or_breastfeeding,
+        },
     })
 
 

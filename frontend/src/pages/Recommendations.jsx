@@ -22,6 +22,21 @@ const CATEGORY_LABELS = {
 
 const categoryLabel = (key) => CATEGORY_LABELS[key] || key.charAt(0).toUpperCase() + key.slice(1);
 
+// Points scheme shown in the "How are scores calculated?" panel.
+// These mirror Config.WEIGHT_* in backend/recommendation_engine.py - if a weight
+// changes there, update it here too. Each product card below shows the real
+// points that product earned, taken straight from the backend.
+const SCORING_RULES = [
+  { rule: "Skin type match", points: "+3", when: "The product is suited to your skin type" },
+  { rule: "Condition match", points: "+3", when: "The product targets a condition on your profile" },
+  { rule: "Helpful ingredients", points: "+1 each (max +3)", when: "An ingredient is known to help your condition" },
+  { rule: "Ingredients to avoid", points: "\u22122 each (max \u22126)", negative: true, when: "An ingredient may worsen your condition" },
+  { rule: "Age relevance", points: "+1", when: "The product is aimed at your age group" },
+];
+
+// 7 -> "7", 7.5 -> "7.5"
+const fmtPts = (n) => (Number.isInteger(n) ? n : Number(n).toFixed(1));
+
 const Recommendations = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -117,6 +132,54 @@ const Recommendations = () => {
           )}
         </div>
 
+        {/* How scores are calculated - explains the points to users and evaluators */}
+        <details className="rounded-3xl border border-slate-200 bg-white p-5">
+          <summary className="cursor-pointer select-none text-sm font-semibold text-slate-700">
+            How are scores calculated?
+          </summary>
+          <div className="mt-4 space-y-4 text-xs text-slate-600">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-400">
+                    <th className="py-2 pr-3 font-medium">Rule</th>
+                    <th className="py-2 pr-3 font-medium">Points</th>
+                    <th className="py-2 font-medium">When it applies</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {SCORING_RULES.map((r) => (
+                    <tr key={r.rule} className="border-b border-slate-50 last:border-0">
+                      <td className="py-2 pr-3 font-semibold text-slate-700">{r.rule}</td>
+                      <td className={`py-2 pr-3 font-semibold whitespace-nowrap ${r.negative ? "text-red-500" : "text-emerald-600"}`}>
+                        {r.points}
+                      </td>
+                      <td className="py-2">{r.when}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <ul className="list-disc space-y-1 pl-4 text-slate-500">
+              <li>
+                The best possible score is 10. A rule you have not given us information for (for
+                example, no skin condition on your profile) cannot earn points, so each score is
+                shown out of what is possible for you.
+              </li>
+              <li>
+                Allergies and pregnancy are not scored. A product with an allergen or a
+                pregnancy-unsafe ingredient is removed completely and listed under excluded for
+                your safety.
+              </li>
+              <li>
+                Products scoring 0 or below are not shown. Equal scores are ordered by fewest
+                warnings, then by name.
+              </li>
+              <li>The weights are expert-set heuristics, not clinically validated.</li>
+            </ul>
+          </div>
+        </details>
+
         {/* Category tabs */}
         {categories.length > 1 && (
           <div className="flex flex-wrap gap-2">
@@ -160,7 +223,7 @@ const Recommendations = () => {
                     <Star className="w-5 h-5" />
                   </div>
                   <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                    Score {item.score.toFixed(1)}
+                    {item.max_score ? `${fmtPts(item.score)} / ${item.max_score} pts` : `Score ${item.score.toFixed(1)}`}
                   </span>
                 </div>
 
@@ -185,6 +248,38 @@ const Recommendations = () => {
                       </li>
                     ))}
                   </ul>
+                )}
+
+                {/* Where this product's points came from */}
+                {item.breakdown?.length > 0 && (
+                  <details open className="mt-4">
+                    <summary className="cursor-pointer select-none text-xs font-semibold text-slate-500 hover:text-emerald-600">
+                      Score breakdown
+                    </summary>
+                    <ul className="mt-2 space-y-1.5">
+                      {item.breakdown.map((row) => (
+                        <li key={row.label} className="flex items-center justify-between text-xs">
+                          <span className="text-slate-600">{row.label}</span>
+                          <span
+                            className={`font-semibold ${
+                              row.points > 0 ? "text-emerald-600" : row.points < 0 ? "text-red-500" : "text-slate-400"
+                            }`}
+                          >
+                            {row.points > 0 ? "+" : ""}
+                            {fmtPts(row.points)}
+                            {row.max > 0 ? ` / ${row.max}` : ""}
+                          </span>
+                        </li>
+                      ))}
+                      <li className="flex items-center justify-between border-t border-slate-100 pt-1.5 text-xs font-semibold text-slate-800">
+                        <span>Total</span>
+                        <span>
+                          {fmtPts(item.score)}
+                          {item.max_score ? ` / ${item.max_score}` : ""}
+                        </span>
+                      </li>
+                    </ul>
+                  </details>
                 )}
 
                 {/* Warnings - e.g. tone caution notes, ingredient concerns */}
