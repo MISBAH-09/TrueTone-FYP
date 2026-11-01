@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     'Recommendations',
     'Scanner',
     'Chatbot',
+    'Catalog',
 ]
 
 MIDDLEWARE = [
