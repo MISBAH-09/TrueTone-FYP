@@ -86,6 +86,8 @@ class ScoredProduct:
     reasons: list
     warnings: list
     safety_advisory: Optional[str] = None
+    breakdown: list = field(default_factory=list)   # points earned per scoring rule
+    max_score: float = 0                            # most points this user's profile could earn
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -224,26 +226,47 @@ def _pretty_condition(c):
 #  SCORING  (soft ranking - runs on whatever survives the filters)
 # ═══════════════════════════════════════════════════════════════
 def _score_product(product, product_ingredients, profile: UserProfile):
+    """
+    Points scheme (best case = 10):
+        Skin type match        +3   product is suited to the user's skin type
+        Condition match        +3   product targets a condition on the profile
+        Helpful ingredients    +1 each, max +3
+        Ingredients to avoid   -2 each, max -6
+        Age relevance          +1   product is aimed at the user's age group
+    Returns (score, reasons, warnings, breakdown). `breakdown` has one row per
+    rule: {label, points, max}, so the UI can show exactly where points came from.
+    """
     score = 0.0
     reasons = []
     warnings = []
+    breakdown = []
 
-    # skin type match
+    # 1. skin type match
+    type_pts = 0
     if profile.skin_type and profile.skin_type.lower() in product["suitable_skin_types"]:
-        score += Config.WEIGHT_SKIN_TYPE_MATCH
+        type_pts = Config.WEIGHT_SKIN_TYPE_MATCH
         reasons.append(f"Suited to {profile.skin_type} skin")
+    score += type_pts
+    if profile.skin_type:
+        breakdown.append({"label": "Skin type match", "points": type_pts,
+                          "max": Config.WEIGHT_SKIN_TYPE_MATCH})
 
-    # condition match
+    # 2. condition match
     user_conditions = {c.lower() for c in profile.skin_conditions}
     # Acne is no longer split by type: match anything tagged for either type
     if user_conditions & ACNE_TAGS:
         user_conditions |= ACNE_TAGS
     matched_conditions = user_conditions & set(product["suitable_conditions"])
+    cond_pts = 0
     if matched_conditions:
-        score += Config.WEIGHT_CONDITION_MATCH
+        cond_pts = Config.WEIGHT_CONDITION_MATCH
         reasons.append(f"Targets {', '.join(sorted({_pretty_condition(c) for c in matched_conditions}))}")
+    score += cond_pts
+    if user_conditions:
+        breakdown.append({"label": "Condition match", "points": cond_pts,
+                          "max": Config.WEIGHT_CONDITION_MATCH})
 
-    # ingredient-level good_for / avoid_for
+    # 3. ingredient-level good_for / avoid_for
     good_hits, avoid_hits = 0, 0
     for ing in product_ingredients:
         if user_conditions & set(ing["good_for_conditions"]):
@@ -253,15 +276,25 @@ def _score_product(product, product_ingredients, profile: UserProfile):
             avoided = {_pretty_condition(c) for c in user_conditions & set(ing["avoid_for_conditions"])}
             warnings.append(f"{ing['inci_name']} may not suit {'/'.join(sorted(avoided))}")
 
-    score += min(good_hits * Config.WEIGHT_INGREDIENT_GOOD_FOR, Config.WEIGHT_INGREDIENT_GOOD_FOR_CAP)
-    score += max(avoid_hits * Config.WEIGHT_INGREDIENT_AVOID_FOR, Config.WEIGHT_INGREDIENT_AVOID_FOR_CAP)
+    good_pts = min(good_hits * Config.WEIGHT_INGREDIENT_GOOD_FOR, Config.WEIGHT_INGREDIENT_GOOD_FOR_CAP)
+    avoid_pts = max(avoid_hits * Config.WEIGHT_INGREDIENT_AVOID_FOR, Config.WEIGHT_INGREDIENT_AVOID_FOR_CAP)
+    score += good_pts + avoid_pts
+    if user_conditions:
+        breakdown.append({"label": "Helpful ingredients", "points": good_pts,
+                          "max": Config.WEIGHT_INGREDIENT_GOOD_FOR_CAP})
+        breakdown.append({"label": "Ingredients to avoid", "points": avoid_pts, "max": 0})
 
-    # age relevance - soft bonus only, never a block
+    # 4. age relevance - soft bonus only, never a block
+    age_pts = 0
     age_rel = (product.get("age_relevance") or "all").strip().lower()
     if profile.age_bracket and age_rel not in ("all", ""):
         if age_rel == profile.age_bracket.lower():
-            score += Config.WEIGHT_AGE_RELEVANCE_MATCH
+            age_pts = Config.WEIGHT_AGE_RELEVANCE_MATCH
             reasons.append(f"Popular choice for {profile.age_bracket}")
+    score += age_pts
+    if profile.age_bracket:
+        breakdown.append({"label": "Age relevance", "points": age_pts,
+                          "max": Config.WEIGHT_AGE_RELEVANCE_MATCH})
 
     # tone caution - informational only, never blocks or penalizes
     if profile.skin_tone:
@@ -274,7 +307,23 @@ def _score_product(product, product_ingredients, profile: UserProfile):
     if product["product_id"] in profile.current_product_ids:
         return None  # excluded entirely, not just down-ranked
 
-    return score, reasons, warnings
+    return score, reasons, warnings, breakdown
+
+
+def _max_score(profile: UserProfile):
+    """
+    Most points this user's profile could earn. A rule that needs information
+    the user hasn't given (e.g. no skin condition on file) can't earn points,
+    so it doesn't count toward the total. Shown to the user as "out of N".
+    """
+    total = 0
+    if profile.skin_type:
+        total += Config.WEIGHT_SKIN_TYPE_MATCH
+    if profile.skin_conditions:
+        total += Config.WEIGHT_CONDITION_MATCH + Config.WEIGHT_INGREDIENT_GOOD_FOR_CAP
+    if profile.age_bracket:
+        total += Config.WEIGHT_AGE_RELEVANCE_MATCH
+    return total
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -291,7 +340,7 @@ class RecommendationEngine:
         band = base * Config.PRICE_APPROX_BAND_PCT
         return round(base - band, -1), round(base + band, -1)  # rounded to nearest 10
 
-    def _build_scored_product(self, product, product_ingredients, score, reasons, warnings):
+    def _build_scored_product(self, product, product_ingredients, score, reasons, warnings, breakdown=None, max_score=0):
         brand = self.store.brands_by_id.get(product.get("brand_id"), {})
         low, high = self._price_band(product)
         return ScoredProduct(
@@ -310,6 +359,8 @@ class RecommendationEngine:
             reasons=reasons,
             warnings=warnings,
             safety_advisory=product.get("safety_advisory") or None,
+            breakdown=breakdown or [],
+            max_score=max_score,
         )
 
     def recommend(self, profile: UserProfile, top_n=None):
@@ -343,17 +394,20 @@ class RecommendationEngine:
             result = _score_product(product, product_ingredients, profile)
             if result is None:
                 continue
-            score, reasons, warnings = result
+            score, reasons, warnings, breakdown = result
 
             if score <= Config.MIN_SCORE_TO_RECOMMEND:
                 not_relevant_count += 1
                 continue
 
-            scored = self._build_scored_product(product, product_ingredients, score, reasons, warnings)
+            scored = self._build_scored_product(
+                product, product_ingredients, score, reasons, warnings,
+                breakdown=breakdown, max_score=_max_score(profile),
+            )
             scored_by_category.setdefault(product["category"], []).append(scored)
 
         for category in scored_by_category:
-            scored_by_category[category].sort(key=lambda p: p.score, reverse=True)
+            scored_by_category[category].sort(key=lambda p: (-p.score, len(p.warnings), p.name))
             scored_by_category[category] = scored_by_category[category][:top_n]
 
         return {
@@ -505,48 +559,3 @@ def get_engine():
     if _engine_instance is None:
         _engine_instance = RecommendationEngine()
     return _engine_instance
-
-
-# ═══════════════════════════════════════════════════════════════
-#  CLI TEST
-# ═══════════════════════════════════════════════════════════════
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    engine = get_engine()
-
-    test_profile = UserProfile(
-        skin_type="oily",
-        skin_conditions=["cystic_acne"],
-        skin_tone="dark",
-        age_bracket="18-24",
-        allergies=["parfum"],
-        is_pregnant_or_breastfeeding=False,
-        current_product_ids=[],
-    )
-    result = engine.recommend(test_profile)
-
-    print(f"\nExcluded for safety ({len(result['excluded_for_safety'])}):")
-    for ex in result["excluded_for_safety"]:
-        print(f"  - {ex['name']}: {ex['reason']}")
-
-    print(f"\nNot relevant to this profile (score<=0, silently dropped): {result['not_relevant_count']}")
-
-    print("\nRecommendations by category:")
-    for category, products in result["recommendations"].items():
-        print(f"\n[{category}]")
-        for p in products:
-            price = f"Rs. {p.price_pkr_low:.0f}-{p.price_pkr_high:.0f}" if p.price_pkr_low else "price N/A"
-            print(f"  {p.score:+.1f}  {p.name} ({p.brand_name}) - {price}")
-            for r in p.reasons:
-                print(f"       + {r}")
-            for w in p.warnings:
-                print(f"       ! {w}")
-            if p.safety_advisory:
-                print(f"       SAFETY ADVISORY: {p.safety_advisory[:100]}...")
-
-    print("\n--- find_alternatives test (user already uses CeraVe Foaming Facial Cleanser) ---")
-    alt_result = engine.find_alternatives("80001", test_profile)
-    print("Current product:", alt_result["current_product"])
-    print("Alternatives:")
-    for p in alt_result["alternatives"]:
-        print(f"  {p.score:+.1f}  {p.name}")

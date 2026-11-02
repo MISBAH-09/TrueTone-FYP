@@ -11,6 +11,9 @@ import {
   Menu,
   X,
   MessageCircle,
+  Layers,
+  BarChart3,
+  FileText,
 } from "lucide-react";
 import TrueToneLogo from "./TrueToneLogo";
 
@@ -24,6 +27,13 @@ const navItems = [
   { title: "Profile", path: "/profile", icon: User },
 ];
 
+// Pages for examiners
+const examinerItems = [
+  { title: "Pipeline Inspector", path: "/inspector", icon: Layers },
+  { title: "Evaluation Lab", path: "/evaluation", icon: BarChart3 },
+  { title: "Model Report", path: "/report", icon: FileText },
+];
+
 const AppSidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -33,6 +43,31 @@ const AppSidebar = () => {
     localStorage.removeItem("truetone_token");
     localStorage.removeItem("truetone_user_id");
     navigate("/");
+  };
+
+  const renderLink = (item) => {
+    const isActive = location.pathname === item.path;
+    const Icon = item.icon;
+
+    return (
+      <Link
+        key={item.path}
+        to={item.path}
+        onClick={() => {
+          if (window.innerWidth < 1024) setCollapsed(true);
+        }}
+        className={`flex items-center ${
+          collapsed ? "justify-center" : "gap-3"
+        } px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+          isActive
+            ? "bg-slate-800 text-white shadow-sm"
+            : "text-slate-400 hover:bg-slate-900 hover:text-white"
+        }`}
+      >
+        <Icon className="w-5 h-5 flex-shrink-0" />
+        {!collapsed && <span>{item.title}</span>}
+      </Link>
+    );
   };
 
   return (
@@ -64,30 +99,17 @@ const AppSidebar = () => {
 
         {/* Navigation */}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            const Icon = item.icon;
+          {navItems.map(renderLink)}
 
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => {
-                  if (window.innerWidth < 1024) setCollapsed(true);
-                }}
-                className={`flex items-center ${
-                  collapsed ? "justify-center" : "gap-3"
-                } px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  isActive
-                    ? "bg-slate-800 text-white shadow-sm"
-                    : "text-slate-400 hover:bg-slate-900 hover:text-white"
-                }`}
-              >
-                <Icon className="w-5 h-5 flex-shrink-0" />
-                {!collapsed && <span>{item.title}</span>}
-              </Link>
-            );
-          })}
+          {/* Examiner tools */}
+          <div className="mt-3 space-y-1 border-t border-slate-800 pt-3">
+            {!collapsed && (
+              <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                Examiner tools
+              </p>
+            )}
+            {examinerItems.map(renderLink)}
+          </div>
         </nav>
 
         {/* Sign Out (FIXED) */}

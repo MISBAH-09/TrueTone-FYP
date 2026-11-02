@@ -364,6 +364,7 @@ def validate_and_preprocess_bytes(image_bytes, filename="upload.jpg", skip_face_
         raise ImageValidationError(f"Failed to open image: {e}", "CORRUPT_IMAGE")
 
     pil_img = pil_img.convert("RGB")
+    orig_w, orig_h = pil_img.size  # inspector-patch: size before the face crop
     from inference.face_crop import crop_face_natural
     pil_img, crop_box, _landmarks, _found, num_faces = crop_face_natural(pil_img)
 
@@ -414,6 +415,10 @@ def validate_and_preprocess_bytes(image_bytes, filename="upload.jpg", skip_face_
         "display_pil": display_pil,
         "display_image_base64": display_image_base64,
         "crop_box": crop_box,
+        "original_width": orig_w,
+        "original_height": orig_h,
+        "faces_detected": int(num_faces),
+        "face_found": bool(_found),
     }
     return tensor, pil_img, info
 
@@ -470,6 +475,7 @@ def _infer_one(model, tensor, class_labels, device, confidence_threshold, displa
         class_labels = class_labels[:n]
 
     raw_probs = probs.tolist()
+    raw_labels = list(class_labels)  # inspector-patch: labels as the model outputs them
     if model_name == "skin_disease":
         # merge common_acne + cystic_acne into a single "acne" result
         class_labels, prob_list, members = _group_probs(raw_probs, class_labels)
@@ -578,6 +584,11 @@ def _infer_one(model, tensor, class_labels, device, confidence_threshold, displa
         "low_confidence": not is_confident,
         "is_confident": is_confident,
         "is_healthy": is_healthy_pred,
+        "threshold": confidence_threshold,
+        "raw_distribution": (
+            {lbl: round(raw_probs[i], 4) for i, lbl in enumerate(raw_labels)}
+            if model_name == "skin_disease" else None
+        ),
         "heatmap_base64": heatmap_base64,
         "marker_base64": marker_base64,
         "zone_overlay_base64": zone_overlay_base64,
@@ -616,6 +627,10 @@ def _aggregate(type_res, tone_res, disease_res, image_info, latencies, request_i
         "width": image_info.get("width"),
         "height": image_info.get("height"),
         "crop_box": image_info.get("crop_box"),
+        "original_width": image_info.get("original_width"),
+        "original_height": image_info.get("original_height"),
+        "faces_detected": image_info.get("faces_detected"),
+        "face_found": image_info.get("face_found"),
         "display_image_base64": image_info.get("display_image_base64"),
     }
 
@@ -633,6 +648,7 @@ def _aggregate(type_res, tone_res, disease_res, image_info, latencies, request_i
                 "zone_overlay_base64": type_res.get("zone_overlay_base64"),
                 "legend": type_res.get("legend"),
                 "distribution": type_res["all_probs"],
+                "threshold": type_res.get("threshold"),
             },
             "skin_tone": {
                 "label": tone_res["predicted_class"],
@@ -643,6 +659,7 @@ def _aggregate(type_res, tone_res, disease_res, image_info, latencies, request_i
                 "zone_overlay_base64": tone_res.get("zone_overlay_base64"),
                 "legend": tone_res.get("legend"),
                 "distribution": tone_res["all_probs"],
+                "threshold": tone_res.get("threshold"),
             },
             "skin_disease": {
                 "label": disease_res["predicted_class"],
@@ -655,6 +672,8 @@ def _aggregate(type_res, tone_res, disease_res, image_info, latencies, request_i
                 "disease_detected": disease_flag,
                 "is_healthy": disease_res.get("is_healthy", False),
                 "distribution": disease_res["all_probs"],
+                "threshold": disease_res.get("threshold"),
+                "raw_distribution": disease_res.get("raw_distribution"),
             },
         },
         "skin_profile": {
@@ -895,6 +914,10 @@ class SkinAnalysisPipeline:
             "width": info.get("width"),
             "height": info.get("height"),
             "crop_box": info.get("crop_box"),
+            "original_width": info.get("original_width"),
+            "original_height": info.get("original_height"),
+            "faces_detected": info.get("faces_detected"),
+            "face_found": info.get("face_found"),
             "display_image_base64": info.get("display_image_base64"),
         }
 
@@ -922,6 +945,8 @@ class SkinAnalysisPipeline:
                 "zone_overlay_base64": r.get("zone_overlay_base64"),
                 "legend": r.get("legend"),
                 "distribution": r["all_probs"],
+                "threshold": r.get("threshold"),
+                "raw_distribution": r.get("raw_distribution"),
             }
             if key == "skin_disease":
                 entry["disease_detected"] = (
