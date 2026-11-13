@@ -2,6 +2,8 @@ import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Upload, FileText, ChevronRight, ChevronLeft, Loader2, CheckCircle2 } from "lucide-react";
 import { submitOnboarding } from "../services/user";
+import TrueToneLogo from "../components/TrueToneLogo";
+import { Button, Textarea, InlineAlert, ReportPanel } from "../components/ui";
 
 // gender removed - not used by any recommendation-matching logic, see
 // backend/Users/models.py for the reasoning.
@@ -38,6 +40,13 @@ const skinDiseases = [
 ];
 
 const TOTAL_STEPS = 4;
+
+const optionClass = (selected) =>
+  `rounded-[var(--tt-radius)] border px-4 py-4 text-left transition-colors ${
+    selected
+      ? "border-[var(--tt-primary)] bg-[var(--tt-primary-muted)] text-[var(--tt-ink)]"
+      : "border-[var(--tt-border)] bg-[var(--tt-surface)] text-[var(--tt-ink)] hover:border-[var(--tt-primary)]"
+  }`;
 
 const Onboarding = () => {
   const navigate = useNavigate();
@@ -130,83 +139,85 @@ const Onboarding = () => {
   const stepLabels = ["Age", "Input Method", inputMethod === "image" ? "Upload Photo" : "Skin Info", "Safety Info"];
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10 px-4">
+    <div className="min-h-screen bg-[var(--tt-paper)] px-4 py-10 sm:px-6">
       <div className="mx-auto w-full max-w-2xl">
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-700">Onboarding</p>
-          <h1 className="mt-3 text-3xl font-bold text-slate-900">Tell us about yourself</h1>
-          <p className="mt-2 text-sm text-slate-500">
+        <TrueToneLogo className="mb-8" />
+
+        <div className="mb-8">
+          <p className="tt-mono text-xs font-medium uppercase tracking-[0.14em] text-[var(--tt-primary)]">
+            Onboarding
+          </p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-[var(--tt-ink)] sm:text-3xl">
+            Tell us about yourself
+          </h1>
+          <p className="mt-2 text-sm text-[var(--tt-secondary)]">
             Complete a few quick steps so TrueTone can personalize your experience.
           </p>
         </div>
 
-        {/* Progress bar */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            {stepLabels.map((label, i) => (
-              <div key={i} className="flex flex-col items-center flex-1">
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
-                    i + 1 < step
-                      ? "bg-emerald-600 text-white"
-                      : i + 1 === step
-                      ? "bg-emerald-600 text-white ring-4 ring-emerald-100"
-                      : "bg-slate-200 text-slate-500"
-                  }`}
-                >
-                  {i + 1 < step ? <CheckCircle2 size={16} /> : i + 1}
+        {/* Progress */}
+        <div className="mb-6">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            {stepLabels.map((label, i) => {
+              const done = i + 1 < step;
+              const current = i + 1 === step;
+              return (
+                <div key={i} className="flex flex-1 flex-col items-center">
+                  <div
+                    className={`flex h-7 w-7 items-center justify-center rounded-[var(--tt-radius)] text-xs font-medium ${
+                      done || current
+                        ? "bg-[var(--tt-primary)] text-white"
+                        : "border border-[var(--tt-border)] bg-[var(--tt-surface)] text-[var(--tt-secondary)]"
+                    }`}
+                  >
+                    {done ? <CheckCircle2 size={14} /> : i + 1}
+                  </div>
+                  <span className="mt-1 hidden text-[11px] text-[var(--tt-secondary)] sm:block">{label}</span>
                 </div>
-                <span className="text-xs text-slate-500 mt-1 hidden sm:block">{label}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
-          <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+          <div className="h-1 overflow-hidden rounded-[var(--tt-radius)] bg-[var(--tt-border)]">
             <div
-              className="h-full bg-emerald-600 rounded-full transition-all duration-500"
+              className="h-full bg-[var(--tt-primary)] transition-all duration-500"
               style={{ width: `${((step - 1) / (TOTAL_STEPS - 1)) * 100}%` }}
             />
           </div>
         </div>
 
-        {/* Card */}
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-lg">
-          {error && (
-            <div className="mb-6 p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm">
+        <ReportPanel>
+          {error ? (
+            <InlineAlert tone="error" className="mb-6">
               {error}
-            </div>
-          )}
+            </InlineAlert>
+          ) : null}
 
           {/* ─── STEP 1: Age bracket ───────────────────────── */}
           {step === 1 && (
             <div className="space-y-8">
               <div>
-                <h2 className="text-xl font-semibold text-slate-900 mb-2">What's your age range?</h2>
-                <p className="text-sm text-slate-500 mb-6">
-                  We only ask for a range, not your exact birthdate - it's enough to personalize recommendations.
+                <h2 className="text-lg font-semibold text-[var(--tt-ink)]">What's your age range?</h2>
+                <p className="mt-1 mb-4 text-sm text-[var(--tt-secondary)]">
+                  We only ask for a range, not your exact birthdate — it's enough to personalize recommendations.
                 </p>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   {ageBrackets.map((opt) => (
                     <button
                       key={opt.value}
                       type="button"
                       onClick={() => setAgeBracket(opt.value)}
-                      className={`flex flex-col items-center gap-1 rounded-2xl border px-6 py-6 text-center transition-all ${
-                        ageBracket === opt.value
-                          ? "border-emerald-600 bg-emerald-50 text-emerald-900 shadow-sm ring-1 ring-emerald-600"
-                          : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400 hover:bg-slate-50"
-                      }`}
+                      className={`${optionClass(ageBracket === opt.value)} flex flex-col items-center gap-1 px-5 py-5 text-center`}
                     >
-                      <span className="text-lg font-semibold">{opt.label}</span>
-                      {opt.desc && <span className="text-xs text-slate-500">{opt.desc}</span>}
+                      <span className="text-base font-semibold">{opt.label}</span>
+                      {opt.desc ? <span className="text-xs text-[var(--tt-secondary)]">{opt.desc}</span> : null}
                     </button>
                   ))}
                 </div>
               </div>
 
               <div>
-                <h2 className="text-lg font-semibold text-slate-900 mb-1">What gender best describes you?</h2>
-                <div className="grid grid-cols-3 gap-3">
+                <h2 className="text-lg font-semibold text-[var(--tt-ink)]">What gender best describes you?</h2>
+                <div className="mt-4 grid grid-cols-3 gap-3">
                   {[
                     { value: "female", label: "Woman" },
                     { value: "male", label: "Man" },
@@ -219,11 +230,7 @@ const Onboarding = () => {
                         setGender(option.value);
                         if (option.value === "male") setIsPregnantOrBreastfeeding(false);
                       }}
-                      className={`rounded-2xl border px-4 py-4 text-sm font-semibold transition-all ${
-                        gender === option.value
-                          ? "border-emerald-600 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600"
-                          : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400"
-                      }`}
+                      className={`${optionClass(gender === option.value)} px-3 py-4 text-center text-sm font-medium`}
                     >
                       {option.label}
                     </button>
@@ -236,35 +243,35 @@ const Onboarding = () => {
           {/* ─── STEP 2: Choose Input Method ──────────────── */}
           {step === 2 && (
             <div>
-              <h2 className="text-xl font-semibold text-slate-900 mb-2">How would you like to share your skin info?</h2>
-              <p className="text-sm text-slate-500 mb-6">Upload a photo for AI analysis or enter details manually.</p>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <h2 className="text-lg font-semibold text-[var(--tt-ink)]">How would you like to share your skin info?</h2>
+              <p className="mt-1 mb-4 text-sm text-[var(--tt-secondary)]">
+                Upload a photo for AI analysis or enter details manually.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
                 <button
                   type="button"
                   onClick={() => setInputMethod("image")}
-                  className={`flex flex-col items-center gap-3 rounded-2xl border px-6 py-8 transition-all ${
-                    inputMethod === "image"
-                      ? "border-emerald-600 bg-emerald-50 text-emerald-900 shadow-sm ring-1 ring-emerald-600"
-                      : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400"
-                  }`}
+                  className={`${optionClass(inputMethod === "image")} flex flex-col items-center gap-3 px-5 py-7 text-center`}
                 >
-                  <Upload size={32} className={inputMethod === "image" ? "text-emerald-600" : "text-slate-400"} />
+                  <Upload
+                    size={28}
+                    className={inputMethod === "image" ? "text-[var(--tt-primary)]" : "text-[var(--tt-secondary)]"}
+                  />
                   <span className="text-base font-semibold">Upload Image</span>
-                  <span className="text-xs text-slate-500 text-center">Take or upload a photo of your skin</span>
+                  <span className="text-xs text-[var(--tt-secondary)]">Take or upload a photo of your skin</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setInputMethod("manual")}
-                  className={`flex flex-col items-center gap-3 rounded-2xl border px-6 py-8 transition-all ${
-                    inputMethod === "manual"
-                      ? "border-emerald-600 bg-emerald-50 text-emerald-900 shadow-sm ring-1 ring-emerald-600"
-                      : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400"
-                  }`}
+                  className={`${optionClass(inputMethod === "manual")} flex flex-col items-center gap-3 px-5 py-7 text-center`}
                 >
-                  <FileText size={32} className={inputMethod === "manual" ? "text-emerald-600" : "text-slate-400"} />
+                  <FileText
+                    size={28}
+                    className={inputMethod === "manual" ? "text-[var(--tt-primary)]" : "text-[var(--tt-secondary)]"}
+                  />
                   <span className="text-base font-semibold">Manual Info</span>
-                  <span className="text-xs text-slate-500 text-center">Answer a few questions about your skin</span>
+                  <span className="text-xs text-[var(--tt-secondary)]">Answer a few questions about your skin</span>
                 </button>
               </div>
             </div>
@@ -273,20 +280,25 @@ const Onboarding = () => {
           {/* ─── STEP 3: Image Upload OR Manual Questions ─── */}
           {step === 3 && inputMethod === "image" && (
             <div>
-              <h2 className="text-xl font-semibold text-slate-900 mb-2">Upload a skin photo</h2>
-              <p className="text-sm text-slate-500 mb-6">Our AI will analyze your skin condition from the photo.</p>
+              <h2 className="text-lg font-semibold text-[var(--tt-ink)]">Upload a skin photo</h2>
+              <p className="mt-1 mb-4 text-sm text-[var(--tt-secondary)]">
+                Our AI will analyze your skin condition from the photo.
+              </p>
 
               {skinImagePreview ? (
                 <div className="relative">
                   <img
                     src={skinImagePreview}
                     alt="Skin preview"
-                    className="w-full max-h-72 object-cover rounded-2xl border border-slate-200"
+                    className="max-h-72 w-full rounded-[var(--tt-radius)] border border-[var(--tt-border)] object-cover"
                   />
                   <button
                     type="button"
-                    onClick={() => { setSkinImage(null); setSkinImagePreview(""); }}
-                    className="absolute top-3 right-3 bg-white/90 text-red-500 rounded-full px-3 py-1 text-xs font-semibold shadow hover:bg-red-50"
+                    onClick={() => {
+                      setSkinImage(null);
+                      setSkinImagePreview("");
+                    }}
+                    className="absolute top-3 right-3 rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] px-3 py-1 text-xs font-medium text-[var(--tt-avoid)] hover:bg-red-50"
                   >
                     Remove
                   </button>
@@ -302,11 +314,11 @@ const Onboarding = () => {
                   />
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex flex-col items-center justify-center w-full h-52 border-2 border-dashed border-slate-300 rounded-2xl cursor-pointer hover:border-emerald-500 hover:bg-emerald-50/30 transition"
+                    className="flex h-52 w-full cursor-pointer flex-col items-center justify-center rounded-[var(--tt-radius)] border border-dashed border-[var(--tt-border)] transition-colors hover:border-[var(--tt-primary)] hover:bg-[var(--tt-primary-muted)]/40"
                   >
-                    <Upload size={36} className="text-slate-400 mb-3" />
-                    <span className="text-sm font-medium text-slate-600">Click to upload image</span>
-                    <span className="text-xs text-slate-400 mt-1">JPG, PNG, WebP up to 10MB</span>
+                    <Upload size={32} className="mb-3 text-[var(--tt-secondary)]" />
+                    <span className="text-sm font-medium text-[var(--tt-ink)]">Click to upload image</span>
+                    <span className="mt-1 text-xs text-[var(--tt-secondary)]">JPG, PNG, WebP up to 10MB</span>
                   </div>
                 </>
               )}
@@ -315,82 +327,70 @@ const Onboarding = () => {
 
           {step === 3 && inputMethod === "manual" && (
             <div className="space-y-8">
-              {/* Skin Tone */}
               <div>
-                <h2 className="text-lg font-semibold text-slate-900 mb-1">Skin Tone</h2>
-                <p className="text-sm text-slate-500 mb-4">Select the closest match to your skin tone.</p>
-                <div className="grid grid-cols-3 gap-4">
+                <h2 className="text-lg font-semibold text-[var(--tt-ink)]">Skin Tone</h2>
+                <p className="mt-1 mb-4 text-sm text-[var(--tt-secondary)]">Select the closest match to your skin tone.</p>
+                <div className="grid grid-cols-3 gap-3">
                   {skinTones.map((tone) => (
                     <button
                       key={tone.value}
                       type="button"
                       onClick={() => setSkinTone(tone.value)}
-                      className={`flex flex-col items-center gap-2 rounded-2xl border px-4 py-5 transition-all ${
-                        skinTone === tone.value
-                          ? "border-emerald-600 bg-emerald-50 ring-1 ring-emerald-600"
-                          : "border-slate-200 bg-white hover:border-emerald-400"
-                      }`}
+                      className={`${optionClass(skinTone === tone.value)} flex flex-col items-center gap-2 px-3 py-5`}
                     >
-                      <div className="w-10 h-10 rounded-full border-2 border-white shadow" style={{ backgroundColor: tone.color }} />
-                      <span className="text-sm font-semibold text-slate-700">{tone.label}</span>
+                      <div
+                        className="h-9 w-9 rounded-[var(--tt-radius)] border border-[var(--tt-border)]"
+                        style={{ backgroundColor: tone.color }}
+                      />
+                      <span className="text-sm font-medium">{tone.label}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Skin Type */}
               <div>
-                <h2 className="text-lg font-semibold text-slate-900 mb-1">Skin Type</h2>
-                <p className="text-sm text-slate-500 mb-4">How does your skin usually feel?</p>
+                <h2 className="text-lg font-semibold text-[var(--tt-ink)]">Skin Type</h2>
+                <p className="mt-1 mb-4 text-sm text-[var(--tt-secondary)]">How does your skin usually feel?</p>
                 <div className="grid gap-3">
                   {skinTypes.map((type) => (
                     <button
                       key={type.value}
                       type="button"
                       onClick={() => setSkinType(type.value)}
-                      className={`flex items-center gap-4 rounded-2xl border px-5 py-4 text-left transition-all ${
-                        skinType === type.value
-                          ? "border-emerald-600 bg-emerald-50 ring-1 ring-emerald-600"
-                          : "border-slate-200 bg-white hover:border-emerald-400"
-                      }`}
+                      className={optionClass(skinType === type.value)}
                     >
-                      <div>
-                        <span className="text-base font-semibold text-slate-800">{type.label}</span>
-                        <p className="text-xs text-slate-500">{type.desc}</p>
-                      </div>
+                      <span className="text-base font-semibold">{type.label}</span>
+                      <p className="mt-0.5 text-xs text-[var(--tt-secondary)]">{type.desc}</p>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Skin Disease */}
               <div>
-                <h2 className="text-lg font-semibold text-slate-900 mb-1">Skin Conditions</h2>
-                <p className="text-sm text-slate-500 mb-4">Select any that apply (optional).</p>
+                <h2 className="text-lg font-semibold text-[var(--tt-ink)]">Skin Conditions</h2>
+                <p className="mt-1 mb-4 text-sm text-[var(--tt-secondary)]">Select any that apply (optional).</p>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {skinDiseases.map((disease) => (
+                  {skinDiseases.map((disease, index) => (
                     <button
-                      key={disease.value}
+                      key={`${disease.value}-${index}`}
                       type="button"
                       onClick={() => toggleDisease(disease.value)}
-                      className={`flex items-center gap-3 rounded-2xl border px-5 py-4 text-left transition-all ${
-                        selectedDiseases.includes(disease.value)
-                          ? "border-emerald-600 bg-emerald-50 ring-1 ring-emerald-600"
-                          : "border-slate-200 bg-white hover:border-emerald-400"
-                      }`}
+                      className={`${optionClass(selectedDiseases.includes(disease.value))} flex items-start gap-3`}
                     >
-                      <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 ${
-                        selectedDiseases.includes(disease.value)
-                          ? "border-emerald-600 bg-emerald-600"
-                          : "border-slate-300"
-                      }`}>
-                        {selectedDiseases.includes(disease.value) && (
-                          <CheckCircle2 size={14} className="text-white" />
-                        )}
+                      <div
+                        className={`mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-[3px] border ${
+                          selectedDiseases.includes(disease.value)
+                            ? "border-[var(--tt-primary)] bg-[var(--tt-primary)]"
+                            : "border-[var(--tt-border)] bg-[var(--tt-surface)]"
+                        }`}
+                      >
+                        {selectedDiseases.includes(disease.value) ? (
+                          <CheckCircle2 size={12} className="text-white" />
+                        ) : null}
                       </div>
                       <div>
-                        <span className="text-sm font-semibold text-slate-800">{disease.label}</span>
-                        <p className="text-xs text-slate-500">{disease.desc}</p>
+                        <span className="text-sm font-semibold">{disease.label}</span>
+                        <p className="text-xs text-[var(--tt-secondary)]">{disease.desc}</p>
                       </div>
                     </button>
                   ))}
@@ -403,45 +403,36 @@ const Onboarding = () => {
           {step === 4 && (
             <div className="space-y-8">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900 mb-1">Known allergies or ingredient sensitivities</h2>
-                <p className="text-sm text-slate-500 mb-4">
+                <h2 className="text-lg font-semibold text-[var(--tt-ink)]">Known allergies or ingredient sensitivities</h2>
+                <p className="mt-1 mb-4 text-sm text-[var(--tt-secondary)]">
                   We'll never recommend a product containing these. Separate with commas (e.g. fragrance, parfum, tea tree oil).
                 </p>
-                <textarea
+                <Textarea
                   value={allergiesText}
                   onChange={(e) => setAllergiesText(e.target.value)}
                   placeholder="e.g. fragrance, parfum"
                   rows={2}
-                  className="w-full px-5 py-4 rounded-2xl border border-slate-200 bg-slate-50 text-slate-800 text-base focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 />
               </div>
 
               {showPregnancyQuestion && (
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900 mb-1">Are you pregnant or breastfeeding?</h2>
-                  <p className="text-sm text-slate-500 mb-4">
+                  <h2 className="text-lg font-semibold text-[var(--tt-ink)]">Are you pregnant or breastfeeding?</h2>
+                  <p className="mt-1 mb-4 text-sm text-[var(--tt-secondary)]">
                     Some active ingredients (like retinoids) aren't recommended during pregnancy or breastfeeding.
                   </p>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
                       onClick={() => setIsPregnantOrBreastfeeding(true)}
-                      className={`rounded-2xl border px-6 py-4 text-base font-semibold transition-all ${
-                        isPregnantOrBreastfeeding
-                          ? "border-emerald-600 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600"
-                          : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400"
-                      }`}
+                      className={`${optionClass(isPregnantOrBreastfeeding)} text-center text-sm font-medium`}
                     >
                       Yes
                     </button>
                     <button
                       type="button"
                       onClick={() => setIsPregnantOrBreastfeeding(false)}
-                      className={`rounded-2xl border px-6 py-4 text-base font-semibold transition-all ${
-                        !isPregnantOrBreastfeeding
-                          ? "border-emerald-600 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600"
-                          : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400"
-                      }`}
+                      className={`${optionClass(!isPregnantOrBreastfeeding)} text-center text-sm font-medium`}
                     >
                       No
                     </button>
@@ -450,54 +441,43 @@ const Onboarding = () => {
               )}
 
               <div>
-                <h2 className="text-lg font-semibold text-slate-900 mb-1">Products you're currently using</h2>
-                <p className="text-sm text-slate-500 mb-4">
-                  Optional - helps us avoid recommending something you already own.
+                <h2 className="text-lg font-semibold text-[var(--tt-ink)]">Products you're currently using</h2>
+                <p className="mt-1 mb-4 text-sm text-[var(--tt-secondary)]">
+                  Optional — helps us avoid recommending something you already own.
                 </p>
-                <textarea
+                <Textarea
                   value={currentProductsText}
                   onChange={(e) => setCurrentProductsText(e.target.value)}
                   placeholder="e.g. CeraVe Foaming Facial Cleanser"
                   rows={2}
-                  className="w-full px-5 py-4 rounded-2xl border border-slate-200 bg-slate-50 text-slate-800 text-base focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 />
               </div>
             </div>
           )}
 
           {/* ─── Navigation ──────────────────────────────────── */}
-          <div className="mt-10 flex items-center justify-between">
-            <button
+          <div className="mt-8 flex items-center justify-between gap-3 border-t border-[var(--tt-border)] pt-6">
+            <Button
               type="button"
+              variant="secondary"
               onClick={() => setStep((s) => Math.max(1, s - 1))}
               disabled={step === 1}
-              className="flex items-center gap-2 rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <ChevronLeft size={16} /> Back
-            </button>
+            </Button>
 
             {step < TOTAL_STEPS ? (
-              <button
-                type="button"
-                onClick={() => setStep((s) => s + 1)}
-                disabled={!canProceed()}
-                className="flex items-center gap-2 rounded-full bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200/40 hover:bg-emerald-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
-              >
+              <Button type="button" variant="primary" onClick={() => setStep((s) => s + 1)} disabled={!canProceed()}>
                 Continue <ChevronRight size={16} />
-              </button>
+              </Button>
             ) : (
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={!canProceed() || loading}
-                className="flex items-center gap-2 rounded-full bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200/40 hover:bg-emerald-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {loading && <Loader2 size={16} className="animate-spin" />}
+              <Button type="button" variant="primary" onClick={handleSubmit} disabled={!canProceed() || loading}>
+                {loading ? <Loader2 size={16} className="animate-spin" /> : null}
                 {loading ? "Saving..." : "Finish Onboarding"}
-              </button>
+              </Button>
             )}
           </div>
-        </div>
+        </ReportPanel>
       </div>
     </div>
   );

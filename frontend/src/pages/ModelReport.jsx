@@ -81,18 +81,18 @@ const NAV = [
 
 const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 const pct = (v, d = 1) => `${(v * 100).toFixed(d)}%`;
-const f1Color = (f) => (f >= 0.75 ? "bg-emerald-500" : f >= 0.5 ? "bg-amber-400" : "bg-rose-500");
+const f1Color = (f) => (f >= 0.75 ? "bg-[var(--tt-primary)]" : f >= 0.5 ? "bg-amber-400" : "bg-red-500");
 
 /* ───────────────────────────── layout helpers ───────────────────────────── */
 
 function Section({ id, n, title, why, children }) {
   return (
-    <section id={`sec-${id}`} className="scroll-mt-24 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+    <section id={`sec-${id}`} className="scroll-mt-24 rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-5">
       <div className="flex items-start gap-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-sm font-bold text-white">{n}</div>
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--tt-radius)] bg-[var(--tt-primary)] text-sm font-bold text-white">{n}</div>
         <div>
-          <h2 className="text-xl font-bold text-slate-900">{title}</h2>
-          <p className="mt-1 text-sm text-slate-500">{why}</p>
+          <h2 className="text-xl font-bold text-[var(--tt-ink)]">{title}</h2>
+          <p className="mt-1 text-sm text-[var(--tt-secondary)]">{why}</p>
         </div>
       </div>
       <div className="mt-6">{children}</div>
@@ -102,25 +102,25 @@ function Section({ id, n, title, why, children }) {
 
 function Kpi({ label, value, hint }) {
   return (
-    <div className="rounded-2xl bg-slate-50 p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
-      <p className="mt-1 text-2xl font-extrabold text-slate-900">{value}</p>
-      {hint && <p className="mt-0.5 text-[11px] text-slate-400">{hint}</p>}
+    <div className="rounded-[var(--tt-radius)] bg-[var(--tt-paper)] p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-secondary)]">{label}</p>
+      <p className="mt-1 text-2xl font-semibold text-[var(--tt-ink)]">{value}</p>
+      {hint && <p className="mt-0.5 text-[11px] text-[var(--tt-secondary)]">{hint}</p>}
     </div>
   );
 }
 
 function Row({ k, v }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-slate-100 py-2 text-xs last:border-0">
-      <span className="text-slate-500">{k}</span>
-      <span className="text-right font-semibold text-slate-800">{v}</span>
+    <div className="flex items-start justify-between gap-4 border-b border-[var(--tt-border)] py-2 text-xs last:border-0">
+      <span className="text-[var(--tt-secondary)]">{k}</span>
+      <span className="text-right font-semibold text-[var(--tt-ink)]">{v}</span>
     </div>
   );
 }
 
 function Caption({ children }) {
-  return <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800">{children}</p>;
+  return <p className="mt-3 rounded-[var(--tt-radius)] bg-[var(--tt-primary-muted)] px-3 py-2 text-xs text-[var(--tt-primary)]">{children}</p>;
 }
 
 /* ───────────────────────────── 1. architecture ───────────────────────────── */
@@ -215,10 +215,10 @@ function DataSection() {
     <>
       <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
         {steps.map(([t, d], i) => (
-          <div key={t} className="rounded-2xl border border-slate-200 p-3">
-            <p className="text-[11px] font-bold text-emerald-600">Step {i + 1}</p>
-            <p className="text-xs font-semibold text-slate-800">{t}</p>
-            <p className="mt-0.5 text-[11px] text-slate-500">{d}</p>
+          <div key={t} className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] p-3">
+            <p className="text-[11px] font-bold text-[var(--tt-primary)]">Step {i + 1}</p>
+            <p className="text-xs font-semibold text-[var(--tt-ink)]">{t}</p>
+            <p className="mt-0.5 text-[11px] text-[var(--tt-secondary)]">{d}</p>
           </div>
         ))}
       </div>
@@ -226,7 +226,7 @@ function DataSection() {
       <div className="mt-6 overflow-x-auto">
         <table className="w-full min-w-[720px] text-left text-xs">
           <thead>
-            <tr className="border-b border-slate-200 text-slate-400">
+            <tr className="border-b border-[var(--tt-border)] text-[var(--tt-secondary)]">
               <th className="py-2 pr-3 font-medium">Class</th>
               <th className="py-2 pr-3 font-medium">Source</th>
               <th className="py-2 pr-3 font-medium">Collected</th>
@@ -237,29 +237,29 @@ function DataSection() {
           </thead>
           <tbody>
             {REPORT.classes.map((c) => (
-              <tr key={c.key} className="border-b border-slate-100 align-top">
-                <td className="py-2.5 pr-3 font-semibold text-slate-800">{c.label}</td>
-                <td className="py-2.5 pr-3 text-slate-500">{c.source}</td>
+              <tr key={c.key} className="border-b border-[var(--tt-border)] align-top">
+                <td className="py-2.5 pr-3 font-semibold text-[var(--tt-ink)]">{c.label}</td>
+                <td className="py-2.5 pr-3 text-[var(--tt-secondary)]">{c.source}</td>
                 <td className="py-2.5 pr-3">
-                  <div className="h-2 w-28 rounded-full bg-slate-100">
-                    <div className="h-2 rounded-full bg-slate-300" style={{ width: `${(c.raw / max) * 100}%` }} />
+                  <div className="h-2 w-28 rounded-[var(--tt-radius)] bg-[var(--tt-paper)]">
+                    <div className="h-2 rounded-[var(--tt-radius)] bg-[var(--tt-border)]" style={{ width: `${(c.raw / max) * 100}%` }} />
                   </div>
-                  <span className="text-slate-500">{fmt(c.raw)}</span>
+                  <span className="text-[var(--tt-secondary)]">{fmt(c.raw)}</span>
                 </td>
                 <td className="py-2.5 pr-3">
-                  <div className="h-2 w-28 rounded-full bg-slate-100">
-                    <div className="h-2 rounded-full bg-sky-400" style={{ width: `${(c.clean / max) * 100}%` }} />
+                  <div className="h-2 w-28 rounded-[var(--tt-radius)] bg-[var(--tt-paper)]">
+                    <div className="h-2 rounded-[var(--tt-radius)] bg-sky-400" style={{ width: `${(c.clean / max) * 100}%` }} />
                   </div>
-                  <span className="text-slate-500">{fmt(c.clean)}</span>
+                  <span className="text-[var(--tt-secondary)]">{fmt(c.clean)}</span>
                 </td>
-                <td className="py-2.5 pr-3 font-semibold text-slate-800">{fmt(c.used)}</td>
+                <td className="py-2.5 pr-3 font-semibold text-[var(--tt-ink)]">{fmt(c.used)}</td>
                 <td className="py-2.5">
-                  <div className="flex h-2 w-40 overflow-hidden rounded-full">
-                    <div className="bg-emerald-500" style={{ width: `${(c.train / c.used) * 100}%` }} />
+                  <div className="flex h-2 w-40 overflow-hidden rounded-[var(--tt-radius)]">
+                    <div className="bg-[var(--tt-primary)]" style={{ width: `${(c.train / c.used) * 100}%` }} />
                     <div className="bg-amber-400" style={{ width: `${(c.val / c.used) * 100}%` }} />
                     <div className="bg-violet-500" style={{ width: `${(c.test / c.used) * 100}%` }} />
                   </div>
-                  <span className="text-slate-500">
+                  <span className="text-[var(--tt-secondary)]">
                     {fmt(c.train)} / {fmt(c.val)} / {fmt(c.test)}
                   </span>
                 </td>
@@ -273,7 +273,7 @@ function DataSection() {
         and split. Training images are topped up to {fmt(REPORT.trainTarget)} per class with augmentation, but this project's pipeline
         never augments the validation or test images.
       </Caption>
-      <p className="mt-3 text-xs text-slate-500">
+      <p className="mt-3 text-xs text-[var(--tt-secondary)]">
         Healthy combines 3,214 photos from the Roboflow normal-skin set and 588 photos (290 cases) from SCIN, a consented,
         crowd-sourced dermatology dataset that was added to widen skin-tone coverage.
       </p>
@@ -329,8 +329,8 @@ function TrainingSection() {
   return (
     <>
       <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
-        <div className="rounded-2xl border border-slate-200 p-4">
-          <h3 className="mb-2 text-sm font-bold text-slate-900">Skin condition model</h3>
+        <div className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] p-4">
+          <h3 className="mb-2 text-sm font-bold text-[var(--tt-ink)]">Skin condition model</h3>
           <Row k="Backbone" v="EfficientNet-B3, ImageNet pre-trained" />
           <Row k="Output layer" v="replaced: 7 classes" />
           <Row k="Input" v="224 x 224 RGB" />
@@ -349,12 +349,12 @@ function TrainingSection() {
             epoch {REPORT.bestEpoch.epoch} and then drifts down. That gap is overfitting. Because the best checkpoint was saved, the model
             in the app is the epoch {REPORT.bestEpoch.epoch} model, not the last one.
           </Caption>
-          <p className="mt-2 text-[11px] text-slate-400">Points are the epochs that were logged or saved as a new best.</p>
+          <p className="mt-2 text-[11px] text-[var(--tt-secondary)]">Points are the epochs that were logged or saved as a new best.</p>
         </div>
       </div>
 
       <div className="mt-6">
-        <button type="button" onClick={() => setShowImgs((s) => !s)} className="text-xs font-semibold text-emerald-700 underline">
+        <button type="button" onClick={() => setShowImgs((s) => !s)} className="text-xs font-semibold text-[var(--tt-primary)] underline">
           {showImgs ? "Hide" : "Show"} the original training figures
         </button>
         {showImgs && (
@@ -363,21 +363,21 @@ function TrainingSection() {
               ["/report-figures/EfficientNet_B3_curves.png", "Loss and accuracy curves from the training run"],
               ["/report-figures/EfficientNet_B3_cm.png", "Confusion matrix on the test set"],
             ].map(([src, cap]) => (
-              <figure key={src} className="rounded-2xl border border-slate-200 p-3">
+              <figure key={src} className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] p-3">
                 <img
                   src={src}
                   alt={cap}
-                  className="w-full rounded-xl"
+                  className="w-full rounded-[var(--tt-radius)]"
                   onError={(e) => {
                     e.currentTarget.style.display = "none";
                     e.currentTarget.nextSibling.style.display = "block";
                   }}
                 />
-                <p className="hidden rounded-xl bg-slate-50 p-4 text-xs text-slate-500">
+                <p className="hidden rounded-[var(--tt-radius)] bg-[var(--tt-paper)] p-4 text-xs text-[var(--tt-secondary)]">
                   Figure not added yet. Copy <span className="font-mono">{src.split("/").pop()}</span> from the Drive results folder
                   into <span className="font-mono">frontend/public/report-figures/</span>.
                 </p>
-                <figcaption className="mt-2 text-[11px] text-slate-500">{cap}</figcaption>
+                <figcaption className="mt-2 text-[11px] text-[var(--tt-secondary)]">{cap}</figcaption>
               </figure>
             ))}
           </div>
@@ -403,7 +403,7 @@ function ResultsSection() {
       <div className="mt-6 overflow-x-auto">
         <table className="w-full min-w-[640px] text-left text-xs">
           <thead>
-            <tr className="border-b border-slate-200 text-slate-400">
+            <tr className="border-b border-[var(--tt-border)] text-[var(--tt-secondary)]">
               <th className="py-2 pr-3 font-medium">Class</th>
               <th className="py-2 pr-3 font-medium">Precision</th>
               <th className="py-2 pr-3 font-medium">Recall</th>
@@ -413,19 +413,19 @@ function ResultsSection() {
           </thead>
           <tbody>
             {t.perClass.map((c) => (
-              <tr key={c.key} className="border-b border-slate-100">
-                <td className="py-2.5 pr-3 font-semibold text-slate-800">{c.label}</td>
-                <td className="py-2.5 pr-3 text-slate-600">{pct(c.p)}</td>
-                <td className="py-2.5 pr-3 text-slate-600">{pct(c.r)}</td>
+              <tr key={c.key} className="border-b border-[var(--tt-border)]">
+                <td className="py-2.5 pr-3 font-semibold text-[var(--tt-ink)]">{c.label}</td>
+                <td className="py-2.5 pr-3 text-[var(--tt-secondary)]">{pct(c.p)}</td>
+                <td className="py-2.5 pr-3 text-[var(--tt-secondary)]">{pct(c.r)}</td>
                 <td className="py-2.5 pr-3">
                   <div className="flex items-center gap-2">
-                    <div className="h-2 w-32 rounded-full bg-slate-100">
-                      <div className={`h-2 rounded-full ${f1Color(c.f1)}`} style={{ width: `${c.f1 * 100}%` }} />
+                    <div className="h-2 w-32 rounded-[var(--tt-radius)] bg-[var(--tt-paper)]">
+                      <div className={`h-2 rounded-[var(--tt-radius)] ${f1Color(c.f1)}`} style={{ width: `${c.f1 * 100}%` }} />
                     </div>
-                    <span className="font-semibold text-slate-800">{pct(c.f1)}</span>
+                    <span className="font-semibold text-[var(--tt-ink)]">{pct(c.f1)}</span>
                   </div>
                 </td>
-                <td className="py-2.5 text-slate-500">{c.n}</td>
+                <td className="py-2.5 text-[var(--tt-secondary)]">{c.n}</td>
               </tr>
             ))}
           </tbody>
@@ -435,13 +435,13 @@ function ResultsSection() {
         How to read this: precision asks how often a prediction of that class was right, recall asks how many real cases of that class
         were found, and F1 combines both. Green is 75% or above, amber is 50 to 75%, red is below 50%.
       </Caption>
-      <div className="mt-3 space-y-2 text-xs text-slate-600">
+      <div className="mt-3 space-y-2 text-xs text-[var(--tt-secondary)]">
         <p>
-          <span className="font-semibold text-slate-800">The two acne types are confused with each other</span> (F1 22.5% and 41.9%).
+          <span className="font-semibold text-[var(--tt-ink)]">The two acne types are confused with each other</span> (F1 22.5% and 41.9%).
           They look alike, so the app reports them as one Acne result and adds their probabilities.
         </p>
         <p>
-          <span className="font-semibold text-slate-800">Healthy scores 99.4% on this test set,</span> but that test comes from the same
+          <span className="font-semibold text-[var(--tt-ink)]">Healthy scores 99.4% on this test set,</span> but that test comes from the same
           sources as the training photos, so it overstates how well Healthy works on ordinary phone photos. The next section checks that.
         </p>
       </div>
@@ -464,21 +464,21 @@ function RealWorldSection() {
         {rw.rows.map((r) => (
           <div key={r.label}>
             <div className="flex justify-between text-xs">
-              <span className="font-semibold text-slate-800">{r.label}</span>
-              <span className="text-slate-500">{r.ok} of {r.n} correct</span>
+              <span className="font-semibold text-[var(--tt-ink)]">{r.label}</span>
+              <span className="text-[var(--tt-secondary)]">{r.ok} of {r.n} correct</span>
             </div>
-            <div className="mt-1 h-3 rounded-full bg-slate-100">
+            <div className="mt-1 h-3 rounded-[var(--tt-radius)] bg-[var(--tt-paper)]">
               <div
-                className={`h-3 rounded-full ${r.ok / r.n >= 0.75 ? "bg-emerald-500" : r.ok / r.n >= 0.4 ? "bg-amber-400" : "bg-rose-500"}`}
+                className={`h-3 rounded-[var(--tt-radius)] ${r.ok / r.n >= 0.75 ? "bg-[var(--tt-primary)]" : r.ok / r.n >= 0.4 ? "bg-amber-400" : "bg-red-500"}`}
                 style={{ width: `${(r.ok / r.n) * 100}%` }}
               />
             </div>
           </div>
         ))}
       </div>
-      <div className="mt-5 rounded-2xl border border-slate-200 p-4">
-        <p className="text-xs font-bold text-slate-900">Where it goes wrong</p>
-        <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-600">
+      <div className="mt-5 rounded-[var(--tt-radius)] border border-[var(--tt-border)] p-4">
+        <p className="text-xs font-bold text-[var(--tt-ink)]">Where it goes wrong</p>
+        <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-[var(--tt-secondary)]">
           {rw.failures.map((f) => <li key={f}>{f}</li>)}
         </ul>
       </div>
@@ -507,14 +507,14 @@ function SafetySection() {
     <>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map(([t, d]) => (
-          <div key={t} className="rounded-2xl border border-slate-200 p-4">
-            <p className="text-xs font-bold text-slate-900">{t}</p>
-            <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{d}</p>
+          <div key={t} className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] p-4">
+            <p className="text-xs font-bold text-[var(--tt-ink)]">{t}</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-[var(--tt-secondary)]">{d}</p>
           </div>
         ))}
       </div>
-      <p className="mt-4 text-xs text-slate-500">
-        See these rules working on a real photo in the <a href="/inspector" className="font-semibold text-emerald-700 underline">Pipeline Inspector</a>.
+      <p className="mt-4 text-xs text-[var(--tt-secondary)]">
+        See these rules working on a real photo in the <a href="/inspector" className="font-semibold text-[var(--tt-primary)] underline">Pipeline Inspector</a>.
       </p>
     </>
   );
@@ -533,13 +533,13 @@ function FairnessSection() {
       <div className="flex items-end gap-2 sm:gap-3">
         {REPORT.monk.map(([m, n]) => (
           <div key={m} className="flex flex-1 flex-col items-center">
-            <span className="mb-1 text-[11px] font-semibold text-slate-600">{n}</span>
-            <div className="w-full rounded-t-md border border-slate-200" style={{ height: `${Math.max(4, (n / max) * 120)}px`, backgroundColor: MONK_SWATCH[m - 1] }} />
-            <span className="mt-1 text-[10px] text-slate-400">{m}</span>
+            <span className="mb-1 text-[11px] font-semibold text-[var(--tt-secondary)]">{n}</span>
+            <div className="w-full rounded-t-md border border-[var(--tt-border)]" style={{ height: `${Math.max(4, (n / max) * 120)}px`, backgroundColor: MONK_SWATCH[m - 1] }} />
+            <span className="mt-1 text-[10px] text-[var(--tt-secondary)]">{m}</span>
           </div>
         ))}
       </div>
-      <p className="mt-1 text-center text-[11px] text-slate-400">Monk Skin Tone scale, 1 (lightest) to 10 (darkest). Swatch colours are approximate.</p>
+      <p className="mt-1 text-center text-[11px] text-[var(--tt-secondary)]">Monk Skin Tone scale, 1 (lightest) to 10 (darkest). Swatch colours are approximate.</p>
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
         <Kpi label="Tones 1 to 3" value={`${Math.round((light / total) * 100)}%`} hint={`${light} cases`} />
         <Kpi label="Tones 4 to 5" value={`${Math.round((mid / total) * 100)}%`} hint={`${mid} cases`} />
@@ -550,7 +550,7 @@ function FairnessSection() {
         which is a known gap in public dermatology data. It was added on purpose to improve coverage, and it is reported here
         so the bias is visible instead of hidden.
       </Caption>
-      <p className="mt-3 text-xs text-slate-500">
+      <p className="mt-3 text-xs text-[var(--tt-secondary)]">
         Not measured: the DermNet and Roboflow images carry no skin-tone labels, so overall coverage and accuracy per skin tone were
         not evaluated. This is listed under future work.
       </p>
@@ -578,15 +578,15 @@ function LimitsSection() {
   ];
   return (
     <div className="grid gap-5 md:grid-cols-2">
-      <div className="rounded-2xl border border-rose-200 bg-rose-50/40 p-5">
-        <p className="text-sm font-bold text-slate-900">Known limitations</p>
-        <ul className="mt-2 list-disc space-y-1.5 pl-4 text-xs text-slate-600">{limits.map((l) => <li key={l}>{l}</li>)}</ul>
+      <div className="rounded-[var(--tt-radius)] border border-red-200 bg-red-50 p-5">
+        <p className="text-sm font-bold text-[var(--tt-ink)]">Known limitations</p>
+        <ul className="mt-2 list-disc space-y-1.5 pl-4 text-xs text-[var(--tt-secondary)]">{limits.map((l) => <li key={l}>{l}</li>)}</ul>
       </div>
-      <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-5">
-        <p className="text-sm font-bold text-slate-900">Future work</p>
-        <ul className="mt-2 list-disc space-y-1.5 pl-4 text-xs text-slate-600">{future.map((l) => <li key={l}>{l}</li>)}</ul>
+      <div className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-primary-muted)] p-5">
+        <p className="text-sm font-bold text-[var(--tt-ink)]">Future work</p>
+        <ul className="mt-2 list-disc space-y-1.5 pl-4 text-xs text-[var(--tt-secondary)]">{future.map((l) => <li key={l}>{l}</li>)}</ul>
       </div>
-      <p className="text-[11px] text-slate-400 md:col-span-2">
+      <p className="text-[11px] text-[var(--tt-secondary)] md:col-span-2">
         TrueTone is a screening aid built as a final-year project. It is not a medical device and does not replace a dermatologist.
       </p>
     </div>
@@ -631,29 +631,27 @@ export function ReportBody() {
 }
 
 const ModelReport = () => (
-  <div className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:px-6">
-    <div className="mx-auto max-w-5xl space-y-6">
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-wide text-emerald-600">Examiner view</p>
-        <h1 className="mt-1 text-3xl font-extrabold">Model and System Report</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-600">
-          How TrueTone was built, trained and tested, using the real numbers from this project, including where it falls short.
-          To watch one photo travel through the system step by step, open the{" "}
-          <a href="/inspector" className="font-semibold text-emerald-700 underline">Pipeline Inspector</a>.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-1.5">
-          {NAV.map(([id, label], i) => (
-            <a key={id} href={`#sec-${id}`} className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200 hover:text-emerald-700">
-              {i + 1}. {label}
-            </a>
-          ))}
-          <button type="button" onClick={() => window.print()} className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-semibold text-white">
-            Print
-          </button>
-        </div>
+  <div className="mx-auto max-w-5xl space-y-6 text-[var(--tt-ink)]">
+    <div className="border-b border-[var(--tt-border)] pb-4">
+      <p className="tt-mono text-xs font-medium uppercase tracking-[0.14em] text-[var(--tt-primary)]">Examiner view</p>
+      <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Model and System Report</h1>
+      <p className="mt-1.5 max-w-2xl text-sm text-[var(--tt-secondary)]">
+        How TrueTone was built, trained and tested, using the real numbers from this project, including where it falls short.
+        To watch one photo travel through the system step by step, open the{" "}
+        <a href="/inspector" className="font-semibold text-[var(--tt-primary)] underline">Pipeline Inspector</a>.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {NAV.map(([id, label], i) => (
+          <a key={id} href={`#sec-${id}`} className="rounded-[var(--tt-radius)] bg-[var(--tt-surface)] px-3 py-1 text-[11px] font-semibold text-[var(--tt-secondary)] ring-1 ring-[var(--tt-border)] hover:text-[var(--tt-primary)]">
+            {i + 1}. {label}
+          </a>
+        ))}
+        <button type="button" onClick={() => window.print()} className="rounded-[var(--tt-radius)] bg-[var(--tt-ink)] px-3 py-1 text-[11px] font-semibold text-white">
+          Print
+        </button>
       </div>
-      <ReportBody />
     </div>
+    <ReportBody />
   </div>
 );
 

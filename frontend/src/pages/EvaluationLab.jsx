@@ -107,10 +107,10 @@ const pct = (v, d = 0) => (v === null || v === undefined ? "-" : `${(v * 100).to
 
 function Kpi({ label, value, hint }) {
   return (
-    <div className="rounded-2xl bg-slate-50 p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
-      <p className="mt-1 text-2xl font-extrabold text-slate-900">{value}</p>
-      {hint && <p className="mt-0.5 text-[11px] text-slate-400">{hint}</p>}
+    <div className="rounded-[var(--tt-radius)] bg-[var(--tt-paper)] p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-secondary)]">{label}</p>
+      <p className="mt-1 text-2xl font-semibold text-[var(--tt-ink)]">{value}</p>
+      {hint && <p className="mt-0.5 text-[11px] text-[var(--tt-secondary)]">{hint}</p>}
     </div>
   );
 }
@@ -125,39 +125,39 @@ function cellStyle(n, rowTotal, kind) {
 export function ConfusionMatrix({ matrix }) {
   const rows = CLASSES.filter((c) => (matrix.rowTotals[c.key] || 0) > 0);
   if (rows.length === 0) {
-    return <p className="rounded-2xl bg-slate-50 p-6 text-center text-xs text-slate-400">The matrix fills in as photos are analysed.</p>;
+    return <p className="rounded-[var(--tt-radius)] bg-[var(--tt-paper)] p-6 text-center text-xs text-[var(--tt-secondary)]">The matrix fills in as photos are analysed.</p>;
   }
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[560px] border-separate border-spacing-1 text-center text-xs">
-        <thead>
+        <thead className="sticky top-0 z-10 bg-[var(--tt-surface)]">
           <tr>
-            <th className="p-1 text-left text-[10px] font-semibold uppercase text-slate-400">Really is</th>
+            <th className="p-1 text-left text-[10px] font-semibold uppercase text-[var(--tt-secondary)]">Really is</th>
             {ANSWERS.map((a) => (
-              <th key={a.key} className="p-1 text-[11px] font-semibold text-slate-600">{a.label}</th>
+              <th key={a.key} className="p-1 text-[11px] font-semibold text-[var(--tt-secondary)]">{a.label}</th>
             ))}
-            <th className="p-1 text-[10px] font-semibold uppercase text-slate-400">Photos</th>
+            <th className="p-1 text-[10px] font-semibold uppercase text-[var(--tt-secondary)]">Photos</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.key}>
-              <th className="p-1 text-left text-[11px] font-semibold text-slate-700">{r.label}</th>
+              <th className="p-1 text-left text-[11px] font-semibold text-[var(--tt-ink)]">{r.label}</th>
               {ANSWERS.map((a) => {
                 const n = matrix.counts[r.key]?.[a.key] || 0;
                 const kind = a.key === r.key ? "diag" : a.key === "unclear" ? "unclear" : "off";
                 return (
-                  <td key={a.key} className="h-10 rounded-lg bg-slate-50 font-bold" style={cellStyle(n, matrix.rowTotals[r.key], kind)}>
+                  <td key={a.key} className="h-10 rounded-[var(--tt-radius)] bg-[var(--tt-paper)] font-bold" style={cellStyle(n, matrix.rowTotals[r.key], kind)}>
                     {n || ""}
                   </td>
                 );
               })}
-              <td className="p-1 text-slate-500">{matrix.rowTotals[r.key]}</td>
+              <td className="p-1 text-[var(--tt-secondary)]">{matrix.rowTotals[r.key]}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="mt-2 text-[11px] text-slate-400">
+      <p className="mt-2 text-[11px] text-[var(--tt-secondary)]">
         Rows are what the photo really shows, columns are what the app answered. Green is a correct answer, red is a wrong one, amber is
         Unclear. A perfect model would only have green cells on the diagonal.
       </p>
@@ -166,10 +166,10 @@ export function ConfusionMatrix({ matrix }) {
 }
 
 const statusChip = {
-  queued: "bg-slate-100 text-slate-500",
+  queued: "bg-[var(--tt-paper)] text-[var(--tt-secondary)]",
   running: "bg-sky-100 text-sky-700",
-  done: "bg-emerald-50 text-emerald-700",
-  error: "bg-rose-50 text-rose-700",
+  done: "bg-[var(--tt-primary-muted)] text-[var(--tt-primary)]",
+  error: "bg-red-50 text-[var(--tt-avoid)]",
 };
 
 export function EvaluationReport({ items, onTruth, onInspect }) {
@@ -186,25 +186,27 @@ export function EvaluationReport({ items, onTruth, onInspect }) {
         <Kpi label="Macro F1" value={pct(k.macroF1)} hint="every class counts equally" />
       </div>
       {(m.rejected > 0 || m.noTruth > 0) && (
-        <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        <p className="rounded-[var(--tt-radius)] bg-amber-50 px-3 py-2 text-xs text-[var(--tt-caution)]">
           {m.rejected > 0 ? `${m.rejected} photo${m.rejected === 1 ? " was" : "s were"} rejected before analysis (for example no face found) and ${m.rejected === 1 ? "is" : "are"} not counted. ` : ""}
           {m.noTruth > 0 ? `${m.noTruth} analysed photo${m.noTruth === 1 ? " has" : "s have"} no true type selected and ${m.noTruth === 1 ? "is" : "are"} not counted.` : ""}
         </p>
       )}
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-bold text-slate-900">Confusion matrix</h2>
-        <p className="mb-4 text-sm text-slate-500">Where each kind of photo ended up. It updates after every photo.</p>
-        <ConfusionMatrix matrix={m} />
+      <div className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-5">
+        <h2 className="text-base font-semibold text-[var(--tt-ink)]">Confusion matrix</h2>
+        <p className="mb-3 text-sm text-[var(--tt-secondary)]">Where each kind of photo ended up. It updates after every photo.</p>
+        <div className="max-h-[28rem] overflow-auto">
+          <ConfusionMatrix matrix={m} />
+        </div>
       </div>
 
       {k.perClass.length > 0 && (
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900">Per-condition results</h2>
+        <div className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-5">
+          <h2 className="text-base font-semibold text-[var(--tt-ink)]">Per-condition results</h2>
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[560px] text-left text-xs">
               <thead>
-                <tr className="border-b border-slate-200 text-slate-400">
+                <tr className="border-b border-[var(--tt-border)] text-[var(--tt-secondary)]">
                   <th className="py-2 pr-3 font-medium">Condition</th>
                   <th className="py-2 pr-3 font-medium">Photos</th>
                   <th className="py-2 pr-3 font-medium">Found (recall)</th>
@@ -214,19 +216,19 @@ export function EvaluationReport({ items, onTruth, onInspect }) {
               </thead>
               <tbody>
                 {k.perClass.map((c) => (
-                  <tr key={c.key} className="border-b border-slate-100">
-                    <td className="py-2.5 pr-3 font-semibold text-slate-800">{c.label}</td>
-                    <td className="py-2.5 pr-3 text-slate-500">{c.support}</td>
+                  <tr key={c.key} className="border-b border-[var(--tt-border)]">
+                    <td className="py-2.5 pr-3 font-semibold text-[var(--tt-ink)]">{c.label}</td>
+                    <td className="py-2.5 pr-3 text-[var(--tt-secondary)]">{c.support}</td>
                     <td className="py-2.5 pr-3">
                       <div className="flex items-center gap-2">
-                        <div className="h-2 w-24 rounded-full bg-slate-100">
-                          <div className="h-2 rounded-full bg-emerald-500" style={{ width: `${c.recall * 100}%` }} />
+                        <div className="h-2 w-24 rounded-[var(--tt-radius)] bg-[var(--tt-paper)]">
+                          <div className="h-2 rounded-[var(--tt-radius)] bg-[var(--tt-primary)]" style={{ width: `${c.recall * 100}%` }} />
                         </div>
-                        <span className="text-slate-600">{c.tp} of {c.support}</span>
+                        <span className="text-[var(--tt-secondary)]">{c.tp} of {c.support}</span>
                       </div>
                     </td>
-                    <td className="py-2.5 pr-3 text-slate-600">{c.answered ? `${c.tp} of ${c.answered}` : "never answered"}</td>
-                    <td className="py-2.5 font-semibold text-slate-800">{pct(c.f1)}</td>
+                    <td className="py-2.5 pr-3 text-[var(--tt-secondary)]">{c.answered ? `${c.tp} of ${c.answered}` : "never answered"}</td>
+                    <td className="py-2.5 font-semibold text-[var(--tt-ink)]">{pct(c.f1)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -235,12 +237,12 @@ export function EvaluationReport({ items, onTruth, onInspect }) {
         </div>
       )}
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-bold text-slate-900">Every photo</h2>
+      <div className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-5">
+        <h2 className="text-base font-semibold text-[var(--tt-ink)]">Every photo</h2>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[640px] text-left text-xs">
             <thead>
-              <tr className="border-b border-slate-200 text-slate-400">
+              <tr className="border-b border-[var(--tt-border)] text-[var(--tt-secondary)]">
                 <th className="py-2 pr-3 font-medium">Photo</th>
                 <th className="py-2 pr-3 font-medium">Really is</th>
                 <th className="py-2 pr-3 font-medium">App answered</th>
@@ -253,16 +255,16 @@ export function EvaluationReport({ items, onTruth, onInspect }) {
               {items.map((it) => {
                 const right = it.status === "done" && it.truth && it.answer ? it.answer === it.truth : null;
                 return (
-                  <tr key={it.id} className="border-b border-slate-100 align-middle">
+                  <tr key={it.id} className="border-b border-[var(--tt-border)] align-middle">
                     <td className="py-2 pr-3">
                       <div className="flex items-center gap-2">
-                        {it.url && <img src={it.url} alt="" className="h-9 w-9 rounded-lg object-cover" />}
-                        <span className="max-w-[160px] truncate font-semibold text-slate-700">{it.name}</span>
+                        {it.url && <img src={it.url} alt="" className="h-9 w-9 rounded-[var(--tt-radius)] object-cover" />}
+                        <span className="max-w-[160px] truncate font-semibold text-[var(--tt-ink)]">{it.name}</span>
                       </div>
                     </td>
                     <td className="py-2 pr-3">
                       {onTruth ? (
-                        <select value={it.truth} onChange={(e) => onTruth(it.id, e.target.value)} className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs">
+                        <select value={it.truth} onChange={(e) => onTruth(it.id, e.target.value)} className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] px-2 py-1 text-xs">
                           <option value="">Not sure</option>
                           {CLASSES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
                         </select>
@@ -270,19 +272,19 @@ export function EvaluationReport({ items, onTruth, onInspect }) {
                         <span>{LABEL[it.truth] || "Not sure"}</span>
                       )}
                     </td>
-                    <td className="py-2 pr-3 text-slate-700">
-                      {it.status === "done" ? `${LABEL[it.answer] || "-"}${it.confidence != null ? ` (${Math.round(it.confidence * 100)}%)` : ""}` : it.status === "error" ? <span className="text-rose-600">{it.error}</span> : "-"}
+                    <td className="py-2 pr-3 text-[var(--tt-ink)]">
+                      {it.status === "done" ? `${LABEL[it.answer] || "-"}${it.confidence != null ? ` (${Math.round(it.confidence * 100)}%)` : ""}` : it.status === "error" ? <span className="text-[var(--tt-avoid)]">{it.error}</span> : "-"}
                     </td>
                     <td className="py-2 pr-3 font-bold">
-                      {right === true && <span className="text-emerald-600">Correct</span>}
-                      {right === false && <span className="text-rose-600">Wrong</span>}
+                      {right === true && <span className="text-[var(--tt-primary)]">Correct</span>}
+                      {right === false && <span className="text-[var(--tt-avoid)]">Wrong</span>}
                     </td>
                     <td className="py-2">
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusChip[it.status]}`}>{it.status}</span>
+                      <span className={`rounded-[var(--tt-radius)] px-2 py-0.5 text-[11px] font-semibold ${statusChip[it.status]}`}>{it.status}</span>
                     </td>
                     {onInspect && (
                       <td className="py-2 pl-3">
-                        <button type="button" onClick={() => onInspect(it)} className="rounded-full border border-emerald-300 px-3 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50">
+                        <button type="button" onClick={() => onInspect(it)} className="rounded-[var(--tt-radius)] border border-[var(--tt-primary)] px-3 py-1 text-[11px] font-semibold text-[var(--tt-primary)] hover:bg-[var(--tt-primary-muted)]">
                           Inspect
                         </button>
                       </td>
@@ -399,12 +401,11 @@ const EvaluationLab = () => {
   const pending = items.filter((i) => i.status === "queued" || i.status === "error").length;
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:px-6">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-emerald-600">Examiner view</p>
-          <h1 className="mt-1 text-3xl font-extrabold">Evaluation Lab</h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-600">
+    <div className="mx-auto max-w-5xl space-y-6 text-[var(--tt-ink)]">
+        <div className="border-b border-[var(--tt-border)] pb-4">
+          <p className="tt-mono text-xs font-medium uppercase tracking-[0.14em] text-[var(--tt-primary)]">Examiner view</p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Evaluation Lab</h1>
+          <p className="mt-1.5 max-w-2xl text-sm text-[var(--tt-secondary)]">
             Add photos, say what each one really shows, and watch the app mark itself. Nothing is saved. File names like
             ca1.jpg (acne), e1.jpg (eczema), ps1.jpg (psoriasis), r1.jpg (rosacea), tr1.jpg (tinea) and h1.jpg (healthy) are recognised
             automatically, and you can change any row. Click Inspect on a row to follow that photo through every step. Your photos and
@@ -413,7 +414,7 @@ const EvaluationLab = () => {
         </div>
 
         <div
-          className="rounded-3xl border-2 border-dashed border-slate-300 bg-white p-6 text-center shadow-sm"
+          className="rounded-[var(--tt-radius)] border-2 border-dashed border-[var(--tt-border)] bg-[var(--tt-surface)] p-5 text-center"
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();
@@ -431,39 +432,39 @@ const EvaluationLab = () => {
               e.target.value = "";
             }}
           />
-          <p className="text-sm font-semibold text-slate-700">Drop photos here, or</p>
+          <p className="text-sm font-semibold text-[var(--tt-ink)]">Drop photos here, or</p>
           <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
-            <button type="button" onClick={() => inputRef.current?.click()} className="rounded-full border border-slate-300 bg-white px-5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+            <button type="button" onClick={() => inputRef.current?.click()} className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] px-5 py-2 text-sm font-semibold text-[var(--tt-ink)] hover:bg-[var(--tt-paper)]">
               Choose photos
             </button>
             <button
               type="button"
               onClick={runEvaluation}
               disabled={running || pending === 0}
-              className="rounded-full bg-emerald-600 px-6 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700 disabled:opacity-40"
+              className="rounded-[var(--tt-radius)] bg-[var(--tt-primary)] px-6 py-2 text-sm font-semibold text-white hover:bg-[var(--tt-primary-hover)] disabled:opacity-40"
             >
               {running ? `Analysing ${finished} of ${items.length}...` : "Run evaluation"}
             </button>
             {running && (
-              <button type="button" onClick={() => { store.cancel = true; }} className="rounded-full border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-600">
+              <button type="button" onClick={() => { store.cancel = true; }} className="rounded-[var(--tt-radius)] border border-[var(--tt-avoid)] px-4 py-2 text-sm font-semibold text-[var(--tt-avoid)]">
                 Stop
               </button>
             )}
             {items.length > 0 && (
               <>
-                <button type="button" onClick={downloadCsv} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
+                <button type="button" onClick={downloadCsv} className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] px-4 py-2 text-sm font-semibold text-[var(--tt-ink)]">
                   Download CSV
                 </button>
-                <button type="button" onClick={() => window.print()} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
+                <button type="button" onClick={() => window.print()} className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] px-4 py-2 text-sm font-semibold text-[var(--tt-ink)]">
                   Print
                 </button>
-                <button type="button" onClick={clearAll} className="px-3 py-2 text-sm font-semibold text-slate-400 hover:text-slate-600">
+                <button type="button" onClick={clearAll} className="px-3 py-2 text-sm font-semibold text-[var(--tt-secondary)] hover:text-[var(--tt-secondary)]">
                   Clear
                 </button>
               </>
             )}
           </div>
-          <label className="mt-3 inline-flex items-center gap-2 text-xs text-slate-500">
+          <label className="mt-3 inline-flex items-center gap-2 text-xs text-[var(--tt-secondary)]">
             <input
               type="checkbox"
               checked={store.skipFace}
@@ -471,13 +472,13 @@ const EvaluationLab = () => {
                 store.skipFace = e.target.checked;
                 notify();
               }}
-              className="accent-emerald-600"
+              className="accent-[var(--tt-primary)]"
             />
             Skip the face check (needed for skin close-ups; faces are still cropped when found)
           </label>
           {items.length > 0 && (
-            <div className="mx-auto mt-4 h-2 max-w-md overflow-hidden rounded-full bg-slate-100">
-              <div className="h-2 rounded-full bg-emerald-500 transition-all" style={{ width: `${(finished / items.length) * 100}%` }} />
+            <div className="mx-auto mt-4 h-2 max-w-md overflow-hidden rounded-[var(--tt-radius)] bg-[var(--tt-paper)]">
+              <div className="h-2 rounded-[var(--tt-radius)] bg-[var(--tt-primary)] transition-all" style={{ width: `${(finished / items.length) * 100}%` }} />
             </div>
           )}
         </div>
@@ -485,11 +486,10 @@ const EvaluationLab = () => {
         {items.length > 0 ? (
           <EvaluationReport items={items} onTruth={(id, v) => patch(id, { truth: v })} onInspect={inspect} />
         ) : (
-          <p className="text-center text-xs text-slate-400">
+          <p className="text-center text-xs text-[var(--tt-secondary)]">
             No photos yet. The held-out test photos from Drive work well here, as do ordinary web photos. Try 10 to 20.
           </p>
         )}
-      </div>
     </div>
   );
 };

@@ -15,11 +15,14 @@ import AppLayout from "./components/AppLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import EvaluationLab from "./pages/EvaluationLab";
 import ModelReport from "./pages/ModelReport";
+import DesignSystemPreview from "./pages/DesignSystemPreview";
 const App = () => (
   <BrowserRouter>
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/auth" element={<Auth />} />
+      {/* Temporary Step 1 Clinical component gallery — review only */}
+      <Route path="/design-system" element={<DesignSystemPreview />} />
 
       {/* Protected routes — require token */}
       <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />

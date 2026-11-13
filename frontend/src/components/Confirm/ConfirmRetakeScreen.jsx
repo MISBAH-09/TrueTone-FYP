@@ -1,79 +1,81 @@
-import React from 'react';
-import { RotateCcw, ArrowRight, CheckCircle2, AlertTriangle, AlertCircle } from 'lucide-react';
+import React from "react";
+import { RotateCcw, ArrowRight, CheckCircle2, AlertTriangle, AlertCircle } from "lucide-react";
 
-export const ConfirmRetakeScreen = ({ imagePreviewUrl, onRetake, onContinue, modeLabel, error, skinOnlyWarning, onProceedAnyway }) => {
+export const ConfirmRetakeScreen = ({
+  imagePreviewUrl,
+  onRetake,
+  onContinue,
+  modeLabel,
+  error,
+  skinOnlyWarning,
+  onProceedAnyway,
+}) => {
   return (
-    <div className="w-full max-w-lg mx-auto bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden flex flex-col p-6 text-slate-800 animate-fadeIn">
-      <div className="text-center mb-5">
-        <span className="text-xs uppercase tracking-wider font-bold text-emerald-600">
+    <div className="mx-auto flex w-full max-w-lg flex-col overflow-hidden rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-5 text-[var(--tt-ink)] sm:p-6">
+      <div className="mb-5 text-center">
+        <span className="tt-mono text-xs font-medium uppercase tracking-[0.14em] text-[var(--tt-primary)]">
           Photo Verification
         </span>
-        <h2 className="text-2xl font-bold text-slate-900 mt-1">Review Your Photo</h2>
-        <p className="text-sm text-slate-500 mt-1">
+        <h2 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--tt-ink)]">Review Your Photo</h2>
+        <p className="mt-1 text-sm text-[var(--tt-secondary)]">
           Ensure your face is clearly visible and centered before analyzing.
         </p>
       </div>
 
       {error && (
-        <div className="mb-4 flex items-center gap-2 rounded-xl bg-rose-50 border border-rose-200 p-3 text-sm text-rose-700">
-          <AlertCircle className="w-5 h-5 shrink-0" />
+        <div className="mb-4 flex items-center gap-2 rounded-[var(--tt-radius)] border border-red-200 border-l-4 border-l-[var(--tt-avoid)] bg-red-50 p-3 text-sm text-[var(--tt-avoid)]">
+          <AlertCircle className="h-5 w-5 shrink-0" />
           <p>{error}</p>
         </div>
       )}
 
       {skinOnlyWarning && (
-        <div className="mb-4 flex items-start gap-3 rounded-2xl bg-amber-50 border border-amber-300 p-4 text-amber-800 shadow-sm animate-pulse-soft">
-          <AlertTriangle className="w-6 h-6 shrink-0 mt-0.5" />
+        <div className="mb-4 flex items-start gap-3 rounded-[var(--tt-radius)] border border-amber-200 border-l-4 border-l-[var(--tt-caution)] bg-amber-50 p-3 text-[var(--tt-caution)]">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
           <div className="flex-1">
-            <h4 className="font-bold text-sm mb-1">Skin Detected, No Face</h4>
-            <p className="text-sm font-medium">{skinOnlyWarning}</p>
+            <h4 className="mb-1 text-sm font-semibold">Skin Detected, No Face</h4>
+            <p className="text-sm">{skinOnlyWarning}</p>
           </div>
         </div>
       )}
 
-      {/* Large Framed Preview */}
-      <div className="relative w-full aspect-[4/5] max-h-[50vh] rounded-2xl overflow-hidden bg-slate-900 border border-slate-200 shadow-inner flex items-center justify-center mb-6">
+      <div className="relative mb-6 flex aspect-[4/5] max-h-[50vh] w-full items-center justify-center overflow-hidden rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-ink)]">
         {imagePreviewUrl ? (
-          <img
-            src={imagePreviewUrl}
-            alt="Captured Face"
-            className="w-full h-full object-cover"
-          />
+          <img src={imagePreviewUrl} alt="Captured Face" className="h-full w-full object-cover" />
         ) : (
-          <div className="text-slate-400 text-sm">No photo available</div>
+          <div className="text-sm text-white/60">No photo available</div>
         )}
 
-        <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md text-white text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5">
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-          Ready for {modeLabel || 'Analysis'}
+        <div className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-[var(--tt-radius)] bg-black/65 px-2.5 py-1 text-xs font-medium text-white">
+          <CheckCircle2 className="h-3.5 w-3.5 text-[var(--tt-primary-hover)]" />
+          Ready for {modeLabel || "Analysis"}
         </div>
       </div>
 
-      {/* Two Action Buttons: Retake vs Continue / Proceed Anyway */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-3">
         <button
           onClick={onRetake}
-          className="flex items-center justify-center gap-2 py-3.5 px-6 rounded-full border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-sm transition active:scale-[0.98]"
+          className="inline-flex h-[var(--tt-control-h)] items-center justify-center gap-2 rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] px-3 text-sm font-medium text-[var(--tt-ink)] transition-colors hover:bg-[var(--tt-paper)]"
         >
-          <RotateCcw className="w-4 h-4" />
+          <RotateCcw className="h-4 w-4" />
           Retake
         </button>
 
         {skinOnlyWarning ? (
           <button
             onClick={onProceedAnyway}
-            className="flex items-center justify-center gap-2 py-3.5 px-4 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm tracking-wide transition shadow-md hover:shadow-lg active:scale-[0.98]"
+            className="inline-flex h-[var(--tt-control-h)] items-center justify-center gap-2 rounded-[var(--tt-radius)] bg-[var(--tt-caution)] px-3 text-sm font-medium text-white transition-colors hover:opacity-90"
           >
             Proceed Anyway
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="h-4 w-4" />
           </button>
         ) : (
           <button
             onClick={onContinue}
-            className="flex items-center justify-center gap-2 py-3.5 px-6 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm tracking-wide transition shadow-md hover:shadow-lg active:scale-[0.98]"
+            className="inline-flex h-[var(--tt-control-h)] items-center justify-center gap-2 rounded-[var(--tt-radius)] bg-[var(--tt-primary)] px-3 text-sm font-medium text-white transition-colors hover:bg-[var(--tt-primary-hover)]"
           >
             Continue
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="h-4 w-4" />
           </button>
         )}
       </div>

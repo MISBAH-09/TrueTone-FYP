@@ -120,68 +120,65 @@ export const ManualCropScreen = ({ imageSrc, onApply, onCancel }) => {
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden flex flex-col items-center p-4 sm:p-6 max-h-[92vh] overflow-y-auto animate-fadeIn">
-      {/* Top Header with Close */}
-      <div className="w-full flex items-center justify-between mb-3 px-2">
+    <div className="mx-auto flex max-h-[92vh] w-full max-w-2xl flex-col items-center overflow-hidden overflow-y-auto rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-4 text-[var(--tt-ink)] sm:p-6">
+      <div className="mb-3 flex w-full items-center justify-between px-1">
         <button
           onClick={onCancel}
-          className="p-2 rounded-full hover:bg-slate-100 text-slate-600 transition"
+          className="rounded-[var(--tt-radius)] p-2 text-[var(--tt-secondary)] transition hover:bg-[var(--tt-paper)] hover:text-[var(--tt-ink)]"
           aria-label="Close"
         >
-          <X className="w-6 h-6" />
+          <X className="h-5 w-5" />
         </button>
-        <span className="font-bold text-slate-900 text-base sm:text-lg">
+        <span className="text-base font-semibold text-[var(--tt-ink)] sm:text-lg">
           Adjust Photo Framing
         </span>
-        <div className="w-10"></div>
+        <div className="w-9" />
       </div>
 
-      {/* Aspect Ratio Toolbar */}
-      <div className="w-full flex items-center justify-center gap-2 mb-3 flex-wrap">
+      <div className="mb-3 flex w-full flex-wrap items-center justify-center gap-2">
         <button
           onClick={() => handleSetAspect(undefined)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition ${
+          className={`inline-flex items-center gap-1.5 rounded-[var(--tt-radius)] px-3 py-1.5 text-xs font-medium transition-colors ${
             aspect === undefined
-              ? 'bg-emerald-600 text-white shadow-sm'
-              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              ? "bg-[var(--tt-primary)] text-white"
+              : "bg-[var(--tt-paper)] text-[var(--tt-ink)] hover:bg-[var(--tt-border)]"
           }`}
         >
-          <Crop className="w-3.5 h-3.5" />
+          <Crop className="h-3.5 w-3.5" />
           Free Crop
         </button>
         <button
           onClick={() => handleSetAspect(4 / 5)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition ${
+          className={`inline-flex items-center gap-1.5 rounded-[var(--tt-radius)] px-3 py-1.5 text-xs font-medium transition-colors ${
             aspect === 4 / 5
-              ? 'bg-emerald-600 text-white shadow-sm'
-              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              ? "bg-[var(--tt-primary)] text-white"
+              : "bg-[var(--tt-paper)] text-[var(--tt-ink)] hover:bg-[var(--tt-border)]"
           }`}
         >
-          <RectangleVertical className="w-3.5 h-3.5" />
+          <RectangleVertical className="h-3.5 w-3.5" />
           Portrait (4:5)
         </button>
         <button
           onClick={() => handleSetAspect(1)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition ${
+          className={`inline-flex items-center gap-1.5 rounded-[var(--tt-radius)] px-3 py-1.5 text-xs font-medium transition-colors ${
             aspect === 1
-              ? 'bg-emerald-600 text-white shadow-sm'
-              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              ? "bg-[var(--tt-primary)] text-white"
+              : "bg-[var(--tt-paper)] text-[var(--tt-ink)] hover:bg-[var(--tt-border)]"
           }`}
         >
-          <Square className="w-3.5 h-3.5" />
+          <Square className="h-3.5 w-3.5" />
           Square (1:1)
         </button>
         <button
           onClick={handleSelectFull}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
+          className="inline-flex items-center gap-1.5 rounded-[var(--tt-radius)] bg-[var(--tt-paper)] px-3 py-1.5 text-xs font-medium text-[var(--tt-ink)] transition-colors hover:bg-[var(--tt-border)]"
         >
-          <Maximize2 className="w-3.5 h-3.5" />
+          <Maximize2 className="h-3.5 w-3.5" />
           Select Full
         </button>
       </div>
 
-      {/* Cropper Container — Fully visible photo without any clipping */}
-      <div className="relative w-full flex items-center justify-center bg-slate-900/5 rounded-2xl p-2 sm:p-4 border border-slate-200">
+      <div className="relative flex w-full items-center justify-center rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-paper)] p-2 sm:p-4">
         <div className="manual-crop-wrapper">
           <ReactCrop
             crop={crop}
@@ -189,7 +186,6 @@ export const ManualCropScreen = ({ imageSrc, onApply, onCancel }) => {
             onComplete={(c) => setCompletedCrop(c)}
             aspect={aspect}
             ruleOfThirds={true}
-            className="shadow-md"
           >
             <img
               ref={imgRef}
@@ -202,15 +198,14 @@ export const ManualCropScreen = ({ imageSrc, onApply, onCancel }) => {
         </div>
       </div>
 
-      <p className="text-xs text-slate-500 mt-3 text-center">
+      <p className="mt-3 text-center text-xs text-[var(--tt-secondary)]">
         Drag the handles to crop your choice part. Full photo is visible above.
       </p>
 
-      {/* Apply Button */}
-      <div className="w-full mt-4 px-4 pb-1">
+      <div className="mt-4 w-full px-2 pb-1">
         <button
           onClick={handleApplyCrop}
-          className="w-full sm:w-64 mx-auto block py-3 px-8 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm tracking-wide transition shadow-md hover:shadow-lg active:scale-[0.98] text-center"
+          className="mx-auto inline-flex h-[var(--tt-control-h)] w-full items-center justify-center rounded-[var(--tt-radius)] bg-[var(--tt-primary)] px-4 text-sm font-medium text-white transition-colors hover:bg-[var(--tt-primary-hover)] sm:w-64"
         >
           Apply
         </button>
@@ -266,8 +261,8 @@ export const ManualCropScreen = ({ imageSrc, onApply, onCancel }) => {
           width: 16px !important;
           height: 16px !important;
           background-color: #ffffff !important;
-          border: 2px solid #10b981 !important;
-          border-radius: 4px !important;
+          border: 2px solid #0f766e !important;
+          border-radius: 6px !important;
           box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
         }
       `}</style>

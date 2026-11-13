@@ -1,94 +1,99 @@
-import React from 'react';
-import { ArrowLeft, Check, X, CheckCircle2 } from 'lucide-react';
+import React from "react";
+import { ArrowLeft, Check, X, CheckCircle2 } from "lucide-react";
 
 export const CaptureTipsScreen = ({ onContinue, onBack }) => {
   return (
-    <div className="w-full max-w-2xl mx-auto bg-white rounded-3xl shadow-lg border border-slate-200 overflow-hidden flex flex-col p-6 text-slate-800 animate-fadeIn relative">
-      {/* Top Header */}
-      <div className="flex items-center justify-between mb-4">
+    <div className="relative mx-auto flex w-full max-w-2xl flex-col overflow-hidden rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-5 text-[var(--tt-ink)] sm:p-6">
+      <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           {onBack && (
             <button
               onClick={onBack}
-              className="p-2 rounded-full hover:bg-slate-100 text-slate-600 transition"
+              className="rounded-[var(--tt-radius)] p-2 text-[var(--tt-secondary)] transition hover:bg-[var(--tt-paper)] hover:text-[var(--tt-ink)]"
               aria-label="Back"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="h-5 w-5" />
             </button>
           )}
-          <h2 className="text-xl font-bold text-slate-900">Take the right photo</h2>
+          <h2 className="text-xl font-semibold text-[var(--tt-ink)]">Take the right photo</h2>
         </div>
         <button
           onClick={onContinue}
-          className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition"
+          className="rounded-[var(--tt-radius)] p-2 text-[var(--tt-secondary)] transition hover:bg-[var(--tt-paper)] hover:text-[var(--tt-ink)]"
           aria-label="Close"
         >
-          <X className="w-6 h-6" />
+          <X className="h-5 w-5" />
         </button>
       </div>
 
-      <div className="text-center mb-6">
-        <span className="text-xs uppercase tracking-wider font-bold text-emerald-600">
+      <div className="mb-5 text-center">
+        <span className="tt-mono text-xs font-medium uppercase tracking-[0.14em] text-[var(--tt-primary)]">
           Optimal Facial Alignment Guidelines
         </span>
       </div>
 
-      {/* Yes / No Visual Cards */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        {/* YES Card - Front Pose */}
+      <div className="mb-6 grid grid-cols-3 gap-3">
         <div className="flex flex-col items-center">
-          <div className="relative w-full aspect-square rounded-xl bg-white border-2 border-emerald-400 overflow-hidden flex items-center justify-center shadow-sm">
-            <img src="/images/capture-tips-front.png" alt="Correct Front Pose" className="w-full h-full object-cover scale-110" />
+          <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-[var(--tt-radius)] border border-[var(--tt-safe)] bg-[var(--tt-surface)]">
+            <img
+              src="/images/capture-tips-front.png"
+              alt="Correct Front Pose"
+              className="h-full w-full scale-110 object-cover"
+            />
           </div>
-          <div className="mt-2 flex items-center gap-1 px-2.5 py-1 bg-emerald-500 text-white rounded-full text-[10px] sm:text-xs font-bold shadow-sm">
-            <Check className="w-3 h-3 stroke-[3]" />
+          <div className="mt-2 inline-flex items-center gap-1 rounded-[var(--tt-radius)] bg-[var(--tt-safe)] px-2 py-1 text-[10px] font-medium text-white sm:text-xs">
+            <Check className="h-3 w-3" />
             CORRECT
           </div>
         </div>
 
-        {/* NO Card - Side Pose 1 */}
         <div className="flex flex-col items-center">
-          <div className="relative w-full aspect-square rounded-xl bg-white border-2 border-rose-300 overflow-hidden flex items-center justify-center shadow-sm opacity-90">
-             <img src="/images/capture-tips-side.png" alt="Incorrect Side Pose" className="w-full h-full object-cover scale-110" />
+          <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-[var(--tt-radius)] border border-[var(--tt-avoid)] bg-[var(--tt-surface)] opacity-90">
+            <img
+              src="/images/capture-tips-side.png"
+              alt="Incorrect Side Pose"
+              className="h-full w-full scale-110 object-cover"
+            />
           </div>
-          <div className="mt-2 flex items-center gap-1 px-2.5 py-1 bg-rose-500 text-white rounded-full text-[10px] sm:text-xs font-bold shadow-sm">
-            <X className="w-3 h-3 stroke-[3]" />
+          <div className="mt-2 inline-flex items-center gap-1 rounded-[var(--tt-radius)] bg-[var(--tt-avoid)] px-2 py-1 text-[10px] font-medium text-white sm:text-xs">
+            <X className="h-3 w-3" />
             INCORRECT
           </div>
         </div>
 
-        {/* NO Card - Glasses Pose */}
         <div className="flex flex-col items-center">
-          <div className="relative w-full aspect-square rounded-xl bg-white border-2 border-rose-300 overflow-hidden flex items-center justify-center shadow-sm opacity-90">
-             <img src="/images/capture-tips-glasses.png" alt="Incorrect Glasses Pose" className="w-full h-full object-cover scale-110" />
+          <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-[var(--tt-radius)] border border-[var(--tt-avoid)] bg-[var(--tt-surface)] opacity-90">
+            <img
+              src="/images/capture-tips-glasses.png"
+              alt="Incorrect Glasses Pose"
+              className="h-full w-full scale-110 object-cover"
+            />
           </div>
-          <div className="mt-2 flex items-center gap-1 px-2.5 py-1 bg-rose-500 text-white rounded-full text-[10px] sm:text-xs font-bold shadow-sm">
-            <X className="w-3 h-3 stroke-[3]" />
+          <div className="mt-2 inline-flex items-center gap-1 rounded-[var(--tt-radius)] bg-[var(--tt-avoid)] px-2 py-1 text-[10px] font-medium text-white sm:text-xs">
+            <X className="h-3 w-3" />
             INCORRECT
           </div>
         </div>
       </div>
 
-      {/* Checklist */}
-      <ul className="space-y-2.5 text-xs sm:text-sm text-slate-700 mb-8 px-2">
+      <ul className="mb-6 space-y-2.5 px-1 text-xs text-[var(--tt-secondary)] sm:text-sm">
         {[
           "Ensure adequate frontal lighting; avoid strong backlighting.",
           "Center your face perfectly within the alignment oval.",
           "Maintain a completely neutral expression with your eyes open.",
           "Ensure your entire face is clearly visible (remove glasses).",
-          "Keep the camera steady to avoid motion blur."
+          "Keep the camera steady to avoid motion blur.",
         ].map((item, idx) => (
           <li key={idx} className="flex items-start gap-2.5">
-            <span className="mt-0.5 text-emerald-600 font-bold shrink-0">➢</span>
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--tt-primary)]" />
             <span>{item}</span>
           </li>
         ))}
       </ul>
 
-      {/* Action Button */}
       <button
         onClick={onContinue}
-        className="w-full py-3.5 px-6 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm uppercase tracking-wider transition shadow-md hover:shadow-lg active:scale-[0.98]"
+        className="inline-flex h-[var(--tt-control-h)] w-full items-center justify-center rounded-[var(--tt-radius)] bg-[var(--tt-primary)] px-4 text-sm font-medium text-white transition-colors hover:bg-[var(--tt-primary-hover)]"
       >
         Got It
       </button>

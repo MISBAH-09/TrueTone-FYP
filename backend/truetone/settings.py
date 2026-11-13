@@ -56,27 +56,60 @@ WSGI_APPLICATION = 'truetone.wsgi.application'
 # Database configuration: prefer a DATABASE_URL (e.g. from Supabase). If not
 # provided, fall back to individual DB_* environment variables and default to
 # PostgreSQL.
+# try:
+#     import dj_database_url
+# except Exception:
+#     dj_database_url = None
+
+# DATABASE_URL = os.environ.get('DATABASE_URL')
+# if DATABASE_URL and dj_database_url is not None:
+#     DATABASES = {
+#         'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600),
+#     }
+# else:
+#     DATABASES = {
+#         'default': {
+#             'ENGINE': os.environ.get('DB_ENGINE', 'django.db.backends.postgresql'),
+#             'NAME': os.environ.get('DB_NAME', 'TrueTone'),
+#             'USER': os.environ.get('DB_USER', 'postgres'),
+#             'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+#             'HOST': os.environ.get('DB_HOST', 'localhost'),
+#             'PORT': os.environ.get('DB_PORT', '5432'),
+#         }
+#     }
+
+
+# Database configuration
 try:
     import dj_database_url
-except Exception:
+except ImportError:
     dj_database_url = None
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
+
 if DATABASE_URL and dj_database_url is not None:
     DATABASES = {
-        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600),
+        'default': dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=0,
+        ),
     }
 else:
     DATABASES = {
         'default': {
-            'ENGINE': os.environ.get('DB_ENGINE', 'django.db.backends.postgresql'),
+            'ENGINE': os.environ.get(
+                'DB_ENGINE',
+                'django.db.backends.postgresql'
+            ),
             'NAME': os.environ.get('DB_NAME', 'TrueTone'),
             'USER': os.environ.get('DB_USER', 'postgres'),
             'PASSWORD': os.environ.get('DB_PASSWORD', ''),
             'HOST': os.environ.get('DB_HOST', 'localhost'),
             'PORT': os.environ.get('DB_PORT', '5432'),
+            'CONN_MAX_AGE': 0,
         }
     }
+
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [],
