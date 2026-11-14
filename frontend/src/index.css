@@ -1,4 +1,49 @@
 @import "tailwindcss";
+/* Paste this into frontend/src/index.css, directly under the line  @import "tailwindcss";  */
+/* If you pasted the earlier WARM version, DELETE that old @theme { ... } block first. */
+@theme {
+  --color-slate-50: #F4F6F8;
+  --color-slate-100: #EAEEF2;
+  --color-slate-200: #DCE2E8;
+  --color-slate-300: #BCC5CF;
+  --color-slate-400: #8794A1;
+  --color-slate-500: #5F6C78;
+  --color-slate-600: #4A5661;
+  --color-slate-700: #38434E;
+  --color-slate-800: #27313A;
+  --color-slate-900: #1A2128;
+  --color-slate-950: #11161B;
+  --color-emerald-50: #EEF4F8;
+  --color-emerald-100: #DDE9F1;
+  --color-emerald-200: #BFD5E4;
+  --color-emerald-300: #95B8D0;
+  --color-emerald-400: #6A98B7;
+  --color-emerald-500: #4A82A8;
+  --color-emerald-600: #2F6285;
+  --color-emerald-700: #234B68;
+  --color-emerald-800: #1A3A52;
+  --color-emerald-900: #142B3C;
+  --color-emerald-950: #0C1B26;
+  --color-orange-50: #EBF5F5;
+  --color-orange-100: #D3EAEA;
+  --color-orange-200: #AED7D7;
+  --color-orange-300: #80BDBF;
+  --color-orange-400: #52A0A3;
+  --color-orange-500: #348488;
+  --color-orange-600: #2A6B6F;
+  --color-orange-700: #22565A;
+  --color-orange-800: #1B4346;
+  --color-orange-900: #143234;
+  --color-orange-950: #0C2022;
+  --radius-xl: 0.375rem;
+  --radius-2xl: 0.5rem;
+  --radius-3xl: 0.75rem;
+}
+
+/* OPTIONAL, flatter corners (less bubbly, more professional). Paste these three lines INSIDE the @theme { ... } block above. */
+  --radius-xl: 0.375rem;
+  --radius-2xl: 0.5rem;
+  --radius-3xl: 0.75rem;
 
 /* Self-hosted IBM Plex — offline-safe for demos */
 @font-face {
@@ -261,3 +306,40 @@ a {
     opacity: 0.95;
   }
 }
+
+/* ───────────── Flatter corners, whichever way a big radius was written ─────────────
+   Paste this at the very END of frontend/src/index.css (after everything else), then restart npm run dev.
+   Cards and boxes get 12px / 8px / 6px. Pills, circles, small radii and one-sided corners (rounded-t-..., rounded-b-none) are left alone.
+   To undo it, delete this block. */
+:is(
+  [class*="rounded-4xl"], [class*="rounded-3xl"],
+  [class*="rounded-[1.25rem]"], [class*="rounded-[1.5rem]"], [class*="rounded-[1.75rem]"],
+  [class*="rounded-[2rem]"], [class*="rounded-[2.5rem]"], [class*="rounded-[3rem]"],
+  [class*="rounded-[20px]"], [class*="rounded-[22px]"], [class*="rounded-[24px]"], [class*="rounded-[26px]"],
+  [class*="rounded-[28px]"], [class*="rounded-[30px]"], [class*="rounded-[32px]"], [class*="rounded-[36px]"],
+  [class*="rounded-[40px]"]
+):not([class*="rounded-t"], [class*="rounded-b"], [class*="rounded-l"], [class*="rounded-r"], [class*="rounded-s"], [class*="rounded-e"]) {
+  border-radius: 12px;
+}
+
+:is(
+  [class*="rounded-2xl"], [class*="rounded-[1rem]"], [class*="rounded-[16px]"], [class*="rounded-[18px]"]
+):not([class*="rounded-t"], [class*="rounded-b"], [class*="rounded-l"], [class*="rounded-r"], [class*="rounded-s"], [class*="rounded-e"]) {
+  border-radius: 8px;
+}
+
+:is([class*="rounded-xl"]):not([class*="rounded-t"], [class*="rounded-b"], [class*="rounded-l"], [class*="rounded-r"], [class*="rounded-s"], [class*="rounded-e"]) {
+  border-radius: 6px;
+}
+/* ───────────── TrueTone colours: cool steel theme for the --tt- variables ─────────────
+   Paste this at the very END of frontend/src/index.css (after the @theme block and after the corner block).
+   It re-points the teammate's colour variables at the steel-blue theme, so every page changes together.
+   To undo it, delete this block. */
+:root {
+  --tt-primary: #2F6285;        /* buttons, links, active menu item (steel blue) */
+  --tt-primary-muted: #EEF4F8;  /* pale tint behind the active menu item */
+  --tt-ink: #1A2128;            /* main text */
+  --tt-secondary: #5F6C78;      /* secondary text, inactive menu items */
+  --tt-paper: #F4F6F8;          /* page background, hover background */
+  --tt-border: #DCE2E8;         /* lines and outlines */
+} 

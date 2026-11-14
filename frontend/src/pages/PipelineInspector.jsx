@@ -180,6 +180,43 @@ export function computeHistograms(data, bins = 32) {
   return { raw, norm, stats, pixels: count };
 }
 
+/** The two-step decision (healthy or not, then which condition) in numbers a person can read. */
+export function summarizeSteps(dec) {
+  if (!dec || !dec.thresholds) return null;
+  const h = num(dec.healthy_prob) ?? 0;
+  const u = num(dec.unhealthy_prob) ?? 1 - h;
+  const hMin = num(dec.thresholds.healthy_min) ?? 0.7;
+  const uMin = num(dec.thresholds.unhealthy_min) ?? 0.55;
+  const dMin = num(dec.thresholds.condition_min_share) ?? 0.5;
+  const share = num(dec.condition_share) ?? 0;
+  return {
+    stage: dec.stage,
+    h,
+    u,
+    hMin,
+    uMin,
+    dMin,
+    share,
+    top: dec.top_condition,
+    shares: Object.entries(dec.condition_shares || {}).sort(([, a], [, b]) => b - a),
+    // zones along the P(healthy) axis: not healthy | unclear | healthy
+    zoneLow: Math.max(0, 1 - uMin),
+    zoneHigh: hMin,
+  };
+}
+
+/** One sentence that says what the two steps decided and why. */
+export function stepSentence(st) {
+  const label = nice("skin_disease", st.top);
+  if (st.stage === "healthy")
+    return `The healthy score ${pct(st.h)} reaches the ${pct(st.hMin, 0)} needed, so the skin is called healthy. Step 2 is skipped and no heatmap is drawn.`;
+  if (st.stage === "unhealthy")
+    return `The healthy score ${pct(st.h)} is below ${pct(st.hMin, 0)} and the not-healthy score ${pct(st.u)} reaches ${pct(st.uMin, 0)}, so the skin counts as not healthy and step 2 runs. ${label} leads with ${pct(st.share, 0)} of the condition scores (${pct(st.dMin, 0)} needed), so it is named.`;
+  if (st.stage === "unhealthy_unclear")
+    return `The skin counts as not healthy (${pct(st.u)} not healthy, ${pct(st.uMin, 0)} needed), but ${label} only leads with ${pct(st.share, 0)} of the condition scores, below the ${pct(st.dMin, 0)} needed. No condition is named and the result is Unclear.`;
+  return `The healthy score ${pct(st.h)} is below the ${pct(st.hMin, 0)} needed for healthy, but the not-healthy score ${pct(st.u)} is also below ${pct(st.uMin, 0)}. Neither answer is strong enough, so the result is Unclear and step 2 is skipped.`;
+}
+
 /** Plain facts about how one model reached its decision (used by stage 6). */
 export function summarizeDecision(key, pred) {
   const dist = pred?.distribution || {};
@@ -201,25 +238,25 @@ export function summarizeDecision(key, pred) {
       total: Number(raw.common_acne) + Number(raw.cystic_acne),
     };
   }
-  return { sum, threshold, confidence, confident, outcome, merge };
+  return { sum, threshold, confidence, confident, outcome, merge, step: key === "skin_disease" ? summarizeSteps(pred?.decision) : null };
 }
 
 /* ───────────────────────────── layout pieces ───────────────────────────── */
 
 function Stage({ n, icon: Icon, title, what, tech, children }) {
   return (
-    <section id={`stage-${n}`} className="scroll-mt-24 rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-5">
+    <section id={`stage-${n}`} className="scroll-mt-24 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex items-start gap-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--tt-radius)] bg-[var(--tt-primary)] text-sm font-bold text-white">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-sm font-bold text-white">
           {n}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <Icon className="h-4 w-4 text-[var(--tt-primary)]" />
-            <h2 className="text-lg font-bold text-[var(--tt-ink)]">{title}</h2>
+            <Icon className="h-4 w-4 text-emerald-600" />
+            <h2 className="text-lg font-bold text-slate-900">{title}</h2>
           </div>
-          <p className="mt-1 text-sm text-[var(--tt-secondary)]">{what}</p>
-          {tech && <p className="mt-1 font-mono text-[11px] text-[var(--tt-secondary)]">{tech}</p>}
+          <p className="mt-1 text-sm text-slate-600">{what}</p>
+          {tech && <p className="mt-1 font-mono text-[11px] text-slate-400">{tech}</p>}
         </div>
       </div>
       <div className="mt-5">{children}</div>
@@ -229,18 +266,18 @@ function Stage({ n, icon: Icon, title, what, tech, children }) {
 
 function Fact({ label, value, good }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-[var(--tt-border)] py-2 text-xs last:border-0">
-      <span className="text-[var(--tt-secondary)]">{label}</span>
-      <span className={`text-right font-semibold ${good === false ? "text-[var(--tt-caution)]" : "text-[var(--tt-ink)]"}`}>{value}</span>
+    <div className="flex items-center justify-between gap-3 border-b border-slate-100 py-2 text-xs last:border-0">
+      <span className="text-slate-500">{label}</span>
+      <span className={`text-right font-semibold ${good === false ? "text-amber-600" : "text-slate-800"}`}>{value}</span>
     </div>
   );
 }
 
 function TraceRow({ ok, children }) {
   return (
-    <li className="flex items-start gap-2 text-xs text-[var(--tt-secondary)]">
+    <li className="flex items-start gap-2 text-xs text-slate-600">
       {ok ? (
-        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--tt-primary)]" />
+        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
       ) : (
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
       )}
@@ -263,11 +300,11 @@ function StageUpload({ file, previewUrl, origDims }) {
       tech="POST /api/analyze_all  (multipart/form-data)"
     >
       <div className="grid gap-5 md:grid-cols-2">
-        <div className="flex items-center justify-center rounded-[var(--tt-radius)] bg-[var(--tt-paper)] p-3">
+        <div className="flex items-center justify-center rounded-2xl bg-slate-50 p-3">
           {previewUrl ? (
-            <img src={previewUrl} alt="Uploaded" className="max-h-64 rounded-[var(--tt-radius)] object-contain" />
+            <img src={previewUrl} alt="Uploaded" className="max-h-64 rounded-xl object-contain" />
           ) : (
-            <p className="text-xs text-[var(--tt-secondary)]">Original photo not available</p>
+            <p className="text-xs text-slate-400">Original photo not available</p>
           )}
         </div>
         <div>
@@ -300,12 +337,12 @@ function StageCrop({ info, previewUrl, origDims }) {
     >
       <div className="grid gap-5 md:grid-cols-2">
         <div>
-          <p className="mb-2 text-xs font-semibold text-[var(--tt-secondary)]">Original photo{box ? " with detected face region" : ""}</p>
-          <div className="relative inline-block max-w-full overflow-hidden rounded-[var(--tt-radius)] bg-[var(--tt-ink)]">
+          <p className="mb-2 text-xs font-semibold text-slate-500">Original photo{box ? " with detected face region" : ""}</p>
+          <div className="relative inline-block max-w-full overflow-hidden rounded-xl bg-slate-900">
             {previewUrl && <img src={previewUrl} alt="Original" className="block max-h-72 max-w-full object-contain" />}
             {box && (
               <div
-                className="absolute rounded-sm border-2 border-[var(--tt-primary)]"
+                className="absolute rounded-sm border-2 border-emerald-400"
                 style={{
                   left: `${box.left}%`,
                   top: `${box.top}%`,
@@ -317,19 +354,19 @@ function StageCrop({ info, previewUrl, origDims }) {
             )}
           </div>
           {!box && (
-            <p className="mt-2 text-[11px] text-[var(--tt-secondary)]">
+            <p className="mt-2 text-[11px] text-slate-400">
               The crop region is not drawn because its coordinates could not be matched to the photo
               {info.crop_box ? ` (crop_box = ${JSON.stringify(info.crop_box)})` : ""}.
             </p>
           )}
         </div>
         <div>
-          <p className="mb-2 text-xs font-semibold text-[var(--tt-secondary)]">Result of this step</p>
+          <p className="mb-2 text-xs font-semibold text-slate-500">Result of this step</p>
           <Fact label="Faces detected" value={info.faces_detected ?? "-"} good={info.faces_detected === undefined || info.faces_detected === null ? undefined : info.faces_detected === 1} />
           <Fact label="Cropped size" value={info.width && info.height ? `${info.width} x ${info.height} px` : "-"} />
           <Fact label="Original size" value={ow && oh ? `${ow} x ${oh} px` : "-"} />
           {box && <Fact label="Share of the photo kept" value={pct(box.areaShare, 0)} />}
-          <p className="mt-3 text-[11px] text-[var(--tt-secondary)]">
+          <p className="mt-3 text-[11px] text-slate-400">
             More than one face is rejected. If no face is found the server checks for skin-coloured pixels and asks
             whether to continue with a skin close-up.
           </p>
@@ -350,12 +387,12 @@ function Histogram({ series, left, right }) {
   const pts = (arr) => arr.map((v, i) => `${(i / (bins - 1)) * W},${H - (v / max) * H}`).join(" ");
   return (
     <div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="h-24 w-full rounded-[var(--tt-radius)] bg-[var(--tt-paper)]">
+      <svg viewBox={`0 0 ${W} ${H}`} className="h-24 w-full rounded-xl bg-slate-50">
         {series.map((arr, c) => (
           <polyline key={CHANNELS[c].key} points={pts(arr)} fill="none" stroke={CHANNELS[c].color} strokeWidth="1.8" opacity="0.85" />
         ))}
       </svg>
-      <div className="mt-1 flex justify-between text-[10px] text-[var(--tt-secondary)]">
+      <div className="mt-1 flex justify-between text-[10px] text-slate-400">
         <span>{left}</span>
         <span>{right}</span>
       </div>
@@ -407,34 +444,34 @@ function StagePreprocess({ info }) {
       <div className="flex flex-wrap items-center gap-2 text-[11px]">
         {steps.map((s, i) => (
           <span key={s} className="flex items-center gap-2">
-            <span className="rounded-[var(--tt-radius)] bg-[var(--tt-primary-muted)] px-3 py-1 font-semibold text-[var(--tt-primary)]">{s}</span>
-            {i < steps.length - 1 && <span className="text-[var(--tt-secondary)]">&rarr;</span>}
+            <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">{s}</span>
+            {i < steps.length - 1 && <span className="text-slate-300">&rarr;</span>}
           </span>
         ))}
       </div>
       <div className="mt-5 grid gap-5 md:grid-cols-[200px_1fr]">
         <div>
           {src ? (
-            <img src={src} alt="Model input" className="h-48 w-48 rounded-[var(--tt-radius)] border border-[var(--tt-border)] object-cover" />
+            <img src={src} alt="Model input" className="h-48 w-48 rounded-xl border border-slate-200 object-cover" />
           ) : (
-            <p className="text-xs text-[var(--tt-secondary)]">Model input image not available</p>
+            <p className="text-xs text-slate-400">Model input image not available</p>
           )}
-          <p className="mt-1 text-[11px] text-[var(--tt-secondary)]">Model input, 224 x 224</p>
+          <p className="mt-1 text-[11px] text-slate-400">Model input, 224 x 224</p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <p className="mb-1 text-xs font-semibold text-[var(--tt-secondary)]">Colour values before (0 - 255)</p>
-            {hist ? <Histogram series={hist.raw} left="0" right="255" /> : <p className="text-xs text-[var(--tt-secondary)]">Computed in the browser...</p>}
+            <p className="mb-1 text-xs font-semibold text-slate-500">Colour values before (0 - 255)</p>
+            {hist ? <Histogram series={hist.raw} left="0" right="255" /> : <p className="text-xs text-slate-400">Computed in the browser...</p>}
           </div>
           <div>
-            <p className="mb-1 text-xs font-semibold text-[var(--tt-secondary)]">After normalisation (about {NORM_RANGE[0]} to +{NORM_RANGE[1]})</p>
-            {hist ? <Histogram series={hist.norm} left={String(NORM_RANGE[0])} right={`+${NORM_RANGE[1]}`} /> : <p className="text-xs text-[var(--tt-secondary)]">Computed in the browser...</p>}
+            <p className="mb-1 text-xs font-semibold text-slate-500">After normalisation (about {NORM_RANGE[0]} to +{NORM_RANGE[1]})</p>
+            {hist ? <Histogram series={hist.norm} left={String(NORM_RANGE[0])} right={`+${NORM_RANGE[1]}`} /> : <p className="text-xs text-slate-400">Computed in the browser...</p>}
           </div>
           {hist && (
             <div className="sm:col-span-2">
-              <table className="w-full text-left text-[11px] text-[var(--tt-secondary)]">
+              <table className="w-full text-left text-[11px] text-slate-600">
                 <thead>
-                  <tr className="border-b border-[var(--tt-border)] text-[var(--tt-secondary)]">
+                  <tr className="border-b border-slate-100 text-slate-400">
                     <th className="py-1 font-medium">Channel</th>
                     <th className="py-1 font-medium">Mean before</th>
                     <th className="py-1 font-medium">Mean after</th>
@@ -462,44 +499,53 @@ function StagePreprocess({ info }) {
 
 function ModelCard({ meta, pred, ms }) {
   if (!pred) {
-    return <div className="rounded-[var(--tt-radius)] border border-dashed border-[var(--tt-border)] p-4 text-xs text-[var(--tt-secondary)]">{meta.title}: no result</div>;
+    return <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-xs text-slate-400">{meta.title}: no result</div>;
   }
   const dist = Object.entries(pred.distribution || {}).sort(([, a], [, b]) => b - a);
   const thr = num(pred.threshold) ?? meta.threshold;
   const conf = num(pred.confidence) ?? 0;
-  const ok = conf >= thr;
+  const step = meta.key === "skin_disease" ? summarizeSteps(pred.decision) : null;
+  const ok = step ? step.stage === "healthy" || step.stage === "unhealthy" : conf >= thr;
   return (
-    <div className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] p-4">
+    <div className="rounded-2xl border border-slate-200 p-4">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h3 className="text-sm font-bold text-[var(--tt-ink)]">{meta.title}</h3>
-          <p className="text-[11px] text-[var(--tt-secondary)]">
+          <h3 className="text-sm font-bold text-slate-900">{meta.title}</h3>
+          <p className="text-[11px] text-slate-400">
             {meta.arch} &middot; {meta.outputs} outputs
             {meta.key === "skin_disease" ? ", acne types merged into one" : ""}
           </p>
         </div>
-        {ms !== null && <span className="rounded-[var(--tt-radius)] bg-[var(--tt-paper)] px-2 py-0.5 text-[11px] font-semibold text-[var(--tt-secondary)]">{Math.round(ms)} ms</span>}
+        {ms !== null && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">{Math.round(ms)} ms</span>}
       </div>
       <div className="mt-3 space-y-2">
         {dist.map(([cls, p]) => (
           <div key={cls}>
             <div className="flex justify-between text-[11px]">
-              <span className={cls === pred.label ? "font-bold text-[var(--tt-ink)]" : "text-[var(--tt-secondary)]"}>{nice(meta.key, cls)}</span>
-              <span className="text-[var(--tt-secondary)]">{pct(p)}</span>
+              <span className={cls === pred.label ? "font-bold text-slate-900" : "text-slate-500"}>{nice(meta.key, cls)}</span>
+              <span className="text-slate-400">{pct(p)}</span>
             </div>
-            <div className="relative h-2 rounded-[var(--tt-radius)] bg-[var(--tt-paper)]">
+            <div className="relative h-2 rounded-full bg-slate-100">
               <div
-                className={`h-2 rounded-[var(--tt-radius)] ${cls === pred.label ? "bg-[var(--tt-primary)]" : "bg-[var(--tt-border)]"}`}
+                className={`h-2 rounded-full ${cls === pred.label ? "bg-emerald-500" : "bg-slate-300"}`}
                 style={{ width: `${Math.max(0, Math.min(100, p * 100))}%` }}
               />
-              <div className="absolute -top-0.5 h-3 border-l border-dashed border-rose-400" style={{ left: `${thr * 100}%` }} />
+              {!step && <div className="absolute -top-0.5 h-3 border-l border-dashed border-rose-400" style={{ left: `${thr * 100}%` }} />}
             </div>
           </div>
         ))}
       </div>
-      <p className="mt-3 text-[11px] text-[var(--tt-secondary)]">Dashed line: confidence threshold ({pct(thr, 0)})</p>
-      <div className={`mt-2 rounded-[var(--tt-radius)] px-3 py-2 text-xs font-semibold ${ok ? "bg-[var(--tt-primary-muted)] text-[var(--tt-primary)]" : "bg-amber-50 text-[var(--tt-caution)]"}`}>
-        {nice(meta.key, pred.label)} at {pct(conf)} {ok ? "meets" : "is below"} {pct(thr, 0)}: {ok ? "confident" : "low confidence"}
+      {!step && <p className="mt-3 text-[11px] text-slate-400">Dashed line: confidence threshold ({pct(thr, 0)})</p>}
+      <div className={`mt-2 rounded-xl px-3 py-2 text-xs font-semibold ${ok ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+        {step
+          ? step.stage === "healthy"
+            ? `Healthy score ${pct(step.h)} reaches ${pct(step.hMin, 0)}: called healthy`
+            : step.stage === "unhealthy"
+            ? `Healthy score only ${pct(step.h)}: not healthy. ${nice(meta.key, step.top)} is named`
+            : step.stage === "unhealthy_unclear"
+            ? `Not healthy, but no condition stands out (best: ${nice(meta.key, step.top)}, ${pct(step.share, 0)}): unclear`
+            : `Healthy score ${pct(step.h)} is neither clearly healthy (needs ${pct(step.hMin, 0)}) nor clearly not: unclear`
+          : `${nice(meta.key, pred.label)} at ${pct(conf)} ${ok ? "meets" : "is below"} ${pct(thr, 0)}: ${ok ? "confident" : "low confidence"}`}
       </div>
     </div>
   );
@@ -513,31 +559,31 @@ function Timeline({ lat }) {
   const total = pre + wall || 1;
   const bar = (start, ms, color) => (
     <div
-      className={`absolute top-1 h-3 rounded-[var(--tt-radius)] ${color}`}
+      className={`absolute top-1 h-3 rounded-full ${color}`}
       style={{ left: `${(start / total) * 100}%`, width: `${Math.max(1.5, (ms / total) * 100)}%` }}
     />
   );
   return (
-    <div className="mt-5 rounded-[var(--tt-radius)] bg-[var(--tt-paper)] p-4">
-      <div className="mb-3 flex items-center gap-2 text-xs font-semibold text-[var(--tt-secondary)]">
-        <Clock className="h-4 w-4 text-[var(--tt-primary)]" />
+    <div className="mt-5 rounded-2xl bg-slate-50 p-4">
+      <div className="mb-3 flex items-center gap-2 text-xs font-semibold text-slate-600">
+        <Clock className="h-4 w-4 text-emerald-600" />
         Timeline: the three models run at the same time
       </div>
       <div className="space-y-2">
         <div className="flex items-center gap-3 text-[11px]">
-          <span className="w-28 shrink-0 text-[var(--tt-secondary)]">Preprocessing</span>
-          <div className="relative h-5 flex-1 rounded-[var(--tt-radius)] bg-[var(--tt-surface)]">{bar(0, pre, "bg-[var(--tt-secondary)]")}</div>
-          <span className="w-14 shrink-0 text-right text-[var(--tt-secondary)]">{Math.round(pre)} ms</span>
+          <span className="w-28 shrink-0 text-slate-500">Preprocessing</span>
+          <div className="relative h-5 flex-1 rounded-full bg-white">{bar(0, pre, "bg-slate-400")}</div>
+          <span className="w-14 shrink-0 text-right text-slate-500">{Math.round(pre)} ms</span>
         </div>
         {rows.map((r) => (
           <div key={r.key} className="flex items-center gap-3 text-[11px]">
-            <span className="w-28 shrink-0 text-[var(--tt-secondary)]">{r.label}</span>
-            <div className="relative h-5 flex-1 rounded-[var(--tt-radius)] bg-[var(--tt-surface)]">{bar(pre, r.ms, "bg-[var(--tt-primary)]")}</div>
-            <span className="w-14 shrink-0 text-right text-[var(--tt-secondary)]">{Math.round(r.ms)} ms</span>
+            <span className="w-28 shrink-0 text-slate-500">{r.label}</span>
+            <div className="relative h-5 flex-1 rounded-full bg-white">{bar(pre, r.ms, "bg-emerald-500")}</div>
+            <span className="w-14 shrink-0 text-right text-slate-500">{Math.round(r.ms)} ms</span>
           </div>
         ))}
       </div>
-      <p className="mt-3 text-[11px] text-[var(--tt-secondary)]">
+      <p className="mt-3 text-[11px] text-slate-500">
         In parallel the models took {Math.round(wall)} ms. One after another they would take about {Math.round(sumModels)} ms.
         Each time includes drawing that model&apos;s heatmap.
       </p>
@@ -598,8 +644,8 @@ function StageHeatmaps({ data }) {
               setActive(m.key);
               setLayerKey(null);
             }}
-            className={`rounded-[var(--tt-radius)] px-4 py-1.5 text-xs font-semibold transition ${
-              active === m.key ? "bg-[var(--tt-primary)] text-white" : "border border-[var(--tt-border)] bg-[var(--tt-surface)] text-[var(--tt-secondary)] hover:border-[var(--tt-primary)]"
+            className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+              active === m.key ? "bg-emerald-600 text-white" : "border border-slate-200 bg-white text-slate-600 hover:border-emerald-400"
             }`}
           >
             {m.title}
@@ -607,7 +653,7 @@ function StageHeatmaps({ data }) {
         ))}
       </div>
       <div className="mt-5 grid gap-6 md:grid-cols-[280px_1fr]">
-        <div className="relative h-72 w-72 overflow-hidden rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-ink)]">
+        <div className="relative h-72 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-slate-900">
           {base && <img src={base} alt="Model input" className="absolute inset-0 h-full w-full object-cover" />}
           {current && (
             <img
@@ -622,15 +668,15 @@ function StageHeatmaps({ data }) {
           {current ? (
             <>
               <div>
-                <p className="mb-1 text-xs font-semibold text-[var(--tt-secondary)]">Layer</p>
+                <p className="mb-1 text-xs font-semibold text-slate-500">Layer</p>
                 <div className="flex flex-wrap gap-2">
                   {layers.map((l) => (
                     <button
                       key={l.key}
                       type="button"
                       onClick={() => setLayerKey(l.key)}
-                      className={`rounded-[var(--tt-radius)] px-3 py-1 text-xs font-semibold ${
-                        current.key === l.key ? "bg-[var(--tt-ink)] text-white" : "border border-[var(--tt-border)] text-[var(--tt-secondary)]"
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        current.key === l.key ? "bg-slate-900 text-white" : "border border-slate-200 text-slate-600"
                       }`}
                     >
                       {l.label}
@@ -639,21 +685,21 @@ function StageHeatmaps({ data }) {
                 </div>
               </div>
               <div>
-                <p className="mb-1 text-xs font-semibold text-[var(--tt-secondary)]">Layer strength: {opacity}% (0% shows only the original)</p>
+                <p className="mb-1 text-xs font-semibold text-slate-500">Layer strength: {opacity}% (0% shows only the original)</p>
                 <input
                   type="range"
                   min="0"
                   max="100"
                   value={opacity}
                   onChange={(e) => setOpacity(Number(e.target.value))}
-                  className="w-full accent-[var(--tt-primary)]"
+                  className="w-full accent-emerald-600"
                 />
               </div>
               {legend?.palette && (
                 <div>
-                  <p className="mb-1 text-xs font-semibold text-[var(--tt-secondary)]">{legend.title}</p>
-                  <div className="h-3 rounded-[var(--tt-radius)]" style={{ background: `linear-gradient(to right, ${legend.palette.join(", ")})` }} />
-                  <div className="mt-1 flex justify-between text-[10px] text-[var(--tt-secondary)]">
+                  <p className="mb-1 text-xs font-semibold text-slate-500">{legend.title}</p>
+                  <div className="h-3 rounded-full" style={{ background: `linear-gradient(to right, ${legend.palette.join(", ")})` }} />
+                  <div className="mt-1 flex justify-between text-[10px] text-slate-400">
                     <span>{legend.min_label}</span>
                     <span>{legend.max_label}</span>
                   </div>
@@ -661,7 +707,7 @@ function StageHeatmaps({ data }) {
               )}
             </>
           ) : (
-            <div className="rounded-[var(--tt-radius)] bg-[var(--tt-paper)] p-4 text-xs text-[var(--tt-secondary)]">
+            <div className="rounded-2xl bg-slate-50 p-4 text-xs text-slate-600">
               {active === "skin_disease" && pred?.is_healthy
                 ? "No heatmap: the model's top answer was Healthy, so there is nothing to localise."
                 : "No heatmap was produced for this model on this photo."}
@@ -675,6 +721,60 @@ function StageHeatmaps({ data }) {
 
 /* ───────────────────────────── stage 6: decision rules ───────────────────────────── */
 
+function DecisionSteps({ step }) {
+  const at = (v) => `${Math.max(0, Math.min(100, v * 100))}%`;
+  const zones = [
+    { key: "low", from: 0, to: step.zoneLow, cls: "bg-rose-200" },
+    { key: "mid", from: step.zoneLow, to: step.zoneHigh, cls: "bg-amber-200" },
+    { key: "high", from: step.zoneHigh, to: 1, cls: "bg-emerald-200" },
+  ];
+  const ranStep2 = step.stage === "unhealthy" || step.stage === "unhealthy_unclear";
+  return (
+    <div className="mt-4 space-y-3">
+      <div className="rounded-xl bg-slate-50 p-3">
+        <p className="text-[11px] font-semibold text-slate-500">Step 1: healthy or not</p>
+        <div className="relative mt-2 h-4 overflow-hidden rounded-full">
+          {zones.map((z) => (
+            <div key={z.key} className={`absolute inset-y-0 ${z.cls}`} style={{ left: at(z.from), width: at(Math.max(0, z.to - z.from)) }} />
+          ))}
+          <div className="absolute inset-y-0 w-0.5 bg-slate-900" style={{ left: at(step.h) }} />
+        </div>
+        <div className="mt-1 flex justify-between text-[10px] text-slate-500">
+          <span>not healthy</span>
+          <span>unclear</span>
+          <span>healthy</span>
+        </div>
+        <p className="mt-1 text-[10px] text-slate-400">
+          Healthy score {pct(step.h)} (the dark mark). Healthy needs {pct(step.hMin, 0)}; not healthy needs {pct(step.uMin, 0)} not-healthy.
+        </p>
+      </div>
+      {ranStep2 ? (
+        <div className="rounded-xl bg-slate-50 p-3">
+          <p className="text-[11px] font-semibold text-slate-500">Step 2: which condition (share of the condition scores)</p>
+          <div className="mt-2 space-y-1.5">
+            {step.shares.map(([cls, p]) => (
+              <div key={cls}>
+                <div className="flex justify-between text-[11px]">
+                  <span className={cls === step.top ? "font-bold text-slate-900" : "text-slate-500"}>{nice("skin_disease", cls)}</span>
+                  <span className="text-slate-400">{pct(p)}</span>
+                </div>
+                <div className="relative h-1.5 rounded-full bg-slate-200">
+                  <div className={`h-1.5 rounded-full ${cls === step.top ? "bg-emerald-500" : "bg-slate-400"}`} style={{ width: at(p) }} />
+                  <div className="absolute -top-0.5 h-2.5 border-l border-dashed border-rose-400" style={{ left: at(step.dMin) }} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-1 text-[10px] text-slate-400">Dashed line: the share a condition needs to be named ({pct(step.dMin, 0)}).</p>
+        </div>
+      ) : (
+        <p className="text-[11px] text-slate-500">Step 2 did not run, because step 1 did not establish that the skin is not healthy.</p>
+      )}
+      <p className="text-xs text-slate-600">{stepSentence(step)}</p>
+    </div>
+  );
+}
+
 function StageDecision({ data }) {
   const preds = data.predictions || {};
   const outcomeText = {
@@ -687,8 +787,8 @@ function StageDecision({ data }) {
       n={6}
       icon={ShieldCheck}
       title="Decision rules: how probabilities become a result"
-      what="Plain rules sit on top of the models. A result is only reported when confidence clears that model's threshold, and healthy is never treated as a disease."
-      tech="low_confidence = top_probability < threshold;  disease_detected = label != healthy and not low_confidence"
+      what="Plain rules sit on top of the models. Skin type and tone are reported when the model is sure enough. The condition has two steps: first healthy or not, with a strict bar for healthy, then which condition, only when the skin is clearly not healthy."
+      tech="type, tone: top_probability >= 50%.   condition: P(healthy) >= healthy_min -> healthy;  else P(not healthy) >= unhealthy_min -> step 2;  else Unclear"
     >
       <div className="grid gap-4 lg:grid-cols-3">
         {MODELS.map((m) => {
@@ -696,8 +796,8 @@ function StageDecision({ data }) {
           if (!pred) return null;
           const d = summarizeDecision(m.key, pred);
           return (
-            <div key={m.key} className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] p-4">
-              <h3 className="text-sm font-bold text-[var(--tt-ink)]">{m.title}</h3>
+            <div key={m.key} className="rounded-2xl border border-slate-200 p-4">
+              <h3 className="text-sm font-bold text-slate-900">{m.title}</h3>
               <ul className="mt-3 space-y-2">
                 <TraceRow ok={Math.abs(d.sum - 1) < 0.02}>
                   The outputs add up to {pct(d.sum, 0)}, so they can be read as probabilities.
@@ -708,22 +808,27 @@ function StageDecision({ data }) {
                     {RAW_DISEASE_LABELS[d.merge.parts[1][0]]} {pct(d.merge.parts[1][1])} = Acne {pct(d.merge.total)}.
                   </TraceRow>
                 )}
-                <TraceRow ok>
-                  Highest class: {nice(m.key, pred.label)} at {pct(d.confidence)}.
-                </TraceRow>
-                <TraceRow ok={d.confident}>
-                  Confidence {pct(d.confidence)} {d.confident ? "meets" : "is below"} the {pct(d.threshold, 0)} threshold.
-                </TraceRow>
-                {m.key === "skin_disease" && d.outcome && <TraceRow ok={d.outcome !== "unclear"}>{outcomeText[d.outcome]}</TraceRow>}
+                {!d.step && (
+                  <>
+                    <TraceRow ok>
+                      Highest class: {nice(m.key, pred.label)} at {pct(d.confidence)}.
+                    </TraceRow>
+                    <TraceRow ok={d.confident}>
+                      Confidence {pct(d.confidence)} {d.confident ? "meets" : "is below"} the {pct(d.threshold, 0)} threshold.
+                    </TraceRow>
+                    {m.key === "skin_disease" && d.outcome && <TraceRow ok={d.outcome !== "unclear"}>{outcomeText[d.outcome]}</TraceRow>}
+                  </>
+                )}
               </ul>
+              {d.step && <DecisionSteps step={d.step} />}
               {m.key === "skin_disease" && pred.raw_distribution && (
-                <div className="mt-4 border-t border-[var(--tt-border)] pt-3">
-                  <p className="mb-1 text-[11px] font-semibold text-[var(--tt-secondary)]">The 7 raw model outputs</p>
+                <div className="mt-4 border-t border-slate-100 pt-3">
+                  <p className="mb-1 text-[11px] font-semibold text-slate-500">The 7 raw model outputs</p>
                   {Object.entries(pred.raw_distribution)
                     .sort(([, a], [, b]) => b - a)
                     .map(([cls, p]) => (
-                      <div key={cls} className="flex justify-between text-[11px] text-[var(--tt-secondary)]">
-                        <span className={cls.includes("acne") ? "font-semibold text-[var(--tt-primary)]" : ""}>{RAW_DISEASE_LABELS[cls] || cap(cls)}</span>
+                      <div key={cls} className="flex justify-between text-[11px] text-slate-500">
+                        <span className={cls.includes("acne") ? "font-semibold text-emerald-700" : ""}>{RAW_DISEASE_LABELS[cls] || cap(cls)}</span>
                         <span>{pct(p)}</span>
                       </div>
                     ))}
@@ -736,7 +841,7 @@ function StageDecision({ data }) {
       {data.warnings?.length > 0 && (
         <div className="mt-4 space-y-2">
           {data.warnings.map((w) => (
-            <div key={w} className="flex items-start gap-2 rounded-[var(--tt-radius)] bg-amber-50 px-3 py-2 text-xs text-[var(--tt-caution)]">
+            <div key={w} className="flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               {w}
             </div>
@@ -770,33 +875,33 @@ function StageRecs({ data, recs, recsLoading, recsError }) {
       <div className="flex flex-wrap items-center gap-2 text-[11px]">
         {flow.map((f, i) => (
           <span key={f} className="flex items-center gap-2">
-            <span className="rounded-[var(--tt-radius)] bg-[var(--tt-primary-muted)] px-3 py-1 font-semibold text-[var(--tt-primary)]">{f}</span>
-            {i < flow.length - 1 && <span className="text-[var(--tt-secondary)]">&rarr;</span>}
+            <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">{f}</span>
+            {i < flow.length - 1 && <span className="text-slate-300">&rarr;</span>}
           </span>
         ))}
       </div>
 
       <div className="mt-5 grid gap-5 md:grid-cols-2">
-        <div className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] p-4">
-          <h3 className="text-sm font-bold text-[var(--tt-ink)]">Profile built from this scan</h3>
+        <div className="rounded-2xl border border-slate-200 p-4">
+          <h3 className="text-sm font-bold text-slate-900">Profile built from this scan</h3>
           <Fact label="Skin type" value={nice("skin_type", p.skin_type?.label) || "-"} />
           <Fact label="Skin tone" value={nice("skin_tone", p.skin_tone?.label) || "-"} />
           <Fact label="Condition" value={condition} />
           {used && (
             <>
-              <p className="mt-3 text-[11px] font-semibold text-[var(--tt-secondary)]">Taken from the saved account</p>
+              <p className="mt-3 text-[11px] font-semibold text-slate-500">Taken from the saved account</p>
               <Fact label="Age group" value={used.age_bracket || "-"} />
               <Fact label="Allergies" value={used.allergies?.length ? used.allergies.join(", ") : "none"} />
               <Fact label="Pregnant or breastfeeding" value={used.is_pregnant_or_breastfeeding ? "yes" : "no"} />
             </>
           )}
         </div>
-        <div className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] p-4">
-          <h3 className="text-sm font-bold text-[var(--tt-ink)]">Points scheme (best case 10)</h3>
+        <div className="rounded-2xl border border-slate-200 p-4">
+          <h3 className="text-sm font-bold text-slate-900">Points scheme (best case 10)</h3>
           {SCORING_RULES.map((r) => (
-            <Fact key={r.rule} label={r.rule} value={<span className={r.negative ? "text-[var(--tt-avoid)]" : "text-[var(--tt-primary)]"}>{r.points}</span>} />
+            <Fact key={r.rule} label={r.rule} value={<span className={r.negative ? "text-red-500" : "text-emerald-600"}>{r.points}</span>} />
           ))}
-          <p className="mt-2 text-[11px] text-[var(--tt-secondary)]">
+          <p className="mt-2 text-[11px] text-slate-400">
             Allergies and pregnancy are not scored: a product that breaks them is removed completely.
           </p>
         </div>
@@ -804,41 +909,41 @@ function StageRecs({ data, recs, recsLoading, recsError }) {
 
       <div className="mt-5">
         {recsLoading && (
-          <div className="flex items-center gap-2 text-xs text-[var(--tt-secondary)]">
-            <Loader2 className="h-4 w-4 animate-spin text-[var(--tt-primary)]" /> Scoring the catalog...
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <Loader2 className="h-4 w-4 animate-spin text-emerald-600" /> Scoring the catalog...
           </div>
         )}
-        {recsError && <div className="rounded-[var(--tt-radius)] bg-red-50 px-3 py-2 text-xs text-[var(--tt-avoid)]">{recsError}</div>}
+        {recsError && <div className="rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-700">{recsError}</div>}
         {used?.source === "saved_profile" && (
-          <div className="mb-3 rounded-[var(--tt-radius)] bg-amber-50 px-3 py-2 text-xs text-[var(--tt-caution)]">
+          <div className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
             These recommendations use the saved account profile, not this scan, because the dry-run option is not connected
             in the frontend service yet.
           </div>
         )}
         {used?.source === "scan_preview" && (
-          <div className="mb-3 rounded-[var(--tt-radius)] bg-[var(--tt-primary-muted)] px-3 py-2 text-xs text-[var(--tt-primary)]">
+          <div className="mb-3 rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
             Dry run: scored using this scan. Nothing was saved to the account.
           </div>
         )}
         {recs && (
-          <p className="mb-3 text-xs text-[var(--tt-secondary)]">
+          <p className="mb-3 text-xs text-slate-500">
             {excluded.length} product{excluded.length === 1 ? "" : "s"} removed by the safety filters
             {excluded.length > 0 ? `, for example: ${excluded[0].name} (${excluded[0].reason})` : ""}. {recs.not_relevant_count || 0} more
             did not match closely enough to show.
           </p>
         )}
         {recs && top.length === 0 && !recsLoading && (
-          <p className="text-xs text-[var(--tt-secondary)]">No product scored above zero for this profile.</p>
+          <p className="text-xs text-slate-500">No product scored above zero for this profile.</p>
         )}
         <div className="grid gap-4 md:grid-cols-3">
           {top.map((item) => (
-            <div key={item.product_id} className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] p-4">
+            <div key={item.product_id} className="rounded-2xl border border-slate-200 p-4">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <p className="text-sm font-bold text-[var(--tt-ink)]">{item.name}</p>
-                  <p className="text-[11px] text-[var(--tt-secondary)]">{item.brand_name || cap(item.category)}</p>
+                  <p className="text-sm font-bold text-slate-900">{item.name}</p>
+                  <p className="text-[11px] text-slate-400">{item.brand_name || cap(item.category)}</p>
                 </div>
-                <span className="rounded-[var(--tt-radius)] bg-[var(--tt-primary-muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--tt-primary)]">
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
                   {item.max_score ? `${fmtPts(item.score)} / ${item.max_score} pts` : `${fmtPts(item.score)} pts`}
                 </span>
               </div>
@@ -846,23 +951,23 @@ function StageRecs({ data, recs, recsLoading, recsError }) {
                 {(item.breakdown || []).map((row) => (
                   <div key={row.label}>
                     <div className="flex justify-between text-[11px]">
-                      <span className="text-[var(--tt-secondary)]">{row.label}</span>
-                      <span className={row.points > 0 ? "font-semibold text-[var(--tt-primary)]" : row.points < 0 ? "font-semibold text-[var(--tt-avoid)]" : "text-[var(--tt-secondary)]"}>
+                      <span className="text-slate-500">{row.label}</span>
+                      <span className={row.points > 0 ? "font-semibold text-emerald-600" : row.points < 0 ? "font-semibold text-red-500" : "text-slate-400"}>
                         {row.points > 0 ? "+" : ""}
                         {fmtPts(row.points)}
                         {row.max > 0 ? ` / ${row.max}` : ""}
                       </span>
                     </div>
                     {row.max > 0 && (
-                      <div className="h-1.5 rounded-[var(--tt-radius)] bg-[var(--tt-paper)]">
-                        <div className="h-1.5 rounded-[var(--tt-radius)] bg-[var(--tt-primary)]" style={{ width: `${Math.max(0, Math.min(100, (row.points / row.max) * 100))}%` }} />
+                      <div className="h-1.5 rounded-full bg-slate-100">
+                        <div className="h-1.5 rounded-full bg-emerald-500" style={{ width: `${Math.max(0, Math.min(100, (row.points / row.max) * 100))}%` }} />
                       </div>
                     )}
                   </div>
                 ))}
               </div>
               {item.reasons?.length > 0 && (
-                <p className="mt-3 text-[11px] text-[var(--tt-secondary)]">Why: {item.reasons.join("; ")}</p>
+                <p className="mt-3 text-[11px] text-slate-500">Why: {item.reasons.join("; ")}</p>
               )}
             </div>
           ))}
@@ -1053,31 +1158,32 @@ const PipelineInspector = () => {
   const dis = preds.skin_disease;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 text-[var(--tt-ink)]">
-        <div className="border-b border-[var(--tt-border)] pb-4">
-          <p className="tt-mono text-xs font-medium uppercase tracking-[0.14em] text-[var(--tt-primary)]">Evaluator view</p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Pipeline Inspector</h1>
-          <p className="mt-1.5 text-sm text-[var(--tt-secondary)]">
+    <div className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:px-6">
+      <div className="mx-auto max-w-5xl space-y-6">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-wide text-emerald-600">Evaluator view</p>
+          <h1 className="mt-1 text-3xl font-extrabold">Pipeline Inspector</h1>
+          <p className="mt-2 text-sm text-slate-600">
             Upload one photo and watch every step TrueTone takes, from the raw image to the product points. This is a dry
             run: nothing is saved to the account.
           </p>
         </div>
 
         {/* upload card */}
-        <div className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-5">
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/bmp" onChange={onPick} className="hidden" />
           <div className="flex flex-wrap items-center gap-4">
             {previewUrl ? (
-              <img src={previewUrl} alt="Selected" className="h-20 w-20 rounded-[var(--tt-radius)] object-cover" />
+              <img src={previewUrl} alt="Selected" className="h-20 w-20 rounded-xl object-cover" />
             ) : (
-              <div className="flex h-20 w-20 items-center justify-center rounded-[var(--tt-radius)] bg-[var(--tt-paper)] text-[var(--tt-secondary)]">
+              <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
                 <Upload className="h-6 w-6" />
               </div>
             )}
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold">{file ? file.name : "No photo selected"}</p>
-              <label className="mt-1 flex items-center gap-2 text-xs text-[var(--tt-secondary)]">
-                <input type="checkbox" checked={skipFace} onChange={(e) => setSkipFace(e.target.checked)} className="accent-[var(--tt-primary)]" />
+              <label className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+                <input type="checkbox" checked={skipFace} onChange={(e) => setSkipFace(e.target.checked)} className="accent-emerald-600" />
                 Skip the face check (for skin close-ups)
               </label>
             </div>
@@ -1085,7 +1191,7 @@ const PipelineInspector = () => {
               <button
                 type="button"
                 onClick={() => inputRef.current?.click()}
-                className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] px-5 py-2 text-sm font-semibold text-[var(--tt-ink)] hover:bg-[var(--tt-paper)]"
+                className="rounded-full border border-slate-300 bg-white px-5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
               >
                 {file ? "Change photo" : "Choose photo"}
               </button>
@@ -1093,7 +1199,7 @@ const PipelineInspector = () => {
                 type="button"
                 onClick={run}
                 disabled={!file || status === "running"}
-                className="flex items-center gap-2 rounded-[var(--tt-radius)] bg-[var(--tt-primary)] px-6 py-2 text-sm font-semibold text-white hover:bg-[var(--tt-primary-hover)] disabled:opacity-40"
+                className="flex items-center gap-2 rounded-full bg-emerald-600 px-6 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700 disabled:opacity-40"
               >
                 {status === "running" && <Loader2 className="h-4 w-4 animate-spin" />}
                 {status === "running" ? "Analysing..." : "Run analysis"}
@@ -1101,7 +1207,7 @@ const PipelineInspector = () => {
             </div>
           </div>
           {status === "error" && (
-            <div className="mt-4 flex items-start gap-2 rounded-[var(--tt-radius)] bg-red-50 px-4 py-3 text-sm text-[var(--tt-avoid)]">
+            <div className="mt-4 flex items-start gap-2 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               {error}
             </div>
@@ -1111,36 +1217,36 @@ const PipelineInspector = () => {
         {/* result */}
         {status === "done" && data && (
           <>
-            <div className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-5">
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex flex-wrap items-center gap-3">
-                <span className="rounded-[var(--tt-radius)] bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">
+                <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">
                   Skin type: {nice("skin_type", preds.skin_type?.label) || "-"}
                 </span>
-                <span className="rounded-[var(--tt-radius)] bg-amber-50 px-3 py-1 text-xs font-semibold text-[var(--tt-caution)]">
+                <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
                   Skin tone: {nice("skin_tone", preds.skin_tone?.label) || "-"}
                 </span>
                 <span
-                  className={`rounded-[var(--tt-radius)] px-3 py-1 text-xs font-semibold ${
-                    dis?.disease_detected ? "bg-red-50 text-[var(--tt-avoid)]" : dis?.is_confident === false ? "bg-amber-50 text-[var(--tt-caution)]" : "bg-[var(--tt-primary-muted)] text-[var(--tt-primary)]"
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    dis?.disease_detected ? "bg-rose-50 text-rose-700" : dis?.is_confident === false ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"
                   }`}
                 >
                   Condition: {dis?.disease_detected ? nice("skin_disease", dis.label) : dis?.is_confident === false ? "Unclear" : "None detected"}
                 </span>
-                <span className="ml-auto flex items-center gap-1 text-xs text-[var(--tt-secondary)]">
+                <span className="ml-auto flex items-center gap-1 text-xs text-slate-400">
                   <Clock className="h-3.5 w-3.5" /> server {Math.round(data.latency_ms?.total_ms || 0)} ms, round trip {data._roundTripMs} ms
                 </span>
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2">
-                <button type="button" onClick={play} className="flex items-center gap-2 rounded-[var(--tt-radius)] bg-[var(--tt-ink)] px-4 py-2 text-xs font-semibold text-white">
+                <button type="button" onClick={play} className="flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white">
                   <Play className="h-3.5 w-3.5" /> Play walkthrough
                 </button>
-                <button type="button" onClick={showAll} className="flex items-center gap-2 rounded-[var(--tt-radius)] border border-[var(--tt-border)] px-4 py-2 text-xs font-semibold text-[var(--tt-ink)]">
+                <button type="button" onClick={showAll} className="flex items-center gap-2 rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700">
                   <RotateCcw className="h-3.5 w-3.5" /> Show all steps
                 </button>
-                <button type="button" onClick={downloadTrace} className="flex items-center gap-2 rounded-[var(--tt-radius)] border border-[var(--tt-border)] px-4 py-2 text-xs font-semibold text-[var(--tt-ink)]">
+                <button type="button" onClick={downloadTrace} className="flex items-center gap-2 rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700">
                   <Download className="h-3.5 w-3.5" /> Download trace (JSON)
                 </button>
-                <button type="button" onClick={() => window.print()} className="flex items-center gap-2 rounded-[var(--tt-radius)] border border-[var(--tt-border)] px-4 py-2 text-xs font-semibold text-[var(--tt-ink)]">
+                <button type="button" onClick={() => window.print()} className="flex items-center gap-2 rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700">
                   <Printer className="h-3.5 w-3.5" /> Print
                 </button>
                 <div className="ml-auto flex flex-wrap gap-1">
@@ -1153,7 +1259,7 @@ const PipelineInspector = () => {
                         setPlaying(false);
                         setTimeout(() => document.getElementById(`stage-${s.n}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
                       }}
-                      className="rounded-[var(--tt-radius)] bg-[var(--tt-paper)] px-3 py-1 text-[11px] font-semibold text-[var(--tt-secondary)] hover:bg-[var(--tt-primary-muted)] hover:text-[var(--tt-primary)]"
+                      className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-600 hover:bg-emerald-50 hover:text-emerald-700"
                     >
                       {s.n}. {s.short}
                     </button>
@@ -1173,6 +1279,7 @@ const PipelineInspector = () => {
             />
           </>
         )}
+      </div>
     </div>
   );
 };

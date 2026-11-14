@@ -51,8 +51,11 @@ const AppSidebar = () => {
     navigate("/");
   };
 
+  // A link is "on" for its own page and for pages below it (the Model Report has /report/tone, /report/type, /report/condition)
+  const isOn = (path) => location.pathname === path || location.pathname.startsWith(path + "/");
+
   const linkClass = (path) => {
-    const isActive = location.pathname === path;
+    const isActive = isOn(path);
     return [
       "flex items-center gap-3 rounded-[var(--tt-radius)] px-3 py-2 text-sm font-medium transition-colors",
       isActive
@@ -72,7 +75,7 @@ const AppSidebar = () => {
   };
 
   const moreActive =
-    [...navItems.slice(4), ...examinerItems].some((item) => item.path === location.pathname) ||
+    [...navItems.slice(4), ...examinerItems].some((item) => isOn(item.path)) ||
     moreOpen;
 
   return (
@@ -108,7 +111,7 @@ const AppSidebar = () => {
       <nav className="fixed inset-x-0 bottom-0 z-40 flex h-14 items-stretch border-t border-[var(--tt-border)] bg-[var(--tt-surface)] md:hidden">
         {mobilePrimary.map((item) => {
           const Icon = item.icon;
-          const isActive = location.pathname === item.path;
+          const isActive = isOn(item.path);
           return (
             <Link
               key={item.path}
