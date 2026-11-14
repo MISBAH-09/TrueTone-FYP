@@ -45,6 +45,24 @@ export const signupUser = async ({
   return data;
 };
 
+export const MODE_CHANGE_EVENT = "truetone-view-mode-change";
+
+export const getActiveViewMode = () => {
+  const authRole = localStorage.getItem("truetone_role") || "end_user";
+  if (authRole !== "evaluator") return "end_user";
+  return localStorage.getItem("truetone_view_mode") || "evaluator";
+};
+
+export const setActiveViewMode = (mode) => {
+  const authRole = localStorage.getItem("truetone_role") || "end_user";
+  const next = authRole === "evaluator" && mode === "evaluator" ? "evaluator" : "end_user";
+  localStorage.setItem("truetone_view_mode", next);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(MODE_CHANGE_EVENT, { detail: next }));
+  }
+  return next;
+};
+
 export const loginUser = async ({
   username,
   email,
@@ -63,6 +81,7 @@ export const loginUser = async ({
   localStorage.setItem("truetone_token", data.data.token);
   localStorage.setItem("truetone_user_id", data.data.id);
   localStorage.setItem("truetone_role", role);
+  localStorage.setItem("truetone_view_mode", role === "evaluator" ? "evaluator" : "end_user");
 
   return data;
 };
@@ -89,6 +108,7 @@ export const resetPassword = async ({
   localStorage.removeItem("truetone_token");
   localStorage.removeItem("truetone_user_id");
   localStorage.removeItem("truetone_role");
+  localStorage.removeItem("truetone_view_mode");
   return data;
 };
 
@@ -111,6 +131,11 @@ export const getUserProfile = async () => {
   const { data } = await api.get("/profile/");
   if (data?.data?.role) {
     localStorage.setItem("truetone_role", data.data.role);
+    if (data.data.role !== "evaluator") {
+      localStorage.setItem("truetone_view_mode", "end_user");
+    } else if (!localStorage.getItem("truetone_view_mode")) {
+      localStorage.setItem("truetone_view_mode", "evaluator");
+    }
   }
   return data;
 };

@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useMemo, useCallback } from "react";
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { motion as Motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Check, ImageOff } from "lucide-react";
 import { STEPS, INGREDIENT_CHIPS } from "./stepsConfig";
 
@@ -66,7 +66,7 @@ function BrowserFrame({ caption, children }) {
           </div>
           {/* caption pill centered */}
           <AnimatePresence mode="wait">
-            <motion.span
+            <Motion.span
               key={caption}
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
@@ -75,7 +75,7 @@ function BrowserFrame({ caption, children }) {
               className="tt-mono text-[11px] font-medium text-cocoa-light"
             >
               {caption}
-            </motion.span>
+            </Motion.span>
           </AnimatePresence>
           <div className="w-10" />
         </div>
@@ -243,15 +243,15 @@ export default function HowItWorks() {
         role="region"
         aria-label="How TrueTone works"
       >
-        <div className="flex min-h-screen flex-col justify-between px-5 py-5 lg:px-12 lg:py-6">
+        <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col justify-between px-6 py-5 lg:px-8 lg:py-6">
           {/* ── TOP: label + progress ── */}
           <header>
-            <div className="mb-3 flex items-center justify-between text-xs font-medium uppercase tracking-wider">
-              <div className="flex items-center gap-2 tt-mono text-cocoa-light">
+            <div className="mb-3 flex items-center justify-between border-b border-tint-border/70 pb-3">
+              <div className="flex items-center gap-2 tt-mono text-[15px] font-semibold uppercase tracking-[0.16em] text-cocoa-light">
                 <span className="h-1.5 w-1.5 rounded-full bg-apricot" />
                 <span>How TrueTone works</span>
               </div>
-              <span className="tt-mono text-cocoa">
+              <span className="tt-mono text-xs font-medium uppercase tracking-wider text-cocoa">
                 Step {pad(currentStepIndex + 1)} of {pad(STEPS.length)} · {currentStep.shortName}
               </span>
             </div>
@@ -269,7 +269,7 @@ export default function HowItWorks() {
             <div className="col-span-4 flex flex-col justify-between pr-4">
               {/* Step pill + title + subtitle */}
               <AnimatePresence mode="wait">
-                <motion.div key={currentStepIndex} {...fadeOnly}>
+                <Motion.div key={currentStepIndex} {...fadeOnly}>
                   <div className="mb-4 inline-flex items-center gap-2 rounded border border-tint-border bg-badge/40 px-2.5 py-1 tt-mono text-sm font-semibold tracking-widest text-cocoa">
                     STEP {pad(currentStepIndex + 1)}
                   </div>
@@ -279,7 +279,7 @@ export default function HowItWorks() {
                   <p className="mt-4 text-base leading-relaxed text-cocoa-light">
                     {currentStep.subtitle}
                   </p>
-                </motion.div>
+                </Motion.div>
               </AnimatePresence>
 
               {/* Step list with vertical line */}
@@ -310,13 +310,13 @@ export default function HowItWorks() {
               {/* Caption pill above browser */}
               <div className="mb-3 w-full px-1">
                 <AnimatePresence mode="wait">
-                  <motion.div
+                  <Motion.div
                     key={currentSlide.caption}
                     {...fadeOnly}
                     className="inline-flex items-center gap-2 rounded-full border border-tint-border bg-badge/70 px-3 py-1 text-xs font-medium text-cocoa"
                   >
                     {currentSlide.caption}
-                  </motion.div>
+                  </Motion.div>
                 </AnimatePresence>
               </div>
 
@@ -330,7 +330,7 @@ export default function HowItWorks() {
                 <div className="relative min-w-0 flex-1">
                   <BrowserFrame caption={currentSlide.caption}>
                     <AnimatePresence mode="wait">
-                      <motion.div
+                      <Motion.div
                         key={currentIndex}
                         {...fadeSlideUp}
                         className="absolute inset-0"
@@ -340,14 +340,14 @@ export default function HowItWorks() {
                           alt={currentSlide.caption}
                           className="h-full w-full object-contain object-center"
                         />
-                      </motion.div>
+                      </Motion.div>
                     </AnimatePresence>
                   </BrowserFrame>
 
                   {currentStepIndex === 5 && (
                     <div className="absolute -right-4 top-12 z-20 hidden flex-col gap-4 xl:flex">
                       {INGREDIENT_CHIPS.map((chip, i) => (
-                        <motion.div
+                        <Motion.div
                           key={chip.name}
                           initial={{ opacity: 0, x: 20 }}
                           animate={{ opacity: 1, x: 0 }}
@@ -362,7 +362,7 @@ export default function HowItWorks() {
                               {chip.label}
                             </span>
                           </div>
-                        </motion.div>
+                        </Motion.div>
                       ))}
                     </div>
                   )}
@@ -462,19 +462,20 @@ export default function HowItWorks() {
   return (
     <section
       id="how-it-works"
-      className="border-b border-tint-border/70 bg-paper px-4 py-12 sm:px-6 sm:py-16"
+      className="border-b border-tint-border/70 bg-paper px-6 py-12 sm:py-16 lg:px-8"
       role="region"
       aria-label="How TrueTone works"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto max-w-7xl">
         {/* Label */}
-        <div className="mb-4 flex items-center gap-2 tt-mono text-xs font-medium uppercase tracking-wider text-cocoa-light">
+        <div className="mb-6 flex items-center gap-2 border-b border-tint-border/70 pb-3 tt-mono text-[15px] font-semibold uppercase tracking-[0.16em] text-cocoa-light">
           <span className="h-1.5 w-1.5 rounded-full bg-apricot" />
           <span>How TrueTone works</span>
         </div>
 
+        <div className="mx-auto max-w-2xl">
         {/* Progress bar */}
         <div className="mb-6 h-1 w-full overflow-hidden rounded-full bg-tint-border">
           <div
@@ -504,7 +505,7 @@ export default function HowItWorks() {
           <div className="min-w-0 flex-1">
             <BrowserFrame caption={currentSlide.caption}>
               <AnimatePresence mode="wait">
-                <motion.div
+                <Motion.div
                   key={currentIndex}
                   {...(prefersReduced ? {} : fadeSlideUp)}
                   className="absolute inset-0"
@@ -514,7 +515,7 @@ export default function HowItWorks() {
                     alt={currentSlide.caption}
                     className="h-full w-full object-contain object-center"
                   />
-                </motion.div>
+                </Motion.div>
               </AnimatePresence>
             </BrowserFrame>
           </div>
@@ -578,6 +579,7 @@ export default function HowItWorks() {
               />
             );
           })}
+        </div>
         </div>
       </div>
     </section>

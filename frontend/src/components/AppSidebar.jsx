@@ -16,9 +16,15 @@ import {
   X,
   BookOpen,
   ChevronDown,
+  ArrowRightLeft,
 } from "lucide-react";
 import TrueToneLogo from "./TrueToneLogo";
-import { getUserProfile } from "../services/user";
+import {
+  getActiveViewMode,
+  getUserProfile,
+  MODE_CHANGE_EVENT,
+  setActiveViewMode,
+} from "../services/user";
 
 const navItems = [
   { title: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
@@ -63,17 +69,26 @@ const AppSidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [moreOpen, setMoreOpen] = useState(false);
-  const [role, setRole] = useState(
+  const [authRole, setAuthRole] = useState(
     () => localStorage.getItem("truetone_role") || "end_user"
   );
-  const isEvaluator = role === "evaluator";
+  const [viewMode, setViewMode] = useState(() => getActiveViewMode());
+  const [onboardingCompleted, setOnboardingCompleted] = useState(true);
+
+  const canEvaluate = authRole === "evaluator";
+  const isEvaluator = canEvaluate && viewMode === "evaluator";
 
   useEffect(() => {
     let active = true;
     getUserProfile()
       .then((res) => {
-        if (active && res?.data?.role) {
-          setRole(res.data.role);
+        if (!active || !res?.data) return;
+        if (res.data.role) {
+          setAuthRole(res.data.role);
+          setViewMode(getActiveViewMode());
+        }
+        if (typeof res.data.onboarding_completed === "boolean") {
+          setOnboardingCompleted(res.data.onboarding_completed);
         }
       })
       .catch(() => {});
@@ -82,10 +97,33 @@ const AppSidebar = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const syncMode = () => setViewMode(getActiveViewMode());
+    window.addEventListener(MODE_CHANGE_EVENT, syncMode);
+    return () => window.removeEventListener(MODE_CHANGE_EVENT, syncMode);
+  }, []);
+
+  const handleSwitchToUserMode = () => {
+    setActiveViewMode("end_user");
+    setViewMode("end_user");
+    setMoreOpen(false);
+    navigate(onboardingCompleted ? "/dashboard" : "/onboarding");
+  };
+
+  const handleSwitchToEvaluatorMode = () => {
+    setActiveViewMode("evaluator");
+    setViewMode("evaluator");
+    setModelReportOpen(true);
+    setReportsOpen(true);
+    setMoreOpen(false);
+    navigate("/inspector");
+  };
+
   const handleSignOut = () => {
     localStorage.removeItem("truetone_token");
     localStorage.removeItem("truetone_user_id");
     localStorage.removeItem("truetone_role");
+    localStorage.removeItem("truetone_view_mode");
     navigate("/");
   };
 
@@ -97,8 +135,9 @@ const AppSidebar = () => {
 
   const onSystemReport = reportItems.some((r) => r.path && isOn(r.path));
 
-  const [modelReportOpen, setModelReportOpen] = useState(onModelReport);
-  const [reportsOpen, setReportsOpen] = useState(onSystemReport);
+  // Both sub-dropdowns default to open in evaluator mode.
+  const [modelReportOpen, setModelReportOpen] = useState(true);
+  const [reportsOpen, setReportsOpen] = useState(true);
 
   useEffect(() => {
     if (onModelReport) setModelReportOpen(true);
@@ -244,7 +283,17 @@ const AppSidebar = () => {
           )}
         </nav>
 
-        <div className="border-t border-[var(--tt-border)] p-3">
+        <div className="space-y-2 border-t border-[var(--tt-border)] p-3">
+          {canEvaluate && (
+            <button
+              type="button"
+              onClick={isEvaluator ? handleSwitchToUserMode : handleSwitchToEvaluatorMode}
+              className="flex w-full items-center justify-center gap-2 rounded-[var(--tt-radius)] bg-[var(--tt-primary)] px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[var(--tt-primary-hover)]"
+            >
+              <ArrowRightLeft className="h-4 w-4 shrink-0" strokeWidth={2} />
+              <span>{isEvaluator ? "User Mode" : "Evaluator Mode"}</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={handleSignOut}
@@ -344,7 +393,17 @@ const AppSidebar = () => {
                 })}
               </div>
             )}
-            <div className="mt-3 border-t border-[var(--tt-border)] pt-3">
+            <div className="mt-3 space-y-2 border-t border-[var(--tt-border)] pt-3">
+              {canEvaluate && (
+                <button
+                  type="button"
+                  onClick={isEvaluator ? handleSwitchToUserMode : handleSwitchToEvaluatorMode}
+                  className="flex w-full items-center justify-center gap-2 rounded-[var(--tt-radius)] bg-[var(--tt-primary)] px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[var(--tt-primary-hover)]"
+                >
+                  <ArrowRightLeft className="h-4 w-4 shrink-0" strokeWidth={2} />
+                  <span>{isEvaluator ? "User Mode" : "Evaluator Mode"}</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {

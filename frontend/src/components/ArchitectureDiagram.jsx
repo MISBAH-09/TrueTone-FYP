@@ -15,7 +15,12 @@ const colors = {
 };
 
 function Box({ x, y, width, height, title, detail, fill, stroke }) {
-  const compact = height < 60;
+  const compact = height < 80;
+  const titleLines = Array.isArray(title) ? title : [title];
+  const detailLines = Array.isArray(detail) ? detail : [detail];
+  const titleY = y + (compact ? 24 : 37);
+  const detailY =
+    y + (compact ? 48 : titleLines.length > 1 ? 82 : 69);
 
   return (
     <g>
@@ -29,25 +34,31 @@ function Box({ x, y, width, height, title, detail, fill, stroke }) {
         stroke={stroke}
         strokeWidth="2"
       />
-      <text
-        x={x + width / 2}
-        y={y + (compact ? 20 : 34)}
-        textAnchor="middle"
-        fill={colors.ink}
-        fontSize={compact ? "14" : "18"}
-        fontWeight="650"
-      >
-        {title}
-      </text>
-      <text
-        x={x + width / 2}
-        y={y + (compact ? 40 : 59)}
-        textAnchor="middle"
-        fill={colors.secondary}
-        fontSize={compact ? "11" : "14"}
-      >
-        {detail}
-      </text>
+      {titleLines.map((line, index) => (
+        <text
+          key={`title-${line}`}
+          x={x + width / 2}
+          y={titleY + index * 25}
+          textAnchor="middle"
+          fill={colors.ink}
+          fontSize={compact ? "27" : "28"}
+          fontWeight="650"
+        >
+          {line}
+        </text>
+      ))}
+      {detailLines.map((line, index) => (
+        <text
+          key={`detail-${line}`}
+          x={x + width / 2}
+          y={detailY + index * 21}
+          textAnchor="middle"
+          fill={colors.secondary}
+          fontSize="23"
+        >
+          {line}
+        </text>
+      ))}
     </g>
   );
 }
@@ -58,7 +69,7 @@ function RowLabel({ y, children }) {
       x="56"
       y={y}
       fill={colors.secondary}
-      fontSize="15"
+      fontSize="24"
       fontWeight="700"
       letterSpacing="0.7"
     >
@@ -83,16 +94,16 @@ function Connector({ d, label, labelX, labelY, labelWidth }) {
             x={labelX - labelWidth / 2}
             y={labelY - 16}
             width={labelWidth}
-            height="22"
+            height="32"
             rx="5"
             fill="#FFFFFF"
           />
           <text
             x={labelX}
-            y={labelY}
+            y={labelY + 5}
             textAnchor="middle"
             fill={colors.secondary}
-            fontSize="13"
+            fontSize="23"
           >
             {label}
           </text>
@@ -107,9 +118,9 @@ export default function ArchitectureDiagram() {
     <div className="overflow-x-auto rounded-2xl border border-tint-border bg-white shadow-browser">
       <svg
         aria-labelledby="architecture-title architecture-description"
-        className="block h-auto min-w-[1100px] w-full font-sans"
+        className="block h-auto min-w-[700px] w-full font-sans"
         role="img"
-        viewBox="0 0 1440 770"
+        viewBox="0 0 1440 820"
         xmlns="http://www.w3.org/2000/svg"
       >
         <title id="architecture-title">TrueTone system architecture</title>
@@ -134,20 +145,20 @@ export default function ArchitectureDiagram() {
 
         <RowLabel y="35">YOU UPLOAD</RowLabel>
 
-        <Connector d="M355 101H478" label="HTTPS, JSON" labelX="416" labelY="87" labelWidth="96" />
+        <Connector d="M356 107H478" label="HTTPS, JSON" labelX="417" labelY="91" labelWidth="118" />
         <Connector
-          d="M802 101H1080"
+          d="M802 107H1080"
           label="HTTPS, JSON"
           labelX="941"
-          labelY="87"
-          labelWidth="96"
+          labelY="91"
+          labelWidth="118"
         />
 
         <Box
           x={56}
           y={57}
           width={300}
-          height={88}
+          height={100}
           title="Browser"
           detail="React, Vite, Tailwind"
           fill={colors.blueFill}
@@ -157,7 +168,7 @@ export default function ArchitectureDiagram() {
           x={478}
           y={57}
           width={324}
-          height={88}
+          height={100}
           title="Django REST API"
           detail="token auth, Swagger docs"
           fill={colors.greenFill}
@@ -167,7 +178,7 @@ export default function ArchitectureDiagram() {
           x={1080}
           y={57}
           width={300}
-          height={88}
+          height={100}
           title="PostgreSQL"
           detail="users, scans, history"
           fill={colors.cream}
@@ -176,30 +187,30 @@ export default function ArchitectureDiagram() {
 
         <RowLabel y="190">AI READS YOUR SKIN</RowLabel>
 
-        <Connector d="M227 270H258" />
-        <Connector d="M449 270H480" />
+        <Connector d="M227 283H258" />
+        <Connector d="M449 283H480" />
         <path
-          d="M689 270H710M710 230V350"
+          d="M689 283H710M710 232V403"
           fill="none"
           stroke={colors.line}
           strokeWidth="2"
         />
-        <Connector d="M710 230H735" />
-        <Connector d="M710 290H735" />
-        <Connector d="M710 350H735" />
+        <Connector d="M710 232H735" />
+        <Connector d="M710 316H735" />
+        <Connector d="M710 400H735" />
         <path
-          d="M930 230H958M930 290H958M930 350H958M958 230V350"
+          d="M955 232H980M955 316H980M955 400H980M980 232V400"
           fill="none"
           stroke={colors.line}
           strokeWidth="2"
         />
-        <Connector d="M958 290H1000" />
+        <Connector d="M980 316H1000" />
 
         <Box
           x={56}
-          y={230}
+          y={236}
           width={171}
-          height={80}
+          height={94}
           title="1 · Validate"
           detail="format, size, decode"
           fill={colors.cream}
@@ -207,9 +218,9 @@ export default function ArchitectureDiagram() {
         />
         <Box
           x={258}
-          y={230}
+          y={236}
           width={191}
-          height={80}
+          height={94}
           title="2 · Face detect"
           detail="MediaPipe, crop"
           fill={colors.cream}
@@ -217,9 +228,9 @@ export default function ArchitectureDiagram() {
         />
         <Box
           x={480}
-          y={230}
+          y={236}
           width={209}
-          height={80}
+          height={94}
           title="3 · Preprocess"
           detail="224x224, normalise"
           fill={colors.cream}
@@ -227,9 +238,9 @@ export default function ArchitectureDiagram() {
         />
         <Box
           x={735}
-          y={205}
-          width={195}
-          height={50}
+          y={193}
+          width={220}
+          height={78}
           title="Skin type"
           detail="EfficientNet-B0"
           fill={colors.amberFill}
@@ -237,9 +248,9 @@ export default function ArchitectureDiagram() {
         />
         <Box
           x={735}
-          y={265}
-          width={195}
-          height={50}
+          y={277}
+          width={220}
+          height={78}
           title="Skin tone"
           detail="EfficientNet-B2"
           fill={colors.amberFill}
@@ -247,19 +258,19 @@ export default function ArchitectureDiagram() {
         />
         <Box
           x={735}
-          y={325}
-          width={195}
-          height={50}
+          y={361}
+          width={220}
+          height={78}
           title="Skin condition"
-          detail="EfficientNet-B3, 7 outputs"
+          detail={["EfficientNet-B3", "7 outputs"]}
           fill={colors.amberFill}
           stroke={colors.amberStroke}
         />
         <Box
           x={1000}
-          y={245}
-          width={250}
-          height={90}
+          y={269}
+          width={270}
+          height={94}
           title="Grad-CAM + rules"
           detail="heatmaps, thresholds"
           fill={colors.purpleFill}
@@ -267,81 +278,84 @@ export default function ArchitectureDiagram() {
         />
 
         <text
-          x="832"
-          y="402"
+          x="845"
+          y="457"
           textAnchor="middle"
           fill={colors.secondary}
-          fontSize="13"
+          fontSize="23"
           fontStyle="italic"
         >
           three models run in parallel threads
         </text>
 
-        <RowLabel y="480">WE PERSONALISE</RowLabel>
+        <RowLabel y="493">WE PERSONALISE</RowLabel>
 
         <Connector
-          d="M1125 335V452H209V512"
+          d="M1135 363V466H205V530"
           label="scan result becomes the skin profile"
           labelX="674"
-          labelY="445"
-          labelWidth="252"
+          labelY="460"
+          labelWidth="440"
         />
-        <Connector d="M355 562H388" />
+        <Connector d="M355 589H388" />
 
         <Box
           x={56}
-          y={512}
+          y={530}
           width={299}
-          height={100}
-          title="Recommendation engine"
-          detail="rule-based points, CSV catalogue"
+          height={118}
+          title={["Recommendation", "engine"]}
+          detail={["rule-based points,", "CSV catalogue"]}
           fill={colors.greenFill}
           stroke={colors.greenStroke}
         />
         <Box
           x={388}
-          y={512}
+          y={530}
           width={270}
-          height={100}
+          height={118}
           title="Safety filters"
-          detail="allergy, pregnancy: hard block"
+          detail={["allergy, pregnancy:", "hard block"]}
           fill={colors.greenFill}
           stroke={colors.greenStroke}
         />
         <Box
           x={751}
-          y={512}
+          y={530}
           width={270}
-          height={100}
+          height={118}
           title="Product scanner"
-          detail="vision LLM, ingredient match"
+          detail={["vision LLM,", "ingredient match"]}
           fill={colors.blueFill}
           stroke={colors.blueStroke}
         />
         <Box
           x={1070}
-          y={512}
+          y={530}
           width={310}
-          height={100}
+          height={118}
           title="Chatbot"
-          detail="LLM grounded in the profile"
+          detail={["LLM grounded in", "the profile"]}
           fill={colors.blueFill}
           stroke={colors.blueStroke}
         />
 
-        <RowLabel y="660">YOU GET RESULTS</RowLabel>
+        <RowLabel y="688">YOU GET RESULTS</RowLabel>
         <rect
           x="56"
-          y="678"
+          y="708"
           width="1324"
-          height="66"
+          height="94"
           rx="12"
           fill="#F5ECE4"
         />
-        <text x="76" y="706" fill={colors.secondary} fontSize="14">
-          One request runs the whole image pipeline. The three models run in parallel threads, and the result becomes the user&apos;s skin profile
+        <text x="76" y="740" fill={colors.secondary} fontSize="23">
+          One request runs the whole image pipeline.
         </text>
-        <text x="76" y="728" fill={colors.secondary} fontSize="14">
+        <text x="76" y="766" fill={colors.secondary} fontSize="23">
+          The three models run in parallel threads, and the result becomes the user&apos;s skin profile
+        </text>
+        <text x="76" y="792" fill={colors.secondary} fontSize="23">
           that drives the recommendations, the product scanner and the chatbot.
         </text>
       </svg>

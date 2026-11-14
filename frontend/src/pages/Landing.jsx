@@ -1,10 +1,11 @@
 
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
+  ArrowDown,
   Check,
   FlaskConical,
-  MessageCircle,
   ScanFace,
   ShieldCheck,
   Sparkles,
@@ -44,6 +45,36 @@ const features = [
       "Keep a visual history of your scans and follow changes in your skin over time.",
   },
 ];
+
+function FlowArrow({ direction, delay = 0, className = "" }) {
+  const prefersReducedMotion = useReducedMotion();
+  const isDown = direction === "down";
+
+  return (
+    <Motion.span
+      aria-hidden="true"
+      className={`pointer-events-none absolute z-10 flex items-center justify-center text-apricot ${className}`}
+      initial={prefersReducedMotion ? false : { opacity: 0, x: isDown ? 0 : -6, y: isDown ? -6 : 0 }}
+      whileInView={
+        prefersReducedMotion
+          ? undefined
+          : { opacity: 1, x: isDown ? 0 : [0, 0, 6, 0], y: isDown ? [0, 0, 6, 0] : 0 }
+      }
+      viewport={{ once: true, amount: 0.5 }}
+      transition={
+        prefersReducedMotion
+          ? undefined
+          : {
+              opacity: { duration: 0.35, delay },
+              x: { duration: 1.5, delay, ease: "easeInOut", repeat: Infinity },
+              y: { duration: 1.5, delay, ease: "easeInOut", repeat: Infinity },
+            }
+      }
+    >
+      {isDown ? <ArrowDown className="h-5 w-5" /> : <ArrowRight className="h-5 w-5" />}
+    </Motion.span>
+  );
+}
 
 function SectionAtmosphere() {
   const prefersReducedMotion = useReducedMotion();
@@ -176,59 +207,91 @@ const AboutUs = () => {
   return (
     <section
       id="about-us"
-      className="relative isolate scroll-mt-20 overflow-hidden bg-gradient-to-b from-white/65 via-white/80 to-paper/80 px-4 py-14 sm:px-6 sm:py-18 lg:px-8 lg:py-20"
+      className="relative isolate scroll-mt-20 overflow-hidden bg-paper px-4 py-14 sm:px-6 sm:py-18 lg:px-8 lg:py-20"
       aria-labelledby="about-us-title"
     >
-      <SectionAtmosphere />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 z-0 h-20 bg-gradient-to-b from-paper/80 to-transparent"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-20 bg-gradient-to-t from-paper/80 to-transparent"
-      />
       <div className="relative z-10 mx-auto max-w-7xl">
-        <div className="mx-auto max-w-3xl text-center">
+        <div className="border-b border-tint-border/70 pb-3">
           <p className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.16em] text-cocoa">
-            <Sparkles aria-hidden="true" className="h-4 w-4 text-apricot" />
-            About TrueTone
+            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-apricot" />
+            ABOUT TRUETONE
           </p>
-          <h2
-            id="about-us-title"
-            className="mt-3 text-3xl font-semibold tracking-tight text-ink sm:text-4xl"
-          >
-            Skin insights that lead to more personal choices
-          </h2>
         </div>
 
-        <Reveal className="mx-auto mt-5 max-w-4xl text-center text-base leading-7 text-secondary">
-          TrueTone turns a single photo into a personal skin profile. When you
-          upload an image, our system checks the photo, finds your face, and
-          runs three AI models in parallel to read your skin type, tone, and
-          visible conditions. That profile then drives everything else: product
-          recommendations ranked for your skin, safety filters that block
-          anything conflicting with your allergies or pregnancy, an ingredient
-          scanner for any product label, and an assistant that answers
-          questions with your profile in mind.
-        </Reveal>
+        <div className="mt-8 grid items-center gap-8 lg:grid-cols-[2fr_3fr] lg:gap-10">
+          <Reveal direction="left" className="max-w-2xl">
+            <h2
+              id="about-us-title"
+              className="text-3xl font-semibold leading-tight tracking-tight text-ink sm:text-4xl lg:text-[2.75rem]"
+            >
+              Skin insights that lead to more personal choices
+            </h2>
+            <p className="mt-5 text-base leading-7 text-secondary sm:text-lg sm:leading-[1.7]">
+              TrueTone turns a single photo into a personal skin profile. When
+              you upload an image, our system checks the photo, finds your face,
+              and runs three AI models in parallel to read your skin type, tone,
+              and visible conditions. That profile then drives everything else:
+              product recommendations ranked for your skin, safety filters that
+              block anything conflicting with your allergies or pregnancy, an
+              ingredient scanner for any product label, and an assistant that
+              answers questions with your profile in mind.
+            </p>
+          </Reveal>
 
-        <Reveal className="mt-9">
-          <p className="mb-3 text-sm font-semibold text-cocoa">
-            How TrueTone works under the hood
-          </p>
-          <ArchitectureDiagram />
-          <p className="mt-4 text-center text-xs leading-5 text-secondary">
-            TrueTone offers skincare guidance for informational purposes, not a
-            medical diagnosis.
-          </p>
-        </Reveal>
+          <Reveal direction="right" className="min-w-0">
+            <p className="mb-3 text-base font-semibold text-cocoa">
+              How TrueTone works under the hood
+            </p>
+            <ArchitectureDiagram />
+            <p className="mt-4 text-center text-xs leading-5 text-secondary">
+              TrueTone offers skincare guidance for informational purposes, not
+              a medical diagnosis.
+            </p>
+          </Reveal>
+        </div>
       </div>
     </section>
   );
 };
 
-const Landing = () => (
+const Landing = () => {
+  const [activeSection, setActiveSection] = useState("");
+  const prefersReducedMotion = useReducedMotion();
+
+  useEffect(() => {
+    const sectionIds = ["features", "how-it-works", "about-us"];
+    const sections = sectionIds
+      .map((id) => document.getElementById(id))
+      .filter(Boolean);
+
+    if (!("IntersectionObserver" in window) || sections.length === 0) return;
+
+    const visibility = new Map();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          visibility.set(entry.target.id, entry.isIntersecting ? entry.intersectionRatio : 0);
+        });
+        const mostVisible = sectionIds
+          .map((id) => [id, visibility.get(id) || 0])
+          .sort((a, b) => b[1] - a[1])[0];
+        if (mostVisible?.[1] > 0) setActiveSection(mostVisible[0]);
+      },
+      { rootMargin: "-15% 0px -55% 0px", threshold: [0, 0.1, 0.25, 0.5, 0.75] },
+    );
+
+    sections.forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
+  }, []);
+
+  const navClass = (sectionId) =>
+    `relative inline-flex -translate-y-0 items-center py-1 text-base font-medium transition-[color,transform] duration-200 hover:-translate-y-px hover:text-apricot motion-reduce:transform-none motion-reduce:transition-none after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:origin-left after:scale-x-0 after:bg-apricot after:transition-transform after:duration-250 hover:after:scale-x-100 motion-reduce:after:transition-none ${
+      activeSection === sectionId
+        ? "text-cocoa after:scale-x-100"
+        : "text-cocoa-light"
+    }`;
+
+  return (
   <div className="min-h-screen overflow-hidden bg-paper text-ink">
     {/* Header */}
     <header className="sticky top-0 z-50 border-b border-cocoa/20 bg-paper/95 backdrop-blur-md">
@@ -241,20 +304,23 @@ const Landing = () => (
         <div className="hidden items-center gap-8 md:flex">
           <a
             href="#features"
-            className="text-sm font-medium text-cocoa-light transition-colors hover:text-cocoa-dark"
+            className={navClass("features")}
+            aria-current={activeSection === "features" ? "location" : undefined}
           >
             Features
           </a>
 
           <a
             href="#how-it-works"
-            className="text-sm font-medium text-cocoa-light transition-colors hover:text-cocoa-dark"
+            className={navClass("how-it-works")}
+            aria-current={activeSection === "how-it-works" ? "location" : undefined}
           >
             How it works
           </a>
           <a
             href="#about-us"
-            className="text-sm font-medium text-cocoa-light transition-colors hover:text-cocoa-dark"
+            className={navClass("about-us")}
+            aria-current={activeSection === "about-us" ? "location" : undefined}
           >
             About Us
           </a>
@@ -268,7 +334,7 @@ const Landing = () => (
           </Link>
 
           <Link to="/auth?signup=true">
-            <span className="inline-flex h-[var(--tt-control-h)] items-center justify-center gap-2 rounded-full border border-cocoa bg-cocoa px-3 text-sm font-medium text-white transition-colors hover:border-cocoa-dark hover:bg-cocoa-dark sm:px-4">
+            <span className="inline-flex h-[var(--tt-control-h)] items-center justify-center gap-2 rounded-full border border-cocoa bg-cocoa px-3 text-sm font-medium text-white transition duration-200 hover:-translate-y-0.5 hover:border-cocoa-dark hover:bg-cocoa-dark motion-reduce:transform-none motion-reduce:transition-none sm:px-4">
               <span className="hidden sm:inline">Get started</span>
               <span className="sm:hidden">Start</span>
               <ArrowRight aria-hidden="true" className="h-4 w-4" />
@@ -311,32 +377,77 @@ const Landing = () => (
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <Link to="/auth?signup=true">
-              <span className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-cocoa bg-cocoa px-6 text-sm font-medium text-white shadow-md transition hover:border-cocoa-dark hover:bg-cocoa-dark hover:shadow-lg">
+              <Motion.span
+                className="group inline-flex h-12 items-center justify-center gap-2 rounded-full border border-cocoa bg-cocoa px-6 text-sm font-medium text-white shadow-md transition hover:border-cocoa-dark hover:bg-cocoa-dark hover:shadow-lg motion-reduce:transition-none"
+                animate={
+                  prefersReducedMotion
+                    ? undefined
+                    : {
+                        boxShadow: [
+                          "0 0 12px rgba(214,140,100,0.24)",
+                          "0 0 24px rgba(214,140,100,0.45)",
+                          "0 0 12px rgba(214,140,100,0.24)",
+                        ],
+                      }
+                }
+                transition={
+                  prefersReducedMotion
+                    ? undefined
+                    : { duration: 2.5, repeat: Infinity, ease: "easeInOut" }
+                }
+                whileHover={prefersReducedMotion ? undefined : { y: -2 }}
+              >
                 Start your free analysis
-                <ArrowRight aria-hidden="true" className="h-4 w-4" />
-              </span>
+                <ArrowRight aria-hidden="true" className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1 motion-reduce:transition-none" />
+              </Motion.span>
             </Link>
 
             <a href="#features">
-              <span className="inline-flex h-12 items-center justify-center rounded-full border border-tint-border bg-white/80 px-6 text-sm font-medium text-ink transition-colors hover:bg-paper">
+              <Motion.span
+                className="inline-flex h-12 items-center justify-center rounded-full border border-tint-border bg-white/80 px-6 text-sm font-medium text-ink transition-colors hover:border-apricot-light hover:bg-paper motion-reduce:transition-none"
+                whileHover={prefersReducedMotion ? undefined : { y: -2, boxShadow: "0 8px 20px rgba(62,39,31,0.10)" }}
+              >
                 Explore TrueTone
-              </span>
+              </Motion.span>
             </a>
           </div>
 
           <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3 text-sm text-secondary">
             {["Skin insights", "Ingredient checks", "Progress tracking"].map(
-              (item) => (
-                <span key={item} className="inline-flex items-center gap-2">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-tint-soft text-cocoa">
-                    <Check
-                      aria-hidden="true"
-                      className="h-3 w-3"
-                      strokeWidth={2.5}
-                    />
-                  </span>
+              (item, index) => (
+                <Motion.span
+                  key={item}
+                  className="inline-flex items-center gap-2 transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:transform-none"
+                  initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
+                  animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: index * 0.15, ease: "easeOut" }}
+                  whileHover={prefersReducedMotion ? undefined : { y: -2 }}
+                >
+                  <Motion.span
+                    className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 transition-shadow duration-200 hover:shadow-[0_0_12px_rgba(224,146,95,0.4)]"
+                    initial={prefersReducedMotion ? false : { scale: 0.6 }}
+                    animate={prefersReducedMotion ? undefined : { scale: [0.6, 1.1, 1] }}
+                    transition={{ duration: 0.35, delay: index * 0.15, ease: "easeOut" }}
+                  >
+                    {prefersReducedMotion ? (
+                      <Check aria-hidden="true" className="h-4 w-4" strokeWidth={2.5} />
+                    ) : (
+                      <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 12 12" fill="none">
+                        <Motion.path
+                          d="m2 6 2.5 2.5L10 3"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          initial={{ pathLength: 0 }}
+                          animate={{ pathLength: 1 }}
+                          transition={{ duration: 0.3, delay: index * 0.15 + 0.12, ease: "easeOut" }}
+                        />
+                      </svg>
+                    )}
+                  </Motion.span>
                   {item}
-                </span>
+                </Motion.span>
               ),
             )}
           </div>
@@ -402,32 +513,68 @@ const Landing = () => (
             </p>
           </Reveal>
 
-          <Stagger className="mt-10 grid gap-4 sm:grid-cols-2 lg:mt-12 lg:grid-cols-4">
+          <Stagger className="mt-10 grid gap-4 md:grid-cols-2 lg:mt-12 lg:grid-cols-4">
             {features.map(({ icon, title, description }, index) => (
               <Reveal key={title} className="h-full">
-                <article
-                  className="group relative h-full rounded-2xl border border-tint-border bg-white p-6 transition duration-[250ms] hover:-translate-y-1.5 hover:border-apricot-light hover:shadow-[0_28px_56px_-14px_rgba(62,39,31,0.16),0_8px_20px_-4px_rgba(62,39,31,0.08)] motion-reduce:transform-none motion-reduce:transition-none"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-x-0 top-0 h-0.5 origin-left scale-x-0 bg-cocoa transition-transform duration-[250ms] group-hover:scale-x-100 motion-reduce:transition-none"
-                  />
-                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-tint-subtle text-cocoa transition-[transform,background-color] duration-[250ms] group-hover:scale-[1.08] group-hover:bg-tint-soft motion-reduce:transition-none">
-                    {icon}
-                  </span>
+                <div className="relative h-full">
+                  <article
+                    className="group relative h-full rounded-2xl border border-tint-border bg-white p-6 transition duration-[250ms] hover:-translate-y-1.5 hover:border-apricot-light hover:shadow-[0_28px_56px_-14px_rgba(62,39,31,0.16),0_8px_20px_-4px_rgba(62,39,31,0.08)] motion-reduce:transform-none motion-reduce:transition-none"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-x-0 top-0 h-0.5 origin-left scale-x-0 bg-cocoa transition-transform duration-[250ms] group-hover:scale-x-100 motion-reduce:transition-none"
+                    />
+                    <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-tint-subtle text-cocoa transition-[transform,background-color] duration-[250ms] group-hover:scale-[1.08] group-hover:bg-tint-soft motion-reduce:transition-none">
+                      {icon}
+                    </span>
 
-                  <p className="mt-6 text-xs font-semibold uppercase tracking-[0.14em] text-cocoa">
-                    0{index + 1}
-                  </p>
+                    <p className="mt-6 text-xs font-semibold uppercase tracking-[0.14em] text-cocoa">
+                      0{index + 1}
+                    </p>
 
-                  <h3 className="mt-2 text-lg font-semibold text-ink">
-                    {title}
-                  </h3>
+                    <h3 className="mt-2 text-lg font-semibold text-ink">
+                      {title}
+                    </h3>
 
-                  <p className="mt-2 text-sm leading-6 text-secondary">
-                    {description}
-                  </p>
-                </article>
+                    <p className="mt-2 text-sm leading-6 text-secondary">
+                      {description}
+                    </p>
+                  </article>
+                  {index < 3 && (
+                    <>
+                      <FlowArrow
+                        direction="down"
+                        delay={index * 0.2}
+                        className="left-1/2 top-full -translate-x-1/2 md:hidden"
+                      />
+                      {index === 0 || index === 2 ? (
+                        <FlowArrow
+                          direction="right"
+                          delay={index * 0.2}
+                          className="right-[-1.25rem] top-1/2 hidden -translate-y-1/2 md:flex lg:hidden"
+                        />
+                      ) : (
+                        <FlowArrow
+                          direction="down"
+                          delay={index * 0.2}
+                          className="left-1/2 top-full hidden -translate-x-1/2 md:flex lg:hidden"
+                        />
+                      )}
+                      <FlowArrow
+                        direction="right"
+                        delay={index * 0.2}
+                        className="right-[-1.25rem] top-1/2 hidden -translate-y-1/2 lg:flex"
+                      />
+                    </>
+                  )}
+                  {index === 3 && (
+                    <FlowArrow
+                      direction="down"
+                      delay={0.6}
+                      className="left-1/2 top-full -translate-x-1/2"
+                    />
+                  )}
+                </div>
               </Reveal>
             ))}
           </Stagger>
@@ -541,6 +688,7 @@ const Landing = () => (
       </footer>
     </Reveal>
   </div>
-);
+  );
+};
 
 export default Landing;
