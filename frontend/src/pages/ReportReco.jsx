@@ -169,7 +169,7 @@ export function ScoreCalculator() {
     <div>
       <div className="mb-4 flex flex-wrap gap-2">
         {Object.entries(PRESETS).map(([key, p]) => (
-          <button key={key} type="button" onClick={() => setV(p.v)} className="rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:border-emerald-400">
+          <button key={key} type="button" onClick={() => setV(p.v)} className="rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:border-cocoa">
             {p.label}
           </button>
         ))}
@@ -299,7 +299,7 @@ export function RecoBody() {
             <ol className="space-y-2 text-xs text-slate-700">
               {[["1", "More points first."], ["2", "Fewer warnings next."], ["3", "Then the product name, A to Z."]].map(([n, t]) => (
                 <li key={n} className="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-[11px] font-bold text-white">{n}</span>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-cocoa text-[11px] font-bold text-white">{n}</span>
                   {t}
                 </li>
               ))}

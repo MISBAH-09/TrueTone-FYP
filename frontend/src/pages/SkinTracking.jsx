@@ -203,7 +203,7 @@ const SkinTracking = () => {
   ];
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 text-[var(--tt-ink)]">
+    <div className="w-full space-y-6 text-[var(--tt-ink)]">
       <div className="border-b border-[var(--tt-border)] pb-4">
         <p className="tt-mono text-xs font-medium uppercase tracking-[0.14em] text-[var(--tt-primary)]">
           Skin Tracking

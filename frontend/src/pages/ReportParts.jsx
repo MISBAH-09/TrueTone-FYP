@@ -1,14 +1,14 @@
 // Shared building blocks for the system report pages (RAG, Recommendation engine).
-// Same look as the model pages in ModelReport.jsx, kept in their own file so nothing there has to change.
+// Shared layout and typography for the system reports.
 
 export const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 export const pct = (v, d = 1) => `${(v * 100).toFixed(d)}%`;
 
 export function Section({ id, n, title, why, children }) {
   return (
-    <section id={`sec-${id}`} className="scroll-mt-24 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+    <section id={`sec-${id}`} className="scroll-mt-24 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex items-start gap-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-sm font-bold text-white">{n}</div>
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cocoa text-sm font-bold text-white">{n}</div>
         <div>
           <h2 className="text-xl font-bold text-slate-900">{title}</h2>
           <p className="mt-1 text-sm text-slate-500">{why}</p>
@@ -39,7 +39,7 @@ export function Row({ k, v }) {
 }
 
 export function Caption({ children }) {
-  return <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800">{children}</p>;
+  return <p className="mt-3 rounded-xl bg-paper-alt px-3 py-2 text-xs text-cocoa-light">{children}</p>;
 }
 
 export function SubTitle({ children }) {
@@ -92,7 +92,7 @@ export function Steps({ steps }) {
       {steps.map(([title, text], i) => (
         <li key={title} className="relative flex gap-4 pb-5 last:pb-0">
           {i < steps.length - 1 && <span className="absolute left-[15px] top-8 h-[calc(100%-1.5rem)] w-px bg-slate-200" aria-hidden="true" />}
-          <span className="z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">{i + 1}</span>
+          <span className="z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cocoa text-xs font-bold text-white">{i + 1}</span>
           <div className="pt-1">
             <p className="text-sm font-semibold text-slate-900">{title}</p>
             <p className="text-xs text-slate-500">{text}</p>

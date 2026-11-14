@@ -351,7 +351,7 @@ const SkinAnalysis = () => {
   /* ═════════════════════════════════════════════════════════════════════════ */
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 text-[var(--tt-ink)]">
+    <div className="w-full space-y-6 text-[var(--tt-ink)]">
         {/* Header (Only on select, upload, or results) */}
         {["select", "upload", "results"].includes(stage) && (
           <div className="border-b border-[var(--tt-border)] pb-4">

@@ -92,7 +92,7 @@ const ProductScanner = () => {
   };
 
   return (
-    <div className="mx-auto max-w-5xl text-[var(--tt-ink)]">
+    <div className="w-full text-[var(--tt-ink)]">
       <div className="flex gap-4">
         <div className="min-w-0 flex-1 space-y-6">
           <div className="flex items-start justify-between gap-4 border-b border-[var(--tt-border)] pb-4">

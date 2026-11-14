@@ -239,9 +239,9 @@ function PromptBlocks() {
     <div>
       <div className="grid gap-3 md:grid-cols-3">
         {RAG.blocks.map(([title, from, what, isRag]) => (
-          <div key={title} className={`rounded-2xl border p-4 ${isRag ? "border-emerald-500 bg-emerald-50/50 ring-1 ring-emerald-500" : "border-slate-200"}`}>
+          <div key={title} className={`rounded-2xl border p-4 ${isRag ? "border-cocoa bg-paper-alt ring-1 ring-cocoa" : "border-slate-200"}`}>
             <p className="text-sm font-bold text-slate-900">{title}</p>
-            <p className={`text-[11px] font-semibold ${isRag ? "text-emerald-700" : "text-slate-400"}`}>{from}</p>
+            <p className={`text-[11px] font-semibold ${isRag ? "text-cocoa" : "text-slate-400"}`}>{from}</p>
             <p className="mt-2 text-xs text-slate-600">{what}</p>
           </div>
         ))}
@@ -369,8 +369,8 @@ function Funnel() {
           <div className="flex flex-wrap items-stretch gap-2">
             {steps.map(([big, small, strong], i) => (
               <div key={big} className="flex items-center gap-2">
-                <div className={`rounded-xl border px-3 py-2 text-center ${strong ? "border-emerald-500 bg-emerald-50" : "border-slate-200 bg-white"}`}>
-                  <p className={`font-extrabold ${strong ? "text-lg text-emerald-700" : "text-xs text-slate-800"}`}>{big}</p>
+                <div className={`rounded-xl border px-3 py-2 text-center ${strong ? "border-cocoa bg-paper-alt" : "border-slate-200 bg-white"}`}>
+                  <p className={`font-extrabold ${strong ? "text-lg text-cocoa" : "text-xs text-slate-800"}`}>{big}</p>
                   <p className="max-w-[9.5rem] text-[10px] text-slate-500">{small}</p>
                 </div>
                 {i < steps.length - 1 && <Arrow />}
@@ -443,7 +443,7 @@ export function RagDemo({ initial = "pregnancy" }) {
             role="tab"
             aria-selected={x.key === key}
             onClick={() => setKey(x.key)}
-            className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${x.key === key ? "bg-emerald-600 text-white" : "border border-slate-200 bg-white text-slate-700 hover:border-emerald-400"}`}
+            className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${x.key === key ? "bg-cocoa text-white" : "border border-slate-200 bg-white text-slate-700 hover:border-cocoa"}`}
           >
             {x.label}
           </button>

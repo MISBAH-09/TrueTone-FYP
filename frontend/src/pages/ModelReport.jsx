@@ -153,9 +153,9 @@ const f1Color = (f) => (f >= 0.75 ? "bg-emerald-500" : f >= 0.5 ? "bg-amber-400"
 
 function Section({ id, n, title, why, children }) {
   return (
-    <section id={`sec-${id}`} className="scroll-mt-24 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+    <section id={`sec-${id}`} className="scroll-mt-24 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex items-start gap-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-sm font-bold text-white">{n}</div>
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cocoa text-sm font-bold text-white">{n}</div>
         <div>
           <h2 className="text-xl font-bold text-slate-900">{title}</h2>
           <p className="mt-1 text-sm text-slate-500">{why}</p>
@@ -186,7 +186,7 @@ function Row({ k, v }) {
 }
 
 function Caption({ children }) {
-  return <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800">{children}</p>;
+  return <p className="mt-3 rounded-xl bg-paper-alt px-3 py-2 text-xs text-cocoa-light">{children}</p>;
 }
 
 /* ───────────────────────────── 1. architecture ───────────────────────────── */
@@ -282,7 +282,7 @@ function ConditionData() {
       <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
         {steps.map(([t, d], i) => (
           <div key={t} className="rounded-2xl border border-slate-200 p-3">
-            <p className="text-[11px] font-bold text-emerald-600">Step {i + 1}</p>
+            <p className="text-[11px] font-bold text-cocoa">Step {i + 1}</p>
             <p className="text-xs font-semibold text-slate-800">{t}</p>
             <p className="mt-0.5 text-[11px] text-slate-500">{d}</p>
           </div>
@@ -425,7 +425,7 @@ function ConditionTraining() {
       </div>
 
       <div className="mt-6">
-        <button type="button" onClick={() => setShowImgs((s) => !s)} className="text-xs font-semibold text-emerald-700 underline">
+        <button type="button" onClick={() => setShowImgs((s) => !s)} className="text-xs font-semibold text-cocoa underline">
           {showImgs ? "Hide" : "Show"} the original training figures
         </button>
         {showImgs && (
@@ -585,7 +585,7 @@ function SafetySection() {
         ))}
       </div>
       <p className="mt-4 text-xs text-slate-500">
-        See these rules working on a real photo in the <a href="/inspector" className="font-semibold text-emerald-700 underline">Pipeline Inspector</a>.
+        See these rules working on a real photo in the <a href="/inspector" className="font-semibold text-cocoa underline">Pipeline Inspector</a>.
       </p>
     </>
   );
@@ -671,7 +671,7 @@ function ConditionLimits() {
         <p className="text-sm font-bold text-slate-900">Known limitations</p>
         <ul className="mt-2 list-disc space-y-1.5 pl-4 text-xs text-slate-600">{limits.map((l) => <li key={l}>{l}</li>)}</ul>
       </div>
-      <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-5">
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
         <p className="text-sm font-bold text-slate-900">Future work</p>
         <ul className="mt-2 list-disc space-y-1.5 pl-4 text-xs text-slate-600">{future.map((l) => <li key={l}>{l}</li>)}</ul>
       </div>
@@ -719,11 +719,11 @@ function ModelSwitch({ current }) {
             to={to}
             aria-current={current === key ? "page" : undefined}
             className={`rounded-xl px-4 py-2 text-left transition ${
-              current === key ? "bg-emerald-600 text-white shadow" : "border border-slate-200 bg-white text-slate-700 hover:border-emerald-400"
+              current === key ? "bg-cocoa text-white shadow" : "border border-slate-200 bg-white text-slate-700 hover:border-cocoa"
             }`}
           >
             <span className="block text-xs font-bold">{name}</span>
-            <span className={`block text-[10px] ${current === key ? "text-emerald-100" : "text-slate-400"}`}>{sub}</span>
+            <span className={`block text-[10px] ${current === key ? "text-white/75" : "text-slate-400"}`}>{sub}</span>
           </Link>
         ))}
       </div>
@@ -879,7 +879,7 @@ function LimitsPanel({ limits, future }) {
         <p className="text-sm font-bold text-slate-900">Known limitations</p>
         <ul className="mt-2 list-disc space-y-1.5 pl-4 text-xs text-slate-600">{limits.map((l) => <li key={l}>{l}</li>)}</ul>
       </div>
-      <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-5">
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
         <p className="text-sm font-bold text-slate-900">Future work</p>
         <ul className="mt-2 list-disc space-y-1.5 pl-4 text-xs text-slate-600">{future.map((l) => <li key={l}>{l}</li>)}</ul>
       </div>
@@ -906,7 +906,7 @@ function ToneData() {
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {steps.map(([t, d], i) => (
           <div key={t} className="rounded-2xl border border-slate-200 p-3">
-            <p className="text-[11px] font-bold text-emerald-600">Step {i + 1}</p>
+            <p className="text-[11px] font-bold text-cocoa">Step {i + 1}</p>
             <p className="text-xs font-semibold text-slate-800">{t}</p>
             <p className="mt-0.5 text-[11px] text-slate-500">{d}</p>
           </div>
@@ -1070,7 +1070,7 @@ function TypeData() {
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
         {steps.map(([t, d], i) => (
           <div key={t} className="rounded-2xl border border-slate-200 p-3">
-            <p className="text-[11px] font-bold text-emerald-600">Step {i + 1}</p>
+            <p className="text-[11px] font-bold text-cocoa">Step {i + 1}</p>
             <p className="text-xs font-semibold text-slate-800">{t}</p>
             <p className="mt-0.5 text-[11px] text-slate-500">{d}</p>
           </div>
@@ -1265,7 +1265,7 @@ function ModelCards() {
         return (
           <div key={key} className="flex flex-col rounded-2xl border border-slate-200 p-5">
             <p className="text-base font-bold text-slate-900">{m.name}</p>
-            <p className="text-[11px] font-semibold text-emerald-700">{m.backbone}</p>
+            <p className="text-[11px] font-semibold text-cocoa">{m.backbone}</p>
             <p className="mt-2 text-xs text-slate-600">{m.what}</p>
             <p className="mt-1 text-[11px] text-slate-400">{m.classes}</p>
             <div className="mt-4 grid grid-cols-3 gap-2">
@@ -1276,7 +1276,7 @@ function ModelCards() {
                 </div>
               ))}
             </div>
-            <Link to={`/report/${key}`} className="mt-5 inline-flex items-center justify-center rounded-full bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700">
+            <Link to={`/report/${key}`} className="mt-5 inline-flex items-center justify-center rounded-full bg-cocoa px-4 py-2 text-xs font-semibold text-white hover:bg-cocoa-dark">
               See the {m.name.toLowerCase()} details
             </Link>
           </div>
@@ -1322,7 +1322,7 @@ function ReportCards() {
           )}
           <div className="mt-auto pt-5">
             {c.to ? (
-              <Link to={c.to} className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700">
+              <Link to={c.to} className="inline-flex items-center justify-center rounded-full bg-cocoa px-4 py-2 text-xs font-semibold text-white hover:bg-cocoa-dark">
                 Open the {c.title.toLowerCase() === "rag" ? "RAG" : c.title.toLowerCase()} report
               </Link>
             ) : (
@@ -1387,7 +1387,7 @@ export function ModelBody({ model }) {
         <Link to="/report" className="rounded-full border border-slate-300 bg-white px-5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
           Back to the report overview
         </Link>
-        <Link to={`/report/${next}`} className="rounded-full bg-emerald-600 px-5 py-2 text-xs font-semibold text-white hover:bg-emerald-700">
+        <Link to={`/report/${next}`} className="rounded-full bg-cocoa px-5 py-2 text-xs font-semibold text-white hover:bg-cocoa-dark">
           Next: the {MODEL_INFO[next].name.toLowerCase()} model
         </Link>
       </div>
@@ -1399,7 +1399,7 @@ function PillNav({ items }) {
   return (
     <div className="mt-4 flex flex-wrap gap-1.5">
       {items.map(([id, label], i) => (
-        <a key={id} href={`#sec-${id}`} className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200 hover:text-emerald-700">
+        <a key={id} href={`#sec-${id}`} className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200 hover:text-cocoa">
           {i + 1}. {label}
         </a>
       ))}
@@ -1412,15 +1412,15 @@ function PillNav({ items }) {
 
 // The Model Report starting page: system-wide sections, and a button to each model's own page
 const ModelReport = () => (
-  <div className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:px-6">
-    <div className="mx-auto max-w-5xl space-y-6">
+  <div className="w-full text-slate-900">
+    <div className="w-full space-y-6">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-wide text-emerald-600">Examiner view</p>
+        <p className="text-sm font-semibold uppercase tracking-wide text-cocoa">Examiner view</p>
         <h1 className="mt-1 text-3xl font-extrabold">Model and System Report</h1>
         <p className="mt-2 max-w-2xl text-sm text-slate-600">
           How TrueTone&apos;s three models (skin tone, skin type and skin condition) were built, trained and tested, using the real numbers from this project,
           including where they fall short. Each model has its own page. To watch one photo travel through the system step by step, open the{" "}
-          <a href="/inspector" className="font-semibold text-emerald-700 underline">Pipeline Inspector</a>.
+          <a href="/inspector" className="font-semibold text-cocoa underline">Pipeline Inspector</a>.
         </p>
         <PillNav items={NAV_OVERVIEW} />
       </div>
@@ -1435,11 +1435,11 @@ function SystemReportPage({ which }) {
   const info = SYSTEM_REPORTS[which];
   const other = which === "rag" ? "recommendation" : "rag";
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:px-6">
-      <div className="mx-auto max-w-5xl space-y-6">
+    <div className="w-full text-slate-900">
+      <div className="w-full space-y-6">
         <div>
-          <Link to="/report" className="text-xs font-semibold text-emerald-700 underline print:hidden">Back to the report overview</Link>
-          <p className="mt-3 text-sm font-semibold uppercase tracking-wide text-emerald-600">System report</p>
+          <Link to="/report" className="text-xs font-semibold text-cocoa underline print:hidden">Back to the report overview</Link>
+          <p className="mt-3 text-sm font-semibold uppercase tracking-wide text-cocoa">System report</p>
           <h1 className="mt-1 text-3xl font-extrabold">{info.heading}</h1>
           <p className="mt-2 max-w-2xl text-sm text-slate-600">{info.intro}</p>
           <PillNav items={info.nav} />
@@ -1450,7 +1450,7 @@ function SystemReportPage({ which }) {
           <Link to="/report" className="rounded-full border border-slate-300 bg-white px-5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
             Back to the report overview
           </Link>
-          <Link to={`/report/${other}`} className="rounded-full bg-emerald-600 px-5 py-2 text-xs font-semibold text-white hover:bg-emerald-700">
+          <Link to={`/report/${other}`} className="rounded-full bg-cocoa px-5 py-2 text-xs font-semibold text-white hover:bg-cocoa-dark">
             Next: {SYSTEM_REPORTS[other].title}
           </Link>
         </div>
@@ -1471,11 +1471,11 @@ export function ModelReportPage() {
   const m = MODEL_INFO[model];
   const nav = model === "condition" ? NAV_MODEL : NAV_MODEL.filter(([id]) => id !== "realworld");
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:px-6">
-      <div className="mx-auto max-w-5xl space-y-6">
+    <div className="w-full text-slate-900">
+      <div className="w-full space-y-6">
         <div>
-          <Link to="/report" className="text-xs font-semibold text-emerald-700 underline print:hidden">Back to the report overview</Link>
-          <p className="mt-3 text-sm font-semibold uppercase tracking-wide text-emerald-600">Model report</p>
+          <Link to="/report" className="text-xs font-semibold text-cocoa underline print:hidden">Back to the report overview</Link>
+          <p className="mt-3 text-sm font-semibold uppercase tracking-wide text-cocoa">Model report</p>
           <h1 className="mt-1 text-3xl font-extrabold">{m.name} model</h1>
           <p className="mt-2 max-w-2xl text-sm text-slate-600">
             {m.backbone}. {m.what} {m.classes}.

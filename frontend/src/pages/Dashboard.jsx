@@ -71,7 +71,7 @@ function ConfidenceBar({ label, pct }) {
       </div>
       <div className="w-full bg-tint-soft/60 h-1.5 rounded-full overflow-hidden">
         <div
-          className="bg-cocoa h-full transition-all duration-500 rounded-full"
+          className="bg-emerald-500 h-full transition-all duration-500 rounded-full"
           style={{ width: pct != null ? `${Math.min(100, Math.max(0, pct))}%` : "0%" }}
         />
       </div>
@@ -99,7 +99,7 @@ function SkinMapHero({ profile, lastScanDate, scanImage }) {
   const isPhotoActive = Boolean(scanImage && !imgError && !showIllustration);
 
   return (
-    <section className="bg-cocoa-dark rounded-2xl p-7 text-paper shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[380px]">
+    <section className="bg-cocoa rounded-2xl p-7 text-paper shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[380px]">
       {/* Top Metadata */}
       <div className="flex items-center justify-between z-10">
         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-white/10 text-paper/90 border border-white/15 backdrop-blur-sm">
@@ -386,7 +386,7 @@ const Dashboard = () => {
         ];
 
         return (
-        <div className="mx-auto max-w-7xl pb-10 text-ink">
+        <div className="w-full pb-10 text-ink">
           {/* Top Welcome Banner & CTA */}
           <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-7">
             <div>
@@ -439,18 +439,18 @@ const Dashboard = () => {
                   {/* Progress Bar */}
                   <div className="w-full bg-tint-soft/50 rounded-full h-2 mb-3 overflow-hidden flex">
                     <div
-                      className="bg-cocoa h-full rounded-full transition-all duration-500"
+                      className="bg-emerald-500 h-full rounded-full transition-all duration-500"
                       style={{ width: `${(safeCount / totalVerdict) * 100}%` }}
                     />
                     {cautionCount > 0 && (
                       <div
-                        className="bg-apricot h-full transition-all duration-500"
+                        className="bg-amber-400 h-full transition-all duration-500"
                         style={{ width: `${(cautionCount / totalVerdict) * 100}%` }}
                       />
                     )}
                     {avoidCount > 0 && (
                       <div
-                        className="bg-ink/30 h-full transition-all duration-500"
+                        className="bg-red-600 h-full transition-all duration-500"
                         style={{ width: `${(avoidCount / totalVerdict) * 100}%` }}
                       />
                     )}
@@ -458,14 +458,14 @@ const Dashboard = () => {
                 </div>
 
                 <div className="flex items-center gap-3 text-xs">
-                  <span className="font-medium text-cocoa flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-cocoa" /> {safeCount} Safe
+                  <span className="font-medium text-emerald-700 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" /> {safeCount} Safe
                   </span>
-                  <span className="font-medium text-apricot flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-apricot" /> {cautionCount} Caution
+                  <span className="font-medium text-amber-700 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-400" /> {cautionCount} Caution
                   </span>
-                  <span className="font-medium text-ink/40 flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-ink/30" /> {avoidCount} Avoid
+                  <span className="font-medium text-red-700 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-red-600" /> {avoidCount} Avoid
                   </span>
                 </div>
               </section>

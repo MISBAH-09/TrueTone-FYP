@@ -1158,8 +1158,8 @@ const PipelineInspector = () => {
   const dis = preds.skin_disease;
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:px-6">
-      <div className="mx-auto max-w-5xl space-y-6">
+    <div className="w-full text-slate-900">
+      <div className="w-full space-y-6">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-emerald-600">Evaluator view</p>
           <h1 className="mt-1 text-3xl font-extrabold">Pipeline Inspector</h1>
