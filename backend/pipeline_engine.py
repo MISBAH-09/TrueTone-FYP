@@ -107,6 +107,11 @@ class Config:
     IMAGE_SIZE        = 224
     CONFIDENCE_THRESH = 0.50
     DISEASE_THRESH    = 0.40
+    # flow-patch: healthy or not first, then which condition
+    DISEASE_DECISION   = "two_step"   # "two_step" | "classic" (classic = the old single-argmax rule)
+    HEALTHY_MIN_PROB   = 0.70         # step 1: the skin is called healthy only at this score or higher
+    UNHEALTHY_MIN_PROB = 0.50         # step 2 runs only when the not-healthy score reaches this (healthy score 50% or lower)
+    DISEASE_MIN_SHARE  = 0.50         # step 2: the top condition needs this share of the condition scores
     DEVICE            = "cuda" if torch.cuda.is_available() else "cpu"
     MAX_WORKERS       = 3
 
@@ -464,6 +469,66 @@ def _group_probs(raw_probs, class_labels):
     return labels, probs, members
 
 
+# ═══════════════════════════════════════════════════════════════
+#  HEALTHY OR NOT FIRST, THEN WHICH CONDITION   # flow-patch
+# ═══════════════════════════════════════════════════════════════
+def _two_step_decision(labels, probs):
+    """
+    Step 1: healthy or not.   Step 2: which condition (only when step 1 says not healthy).
+    labels / probs are the app-facing classes (acne already merged) and must include 'healthy'.
+    Returns None when there is no healthy class, so the classic single-argmax rule applies.
+    """
+    hi = next((i for i, l in enumerate(labels) if l in Config.HEALTHY_LABELS), None)
+    if hi is None or len(labels) < 2:
+        return None
+    p_h = float(probs[hi])
+    p_u = 1.0 - p_h
+    cond = [i for i in range(len(labels)) if i != hi]
+    total = sum(probs[i] for i in cond) or 1e-9
+    share = {i: probs[i] / total for i in cond}
+    ti = max(cond, key=lambda i: probs[i])
+    top_share = share[ti]
+    h_min, u_min, d_min = Config.HEALTHY_MIN_PROB, Config.UNHEALTHY_MIN_PROB, Config.DISEASE_MIN_SHARE
+
+    if p_h >= h_min:
+        stage, index, confident = "healthy", hi, True
+    elif p_u >= u_min:
+        if top_share >= d_min:
+            stage, index, confident = "unhealthy", ti, True
+        else:
+            stage, index, confident = "unhealthy_unclear", ti, False
+    else:
+        stage = "uncertain"
+        index = hi if probs[hi] >= probs[ti] else ti
+        confident = False
+
+    return {
+        "stage": stage,
+        "index": index,
+        "confident": confident,
+        "healthy_prob": round(p_h, 4),
+        "unhealthy_prob": round(p_u, 4),
+        "top_condition": labels[ti],
+        "condition_share": round(top_share, 4),
+        "condition_shares": {labels[i]: round(share[i], 4) for i in cond},
+        "thresholds": {"healthy_min": h_min, "unhealthy_min": u_min, "condition_min_share": d_min},
+    }
+
+
+def _disease_warning(res):
+    """The warning text that fits the step the decision stopped at."""
+    d = res.get("decision") or {}
+    stage = d.get("stage")
+    if stage == "uncertain":
+        return (
+            f"We cannot tell whether this skin is healthy (healthy score {d['healthy_prob']:.0%}: "
+            f"{d['thresholds']['healthy_min']:.0%} is needed to call it healthy). Consult a dermatologist if you have concerns."
+        )
+    if stage == "unhealthy_unclear":
+        return "This skin does not look healthy, but no single condition stands out. Consult a dermatologist."
+    return DISEASE_LOW_CONF_MSG.format(pct=f"{res['confidence']:.0%}")
+
+
 def _infer_one(model, tensor, class_labels, device, confidence_threshold, display_img_np=None, display_pil=None, model_name=None):
     tensor = tensor.to(device)
     with torch.no_grad():
@@ -492,13 +557,24 @@ def _infer_one(model, tensor, class_labels, device, confidence_threshold, displa
     top_label = class_labels[top_idx] if top_idx < len(class_labels) else f"class_{top_idx}"
     # "healthy" prediction from the disease model -> nothing to highlight
     is_healthy_pred = (model_name == "skin_disease") and (top_label in Config.HEALTHY_LABELS)
+    # flow-patch: step 1 healthy or not, step 2 which condition
+    decision = None
+    if model_name == "skin_disease" and Config.DISEASE_DECISION == "two_step":
+        decision = _two_step_decision(class_labels, prob_list)
+        if decision is not None:
+            top_idx = decision["index"]
+            top_prob = prob_list[top_idx]
+            is_confident = decision["confident"]
+            cam_idx = max(members[top_idx], key=lambda i: raw_probs[i])
+            top_label = class_labels[top_idx]
+            is_healthy_pred = decision["stage"] == "healthy"
     
     heatmap_base64 = None
     marker_base64 = None
     zone_overlay_base64 = None
     legend = None
 
-    if model_name == "skin_disease" and display_img_np is not None and not is_healthy_pred:
+    if model_name == "skin_disease" and display_img_np is not None and not is_healthy_pred and top_label not in Config.HEALTHY_LABELS:
         try:
             from inference.gradcam import generate_heatmap
             disease_name = class_labels[top_idx] if top_idx < len(class_labels) else "condition"
@@ -584,6 +660,7 @@ def _infer_one(model, tensor, class_labels, device, confidence_threshold, displa
         "low_confidence": not is_confident,
         "is_confident": is_confident,
         "is_healthy": is_healthy_pred,
+        "decision": decision,
         "threshold": confidence_threshold,
         "raw_distribution": (
             {lbl: round(raw_probs[i], 4) for i, lbl in enumerate(raw_labels)}
@@ -612,7 +689,7 @@ def _aggregate(type_res, tone_res, disease_res, image_info, latencies, request_i
     if tone_res["low_confidence"]:
         warnings.append(f"Skin tone confidence low ({tone_res['confidence']:.0%}).")
     if disease_res["low_confidence"]:
-        warnings.append(DISEASE_LOW_CONF_MSG.format(pct=f"{disease_res['confidence']:.0%}"))
+        warnings.append(_disease_warning(disease_res))
 
     # A disease is only "detected" if the model is confident AND the top
     # class is an actual condition (not "healthy").
@@ -674,6 +751,7 @@ def _aggregate(type_res, tone_res, disease_res, image_info, latencies, request_i
                 "distribution": disease_res["all_probs"],
                 "threshold": disease_res.get("threshold"),
                 "raw_distribution": disease_res.get("raw_distribution"),
+                "decision": disease_res.get("decision"),
             },
         },
         "skin_profile": {
@@ -947,6 +1025,7 @@ class SkinAnalysisPipeline:
                 "distribution": r["all_probs"],
                 "threshold": r.get("threshold"),
                 "raw_distribution": r.get("raw_distribution"),
+                "decision": r.get("decision"),
             }
             if key == "skin_disease":
                 entry["disease_detected"] = (
@@ -960,7 +1039,7 @@ class SkinAnalysisPipeline:
             if r["low_confidence"]:
                 label = key.replace("_", " ")
                 if key == "skin_disease":
-                    warnings.append(DISEASE_LOW_CONF_MSG.format(pct=f"{r['confidence']:.0%}"))
+                    warnings.append(_disease_warning(r))
                 else:
                     warnings.append(f"{label.capitalize()} confidence low ({r['confidence']:.0%}).")
 

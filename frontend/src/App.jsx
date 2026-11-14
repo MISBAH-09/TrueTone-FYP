@@ -14,7 +14,7 @@ import NotFound from "./pages/NotFound";
 import AppLayout from "./components/AppLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import EvaluationLab from "./pages/EvaluationLab";
-import ModelReport from "./pages/ModelReport";
+import ModelReport, { ModelReportPage } from "./pages/ModelReport";
 const App = () => (
   <BrowserRouter>
     <Routes>
@@ -34,6 +34,7 @@ const App = () => (
         <Route path="/inspector" element={<PipelineInspector />} />
         <Route path="/evaluation" element={<EvaluationLab />} />
         <Route path="/report" element={<ModelReport />} />
+        <Route path="/report/:model" element={<ModelReportPage />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />

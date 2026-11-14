@@ -180,6 +180,43 @@ export function computeHistograms(data, bins = 32) {
   return { raw, norm, stats, pixels: count };
 }
 
+/** The two-step decision (healthy or not, then which condition) in numbers a person can read. */
+export function summarizeSteps(dec) {
+  if (!dec || !dec.thresholds) return null;
+  const h = num(dec.healthy_prob) ?? 0;
+  const u = num(dec.unhealthy_prob) ?? 1 - h;
+  const hMin = num(dec.thresholds.healthy_min) ?? 0.7;
+  const uMin = num(dec.thresholds.unhealthy_min) ?? 0.55;
+  const dMin = num(dec.thresholds.condition_min_share) ?? 0.5;
+  const share = num(dec.condition_share) ?? 0;
+  return {
+    stage: dec.stage,
+    h,
+    u,
+    hMin,
+    uMin,
+    dMin,
+    share,
+    top: dec.top_condition,
+    shares: Object.entries(dec.condition_shares || {}).sort(([, a], [, b]) => b - a),
+    // zones along the P(healthy) axis: not healthy | unclear | healthy
+    zoneLow: Math.max(0, 1 - uMin),
+    zoneHigh: hMin,
+  };
+}
+
+/** One sentence that says what the two steps decided and why. */
+export function stepSentence(st) {
+  const label = nice("skin_disease", st.top);
+  if (st.stage === "healthy")
+    return `The healthy score ${pct(st.h)} reaches the ${pct(st.hMin, 0)} needed, so the skin is called healthy. Step 2 is skipped and no heatmap is drawn.`;
+  if (st.stage === "unhealthy")
+    return `The healthy score ${pct(st.h)} is below ${pct(st.hMin, 0)} and the not-healthy score ${pct(st.u)} reaches ${pct(st.uMin, 0)}, so the skin counts as not healthy and step 2 runs. ${label} leads with ${pct(st.share, 0)} of the condition scores (${pct(st.dMin, 0)} needed), so it is named.`;
+  if (st.stage === "unhealthy_unclear")
+    return `The skin counts as not healthy (${pct(st.u)} not healthy, ${pct(st.uMin, 0)} needed), but ${label} only leads with ${pct(st.share, 0)} of the condition scores, below the ${pct(st.dMin, 0)} needed. No condition is named and the result is Unclear.`;
+  return `The healthy score ${pct(st.h)} is below the ${pct(st.hMin, 0)} needed for healthy, but the not-healthy score ${pct(st.u)} is also below ${pct(st.uMin, 0)}. Neither answer is strong enough, so the result is Unclear and step 2 is skipped.`;
+}
+
 /** Plain facts about how one model reached its decision (used by stage 6). */
 export function summarizeDecision(key, pred) {
   const dist = pred?.distribution || {};
@@ -201,7 +238,7 @@ export function summarizeDecision(key, pred) {
       total: Number(raw.common_acne) + Number(raw.cystic_acne),
     };
   }
-  return { sum, threshold, confidence, confident, outcome, merge };
+  return { sum, threshold, confidence, confident, outcome, merge, step: key === "skin_disease" ? summarizeSteps(pred?.decision) : null };
 }
 
 /* ───────────────────────────── layout pieces ───────────────────────────── */
@@ -467,7 +504,8 @@ function ModelCard({ meta, pred, ms }) {
   const dist = Object.entries(pred.distribution || {}).sort(([, a], [, b]) => b - a);
   const thr = num(pred.threshold) ?? meta.threshold;
   const conf = num(pred.confidence) ?? 0;
-  const ok = conf >= thr;
+  const step = meta.key === "skin_disease" ? summarizeSteps(pred.decision) : null;
+  const ok = step ? step.stage === "healthy" || step.stage === "unhealthy" : conf >= thr;
   return (
     <div className="rounded-2xl border border-slate-200 p-4">
       <div className="flex items-start justify-between gap-2">
@@ -492,14 +530,22 @@ function ModelCard({ meta, pred, ms }) {
                 className={`h-2 rounded-full ${cls === pred.label ? "bg-emerald-500" : "bg-slate-300"}`}
                 style={{ width: `${Math.max(0, Math.min(100, p * 100))}%` }}
               />
-              <div className="absolute -top-0.5 h-3 border-l border-dashed border-rose-400" style={{ left: `${thr * 100}%` }} />
+              {!step && <div className="absolute -top-0.5 h-3 border-l border-dashed border-rose-400" style={{ left: `${thr * 100}%` }} />}
             </div>
           </div>
         ))}
       </div>
-      <p className="mt-3 text-[11px] text-slate-400">Dashed line: confidence threshold ({pct(thr, 0)})</p>
+      {!step && <p className="mt-3 text-[11px] text-slate-400">Dashed line: confidence threshold ({pct(thr, 0)})</p>}
       <div className={`mt-2 rounded-xl px-3 py-2 text-xs font-semibold ${ok ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-        {nice(meta.key, pred.label)} at {pct(conf)} {ok ? "meets" : "is below"} {pct(thr, 0)}: {ok ? "confident" : "low confidence"}
+        {step
+          ? step.stage === "healthy"
+            ? `Healthy score ${pct(step.h)} reaches ${pct(step.hMin, 0)}: called healthy`
+            : step.stage === "unhealthy"
+            ? `Healthy score only ${pct(step.h)}: not healthy. ${nice(meta.key, step.top)} is named`
+            : step.stage === "unhealthy_unclear"
+            ? `Not healthy, but no condition stands out (best: ${nice(meta.key, step.top)}, ${pct(step.share, 0)}): unclear`
+            : `Healthy score ${pct(step.h)} is neither clearly healthy (needs ${pct(step.hMin, 0)}) nor clearly not: unclear`
+          : `${nice(meta.key, pred.label)} at ${pct(conf)} ${ok ? "meets" : "is below"} ${pct(thr, 0)}: ${ok ? "confident" : "low confidence"}`}
       </div>
     </div>
   );
@@ -675,6 +721,60 @@ function StageHeatmaps({ data }) {
 
 /* ───────────────────────────── stage 6: decision rules ───────────────────────────── */
 
+function DecisionSteps({ step }) {
+  const at = (v) => `${Math.max(0, Math.min(100, v * 100))}%`;
+  const zones = [
+    { key: "low", from: 0, to: step.zoneLow, cls: "bg-rose-200" },
+    { key: "mid", from: step.zoneLow, to: step.zoneHigh, cls: "bg-amber-200" },
+    { key: "high", from: step.zoneHigh, to: 1, cls: "bg-emerald-200" },
+  ];
+  const ranStep2 = step.stage === "unhealthy" || step.stage === "unhealthy_unclear";
+  return (
+    <div className="mt-4 space-y-3">
+      <div className="rounded-xl bg-slate-50 p-3">
+        <p className="text-[11px] font-semibold text-slate-500">Step 1: healthy or not</p>
+        <div className="relative mt-2 h-4 overflow-hidden rounded-full">
+          {zones.map((z) => (
+            <div key={z.key} className={`absolute inset-y-0 ${z.cls}`} style={{ left: at(z.from), width: at(Math.max(0, z.to - z.from)) }} />
+          ))}
+          <div className="absolute inset-y-0 w-0.5 bg-slate-900" style={{ left: at(step.h) }} />
+        </div>
+        <div className="mt-1 flex justify-between text-[10px] text-slate-500">
+          <span>not healthy</span>
+          <span>unclear</span>
+          <span>healthy</span>
+        </div>
+        <p className="mt-1 text-[10px] text-slate-400">
+          Healthy score {pct(step.h)} (the dark mark). Healthy needs {pct(step.hMin, 0)}; not healthy needs {pct(step.uMin, 0)} not-healthy.
+        </p>
+      </div>
+      {ranStep2 ? (
+        <div className="rounded-xl bg-slate-50 p-3">
+          <p className="text-[11px] font-semibold text-slate-500">Step 2: which condition (share of the condition scores)</p>
+          <div className="mt-2 space-y-1.5">
+            {step.shares.map(([cls, p]) => (
+              <div key={cls}>
+                <div className="flex justify-between text-[11px]">
+                  <span className={cls === step.top ? "font-bold text-slate-900" : "text-slate-500"}>{nice("skin_disease", cls)}</span>
+                  <span className="text-slate-400">{pct(p)}</span>
+                </div>
+                <div className="relative h-1.5 rounded-full bg-slate-200">
+                  <div className={`h-1.5 rounded-full ${cls === step.top ? "bg-emerald-500" : "bg-slate-400"}`} style={{ width: at(p) }} />
+                  <div className="absolute -top-0.5 h-2.5 border-l border-dashed border-rose-400" style={{ left: at(step.dMin) }} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-1 text-[10px] text-slate-400">Dashed line: the share a condition needs to be named ({pct(step.dMin, 0)}).</p>
+        </div>
+      ) : (
+        <p className="text-[11px] text-slate-500">Step 2 did not run, because step 1 did not establish that the skin is not healthy.</p>
+      )}
+      <p className="text-xs text-slate-600">{stepSentence(step)}</p>
+    </div>
+  );
+}
+
 function StageDecision({ data }) {
   const preds = data.predictions || {};
   const outcomeText = {
@@ -687,8 +787,8 @@ function StageDecision({ data }) {
       n={6}
       icon={ShieldCheck}
       title="Decision rules: how probabilities become a result"
-      what="Plain rules sit on top of the models. A result is only reported when confidence clears that model's threshold, and healthy is never treated as a disease."
-      tech="low_confidence = top_probability < threshold;  disease_detected = label != healthy and not low_confidence"
+      what="Plain rules sit on top of the models. Skin type and tone are reported when the model is sure enough. The condition has two steps: first healthy or not, with a strict bar for healthy, then which condition, only when the skin is clearly not healthy."
+      tech="type, tone: top_probability >= 50%.   condition: P(healthy) >= healthy_min -> healthy;  else P(not healthy) >= unhealthy_min -> step 2;  else Unclear"
     >
       <div className="grid gap-4 lg:grid-cols-3">
         {MODELS.map((m) => {
@@ -708,14 +808,19 @@ function StageDecision({ data }) {
                     {RAW_DISEASE_LABELS[d.merge.parts[1][0]]} {pct(d.merge.parts[1][1])} = Acne {pct(d.merge.total)}.
                   </TraceRow>
                 )}
-                <TraceRow ok>
-                  Highest class: {nice(m.key, pred.label)} at {pct(d.confidence)}.
-                </TraceRow>
-                <TraceRow ok={d.confident}>
-                  Confidence {pct(d.confidence)} {d.confident ? "meets" : "is below"} the {pct(d.threshold, 0)} threshold.
-                </TraceRow>
-                {m.key === "skin_disease" && d.outcome && <TraceRow ok={d.outcome !== "unclear"}>{outcomeText[d.outcome]}</TraceRow>}
+                {!d.step && (
+                  <>
+                    <TraceRow ok>
+                      Highest class: {nice(m.key, pred.label)} at {pct(d.confidence)}.
+                    </TraceRow>
+                    <TraceRow ok={d.confident}>
+                      Confidence {pct(d.confidence)} {d.confident ? "meets" : "is below"} the {pct(d.threshold, 0)} threshold.
+                    </TraceRow>
+                    {m.key === "skin_disease" && d.outcome && <TraceRow ok={d.outcome !== "unclear"}>{outcomeText[d.outcome]}</TraceRow>}
+                  </>
+                )}
               </ul>
+              {d.step && <DecisionSteps step={d.step} />}
               {m.key === "skin_disease" && pred.raw_distribution && (
                 <div className="mt-4 border-t border-slate-100 pt-3">
                   <p className="mb-1 text-[11px] font-semibold text-slate-500">The 7 raw model outputs</p>
