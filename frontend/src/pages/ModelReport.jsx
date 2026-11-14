@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
+import { RagBody, RAG_NAV, RAG } from "./ReportRag";
+import { RecoBody, RECO_NAV, RECO } from "./ReportReco";
 
 /* ════════════════════════════════════════════════════════════════════════════
    MODEL & SYSTEM REPORT - examiner view
@@ -131,6 +133,7 @@ const MONK_SWATCH = ["#f6ede4", "#f3e7db", "#f7ead0", "#eadaba", "#d7bd96", "#a0
 const NAV_OVERVIEW = [
   ["architecture", "Architecture"],
   ["models", "The three models"],
+  ["reports", "System reports"],
   ["safety", "Safety design"],
   ["fairness", "Skin-tone coverage"],
 ];
@@ -683,6 +686,22 @@ function ConditionLimits() {
 
 /* ───────────────────────────── the other two models ───────────────────────────── */
 
+// The reports that are not about one model. "schema" has no page yet.
+const SYSTEM_REPORTS = {
+  rag: {
+    title: "RAG",
+    heading: "Retrieval-augmented generation (RAG)",
+    intro: "How the chatbot retrieves catalog rows, which dataset it uses, and the scores behind a live question.",
+    nav: RAG_NAV,
+  },
+  recommendation: {
+    title: "Recommendation engine",
+    heading: "Recommendation engine",
+    intro: "How products are filtered for safety, scored out of 10 and ranked, with the scoring you can try yourself.",
+    nav: RECO_NAV,
+  },
+};
+
 function ModelSwitch({ current }) {
   const items = [
     ["overview", "/report", "Overview", "architecture, safety, coverage"],
@@ -692,7 +711,7 @@ function ModelSwitch({ current }) {
   ];
   return (
     <nav aria-label="Report pages" className="sticky top-2 z-20 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur print:hidden">
-      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Switch to another model&apos;s page</p>
+      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Switch to another page</p>
       <div className="flex flex-wrap gap-2">
         {items.map(([key, to, name, sub]) => (
           <Link
@@ -1267,6 +1286,55 @@ function ModelCards() {
   );
 }
 
+function ReportCards() {
+  const cards = [
+    {
+      key: "rag",
+      to: "/report/rag",
+      title: "RAG",
+      what: SYSTEM_REPORTS.rag.intro,
+      stats: [["Vectors", fmt(RAG.vector.ingredients + RAG.vector.products)], ["Dimensions", String(RAG.vector.dims)], ["Shown to the model", "5 + 3"]],
+    },
+    {
+      key: "recommendation",
+      to: "/report/recommendation",
+      title: "Recommendation engine",
+      what: "How products are filtered for safety, scored out of 10 and ranked.",
+      stats: [["Best score", "10"], ["Products scored", fmt(335)], ["Kept per category", String(RECO.topN)]],
+    },
+    { key: "schema", title: "Database schema", what: "Tables, keys and how the catalog and chat tables connect.", stats: [] },
+  ];
+  return (
+    <div className="grid gap-4 md:grid-cols-3">
+      {cards.map((c) => (
+        <div key={c.key} className={`flex flex-col rounded-2xl border border-slate-200 p-5 ${c.to ? "" : "opacity-70"}`}>
+          <p className="text-base font-bold text-slate-900">{c.title}</p>
+          <p className="mt-2 text-xs text-slate-600">{c.what}</p>
+          {c.stats.length > 0 && (
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {c.stats.map(([k, v]) => (
+                <div key={k} className="rounded-xl bg-slate-50 p-2">
+                  <p className="text-[10px] text-slate-400">{k}</p>
+                  <p className="text-sm font-extrabold text-slate-900">{v}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="mt-auto pt-5">
+            {c.to ? (
+              <Link to={c.to} className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700">
+                Open the {c.title.toLowerCase() === "rag" ? "RAG" : c.title.toLowerCase()} report
+              </Link>
+            ) : (
+              <span className="inline-flex rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-500">Coming soon</span>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function OverviewBody() {
   return (
     <div className="space-y-6">
@@ -1280,10 +1348,13 @@ export function OverviewBody() {
       <Section id="models" n={2} title="The three models" why="Each model has its own page with its data, training, results and limits. Pick one.">
         <ModelCards />
       </Section>
-      <Section id="safety" n={3} title="Safety and decision design" why="Rules that sit on top of the models so a wrong answer does as little harm as possible.">
+      <Section id="reports" n={3} title="System reports" why="Reports about the parts of the system that are not one model. Also in the Reports menu in the sidebar.">
+        <ReportCards />
+      </Section>
+      <Section id="safety" n={4} title="Safety and decision design" why="Rules that sit on top of the models so a wrong answer does as little harm as possible.">
         <SafetySection />
       </Section>
-      <Section id="fairness" n={4} title="Skin-tone coverage" why="Who is represented in the data, reported openly.">
+      <Section id="fairness" n={5} title="Skin-tone coverage" why="Who is represented in the data, reported openly.">
         <FairnessSection />
       </Section>
     </div>
@@ -1360,13 +1431,43 @@ const ModelReport = () => (
 );
 
 // One page per model: /report/tone, /report/type, /report/condition
+function SystemReportPage({ which }) {
+  const info = SYSTEM_REPORTS[which];
+  const other = which === "rag" ? "recommendation" : "rag";
+  return (
+    <div className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:px-6">
+      <div className="mx-auto max-w-5xl space-y-6">
+        <div>
+          <Link to="/report" className="text-xs font-semibold text-emerald-700 underline print:hidden">Back to the report overview</Link>
+          <p className="mt-3 text-sm font-semibold uppercase tracking-wide text-emerald-600">System report</p>
+          <h1 className="mt-1 text-3xl font-extrabold">{info.heading}</h1>
+          <p className="mt-2 max-w-2xl text-sm text-slate-600">{info.intro}</p>
+          <PillNav items={info.nav} />
+        </div>
+        <ModelSwitch current={which} />
+        {which === "rag" ? <RagBody /> : <RecoBody />}
+        <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
+          <Link to="/report" className="rounded-full border border-slate-300 bg-white px-5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+            Back to the report overview
+          </Link>
+          <Link to={`/report/${other}`} className="rounded-full bg-emerald-600 px-5 py-2 text-xs font-semibold text-white hover:bg-emerald-700">
+            Next: {SYSTEM_REPORTS[other].title}
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ModelReportPage() {
   const { model } = useParams();
-  const valid = MODEL_ORDER.includes(model);
+  const isSystem = Object.prototype.hasOwnProperty.call(SYSTEM_REPORTS, model);
+  const valid = MODEL_ORDER.includes(model) || isSystem;
   useEffect(() => {
     if (valid) window.scrollTo(0, 0);
   }, [model, valid]);
   if (!valid) return <Navigate to="/report" replace />;
+  if (isSystem) return <SystemReportPage which={model} />;
   const m = MODEL_INFO[model];
   const nav = model === "condition" ? NAV_MODEL : NAV_MODEL.filter(([id]) => id !== "realworld");
   return (

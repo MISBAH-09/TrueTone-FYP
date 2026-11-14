@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -14,6 +14,8 @@ import {
   FileText,
   MoreHorizontal,
   X,
+  BookOpen,
+  ChevronDown,
 } from "lucide-react";
 import TrueToneLogo from "./TrueToneLogo";
 
@@ -31,6 +33,14 @@ const examinerItems = [
   { title: "Pipeline Inspector", path: "/inspector", icon: Layers },
   { title: "Evaluation Lab", path: "/evaluation", icon: BarChart3 },
   { title: "Model Report", path: "/report", icon: FileText },
+];
+
+// The Reports dropdown: reports about parts of the system that are not one model.
+// Database Schema has no page yet, so it has no path and is shown as "Soon".
+const reportItems = [
+  { title: "RAG", path: "/report/rag" },
+  { title: "Recommendation Engine", path: "/report/recommendation" },
+  { title: "Database Schema", path: null },
 ];
 
 const mobilePrimary = [
@@ -54,55 +64,112 @@ const AppSidebar = () => {
   // A link is "on" for its own page and for pages below it (the Model Report has /report/tone, /report/type, /report/condition)
   const isOn = (path) => location.pathname === path || location.pathname.startsWith(path + "/");
 
+  // RAG and the Recommendation Engine also live under /report/..., but they belong to the Reports dropdown, not to Model Report
+  const onSystemReport = reportItems.some((r) => r.path && isOn(r.path));
+  const isActivePath = (path) => (path === "/report" ? isOn(path) && !onSystemReport : isOn(path));
+
+  const [reportsOpen, setReportsOpen] = useState(onSystemReport);
+  useEffect(() => {
+    if (onSystemReport) setReportsOpen(true);
+  }, [onSystemReport]);
+
   const linkClass = (path) => {
-    const isActive = isOn(path);
+    const isActive = isActivePath(path);
     return [
-      "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
+      "flex items-center gap-3 rounded-[var(--tt-radius)] px-3 py-2 text-sm font-medium transition-colors",
       isActive
-        ? "bg-tint-soft text-cocoa-dark font-semibold shadow-xs"
-        : "text-ink/70 hover:text-cocoa hover:bg-tint-subtle",
+        ? "border-l-[3px] border-[var(--tt-primary)] bg-[var(--tt-primary-muted)] pl-[9px] text-[var(--tt-ink)]"
+        : "border-l-[3px] border-transparent text-[var(--tt-secondary)] hover:bg-[var(--tt-paper)] hover:text-[var(--tt-ink)]",
     ].join(" ");
   };
 
+  const reportLinkClass = (path) =>
+    [
+      "flex items-center gap-2 rounded-[var(--tt-radius)] py-1.5 pl-[9px] pr-2 text-[13px] font-medium transition-colors",
+      isOn(path)
+        ? "border-l-[3px] border-[var(--tt-primary)] bg-[var(--tt-primary-muted)] text-[var(--tt-ink)]"
+        : "border-l-[3px] border-transparent text-[var(--tt-secondary)] hover:bg-[var(--tt-paper)] hover:text-[var(--tt-ink)]",
+    ].join(" ");
+
+  const renderReportsGroup = (onNavigate) => (
+    <div>
+      <button
+        type="button"
+        onClick={() => setReportsOpen((open) => !open)}
+        aria-expanded={reportsOpen}
+        aria-controls={reportsOpen ? "sidebar-reports" : undefined}
+        className={`flex w-full items-center gap-3 rounded-[var(--tt-radius)] border-l-[3px] border-transparent px-3 py-2 text-sm font-medium transition-colors ${
+          onSystemReport
+            ? "text-[var(--tt-ink)]"
+            : "text-[var(--tt-secondary)] hover:bg-[var(--tt-paper)] hover:text-[var(--tt-ink)]"
+        }`}
+      >
+        <BookOpen className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+        <span className="flex-1 text-left">Reports</span>
+        <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${reportsOpen ? "rotate-180" : ""}`} strokeWidth={1.75} />
+      </button>
+      {reportsOpen && (
+        <div id="sidebar-reports" className="ml-4 mt-0.5 space-y-0.5 border-l border-[var(--tt-border)] pl-2">
+          {reportItems.map((item) =>
+            item.path ? (
+              <Link key={item.title} to={item.path} onClick={onNavigate} className={reportLinkClass(item.path)}>
+                <span>{item.title}</span>
+              </Link>
+            ) : (
+              <div
+                key={item.title}
+                aria-disabled="true"
+                className="flex items-center justify-between gap-2 border-l-[3px] border-transparent py-1.5 pl-[9px] pr-2 text-[13px] font-medium text-[var(--tt-secondary)] opacity-60"
+              >
+                <span>{item.title}</span>
+                <span className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] px-1.5 text-[10px] font-semibold">Soon</span>
+              </div>
+            )
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   const renderDesktopLink = (item) => {
     const Icon = item.icon;
-    const isActive = location.pathname === item.path;
     return (
       <Link key={item.path} to={item.path} className={linkClass(item.path)}>
-        <Icon className={`h-5 w-5 shrink-0 transition-colors ${isActive ? "text-cocoa" : "text-ink/60"}`} strokeWidth={1.8} />
+        <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
         <span>{item.title}</span>
       </Link>
     );
   };
 
   const moreActive =
-    [...navItems.slice(4), ...examinerItems].some((item) => isOn(item.path)) ||
+    [...navItems.slice(4), ...examinerItems, ...reportItems.filter((r) => r.path)].some((item) => isOn(item.path)) ||
     moreOpen;
 
   return (
     <>
-      {/* Desktop sidebar — visible from 768px */}
-      <aside className="fixed left-0 top-0 z-40 hidden h-full w-64 flex-col border-r border-tint-border bg-white md:flex">
-        <div className="flex items-center px-4 py-5 mb-2">
+      {/* Desktop Clinical sidebar — visible from 768px */}
+      <aside className="fixed left-0 top-0 z-40 hidden h-full w-60 flex-col border-r border-[var(--tt-border)] bg-[var(--tt-surface)] md:flex">
+        <div className="flex items-center border-b border-[var(--tt-border)] px-4 py-4">
           <TrueToneLogo />
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3">
+        <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
           {navItems.map(renderDesktopLink)}
 
-          <div className="mt-5 space-y-1 border-t border-tint-border/70 pt-4">
-            <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-cocoa/50">Evaluation Metrics</p>
+          <div className="mt-3 space-y-0.5 border-t border-[var(--tt-border)] pt-3">
+            <p className="px-3 pb-1 text-xs font-medium text-[var(--tt-secondary)]">Evaluation Metrics</p>
             {examinerItems.map(renderDesktopLink)}
+            {renderReportsGroup()}
           </div>
         </nav>
 
-        <div className="border-t border-tint-border/70 p-3">
+        <div className="border-t border-[var(--tt-border)] p-3">
           <button
             type="button"
             onClick={handleSignOut}
-            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-ink/60 hover:bg-tint-subtle hover:text-cocoa transition-colors"
+            className="flex w-full items-center gap-3 rounded-[var(--tt-radius)] px-3 py-2 text-sm font-medium text-[var(--tt-secondary)] hover:bg-[var(--tt-paper)] hover:text-[var(--tt-ink)]"
           >
-            <LogOut className="h-4 w-4 shrink-0" strokeWidth={1.8} />
+            <LogOut className="h-4 w-4 shrink-0" strokeWidth={1.75} />
             <span>Sign Out</span>
           </button>
         </div>
@@ -190,6 +257,7 @@ const AppSidebar = () => {
                   </Link>
                 );
               })}
+              {renderReportsGroup(() => setMoreOpen(false))}
             </div>
             <div className="mt-3 border-t border-[var(--tt-border)] pt-3">
               <button
