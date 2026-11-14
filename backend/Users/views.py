@@ -782,6 +782,62 @@ class FetchAllUsersAPI(APIView):
             )
 
 
+def _slim_prediction(pred):
+    """Keep only the fields the onboarding results UI needs (no heatmaps)."""
+    if not isinstance(pred, dict):
+        return {}
+    slim = {
+        'label': pred.get('label', ''),
+        'confidence': pred.get('confidence'),
+        'is_confident': pred.get('is_confident'),
+        'distribution': pred.get('distribution') or {},
+    }
+    if 'disease_detected' in pred:
+        slim['disease_detected'] = pred.get('disease_detected')
+    if 'is_healthy' in pred:
+        slim['is_healthy'] = pred.get('is_healthy')
+    return slim
+
+
+def _create_onboarding_scan(user, predictions, image_bytes=None):
+    """First Skin Tracking row from an image-based onboarding."""
+    from django.core.files.base import ContentFile
+    import time
+
+    skin_type_pred = predictions.get('skin_type') or {}
+    skin_tone_pred = predictions.get('skin_tone') or {}
+    disease_pred = predictions.get('skin_disease') or {}
+
+    if disease_pred.get('disease_detected'):
+        disease_label = disease_pred.get('label', '') or ''
+    else:
+        disease_label = ''
+
+    scan = SkinScanHistory.objects.create(
+        user=user,
+        skin_type=skin_type_pred.get('label', '') or '',
+        skin_type_confidence=skin_type_pred.get('confidence'),
+        skin_tone=skin_tone_pred.get('label', '') or '',
+        skin_tone_confidence=skin_tone_pred.get('confidence'),
+        skin_disease=disease_label,
+        skin_disease_confidence=disease_pred.get('confidence'),
+        disease_detected=bool(disease_pred.get('disease_detected')),
+        source='onboarding',
+    )
+
+    if image_bytes:
+        try:
+            scan.image_original.save(
+                f'onboarding_{user.id}_{int(time.time())}.jpg',
+                ContentFile(image_bytes),
+                save=True,
+            )
+        except Exception as e:
+            logger.error(f"Could not save onboarding scan image for {user.username}: {e}")
+
+    return scan
+
+
 # ─── Onboarding API (Protected) ─────────────────────────────────────────────
 
 class OnboardingAPI(APIView):
@@ -808,6 +864,11 @@ class OnboardingAPI(APIView):
                 'skin_type': openapi.Schema(type=openapi.TYPE_STRING, example="oily"),
                 'skin_disease': openapi.Schema(type=openapi.TYPE_STRING, example="common_acne,eczema"),
                 'skin_image': openapi.Schema(type=openapi.TYPE_STRING, description="Base64 encoded skin image"),
+                'skip_face_check': openapi.Schema(
+                    type=openapi.TYPE_BOOLEAN,
+                    example=False,
+                    description="When true, continue analysis on skin close-ups with no detectable face",
+                ),
                 'allergies': openapi.Schema(type=openapi.TYPE_STRING, example="fragrance,parfum"),
                 'is_pregnant_or_breastfeeding': openapi.Schema(type=openapi.TYPE_BOOLEAN, example=False),
                 'current_products': openapi.Schema(type=openapi.TYPE_STRING, example="80001,80009"),
@@ -834,6 +895,11 @@ class OnboardingAPI(APIView):
         skin_type = request.data.get('skin_type', '')
         skin_disease = request.data.get('skin_disease', '')
         skin_image = request.data.get('skin_image')
+        skip_face_raw = request.data.get('skip_face_check', False)
+        skip_face_check = (
+            skip_face_raw is True
+            or str(skip_face_raw).lower() in ('1', 'true', 'yes')
+        )
         allergies = request.data.get('allergies', '')
         gender = request.data.get('gender', '')
         is_pregnant_or_breastfeeding = request.data.get('is_pregnant_or_breastfeeding', False)
@@ -855,6 +921,8 @@ class OnboardingAPI(APIView):
             return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
 
         # If image uploaded, run ML analysis to get skin info
+        analysis_predictions = None
+        image_bytes = None
         if skin_image:
             try:
                 b64_data = skin_image
@@ -864,20 +932,31 @@ class OnboardingAPI(APIView):
 
                 from pipeline_engine import get_pipeline
                 pipeline = get_pipeline()
-                result = pipeline.analyze_all(image_bytes, 'onboarding_upload.jpg')
+                result = pipeline.analyze_all(
+                    image_bytes,
+                    'onboarding_upload.jpg',
+                    skip_face_check=skip_face_check,
+                )
 
                 if result.get('status') == 'success':
-                    predictions = result.get('predictions', {})
-                    skin_type = predictions.get('skin_type', {}).get('label', '')
-                    skin_tone = predictions.get('skin_tone', {}).get('label', '')
-                    disease_entry = predictions.get('skin_disease', {})
+                    analysis_predictions = result.get('predictions', {}) or {}
+                    skin_type = (analysis_predictions.get('skin_type') or {}).get('label', '') or ''
+                    skin_tone = (analysis_predictions.get('skin_tone') or {}).get('label', '') or ''
+                    disease_entry = analysis_predictions.get('skin_disease') or {}
                     skin_disease = (
                         disease_entry.get('label', '')
                         if disease_entry.get('disease_detected') else ''
                     )
-                    logger.info(f"ML analysis for {user.username}: type={skin_type}, tone={skin_tone}, disease={skin_disease}")
+                    logger.info(
+                        f"ML analysis for {user.username}: "
+                        f"type={skin_type}, tone={skin_tone}, disease={skin_disease}"
+                    )
                 else:
                     response_data['message'] = result.get('message', 'Image analysis failed')
+                    response_data['data'] = {
+                        'error_code': result.get('error_code'),
+                        'message': result.get('message', 'Image analysis failed'),
+                    }
                     return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
             except Exception as e:
                 logger.error(f"Image analysis error: {e}")
@@ -897,6 +976,19 @@ class OnboardingAPI(APIView):
         user.onboarding_completed = True
         user.save()
 
+        # Image path: also write the first Skin Tracking record (manual path does not)
+        slim_predictions = None
+        if analysis_predictions:
+            try:
+                _create_onboarding_scan(user, analysis_predictions, image_bytes=image_bytes)
+            except Exception as e:
+                logger.error(f"Onboarding SkinScanHistory create failed for {user.username}: {e}")
+            slim_predictions = {
+                'skin_type': _slim_prediction(analysis_predictions.get('skin_type')),
+                'skin_tone': _slim_prediction(analysis_predictions.get('skin_tone')),
+                'skin_disease': _slim_prediction(analysis_predictions.get('skin_disease')),
+            }
+
         logger.info(f"Onboarding completed for: {user.username}")
 
         response_data['success'] = True
@@ -911,6 +1003,8 @@ class OnboardingAPI(APIView):
             'skin_disease': skin_disease,
             'allergies': allergies,
             'is_pregnant_or_breastfeeding': user.is_pregnant_or_breastfeeding,
+            'input_method': 'image' if skin_image else 'manual',
+            'predictions': slim_predictions,
         }
 
         return Response(response_data, status=status.HTTP_200_OK)

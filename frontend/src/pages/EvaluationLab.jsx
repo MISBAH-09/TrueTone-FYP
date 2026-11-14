@@ -172,7 +172,7 @@ const statusChip = {
   error: "bg-red-50 text-[var(--tt-avoid)]",
 };
 
-export function EvaluationReport({ items, onTruth, onInspect }) {
+export function EvaluationReport({ items, onTruth, onInspect, onProceedAnyway }) {
   const m = buildMatrix(items);
   const k = computeMetrics(m);
   const done = items.filter((i) => i.status === "done" || i.status === "error").length;
@@ -248,7 +248,7 @@ export function EvaluationReport({ items, onTruth, onInspect }) {
                 <th className="py-2 pr-3 font-medium">App answered</th>
                 <th className="py-2 pr-3 font-medium">Result</th>
                 <th className="py-2 font-medium">Status</th>
-                {onInspect && <th className="py-2 font-medium" />}
+                <th className="py-2 font-medium" />
               </tr>
             </thead>
             <tbody>
@@ -282,13 +282,24 @@ export function EvaluationReport({ items, onTruth, onInspect }) {
                     <td className="py-2">
                       <span className={`rounded-[var(--tt-radius)] px-2 py-0.5 text-[11px] font-semibold ${statusChip[it.status]}`}>{it.status}</span>
                     </td>
-                    {onInspect && (
-                      <td className="py-2 pl-3">
-                        <button type="button" onClick={() => onInspect(it)} className="rounded-[var(--tt-radius)] border border-[var(--tt-primary)] px-3 py-1 text-[11px] font-semibold text-[var(--tt-primary)] hover:bg-[var(--tt-primary-muted)]">
-                          Inspect
-                        </button>
-                      </td>
-                    )}
+                    <td className="py-2 pl-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {it.status === "error" && it.errorCode === "NO_FACE_SKIN" && onProceedAnyway && (
+                          <button
+                            type="button"
+                            onClick={() => onProceedAnyway(it)}
+                            className="rounded-[var(--tt-radius)] bg-[var(--tt-caution)] px-3 py-1 text-[11px] font-semibold text-white hover:opacity-90"
+                          >
+                            Proceed anyway
+                          </button>
+                        )}
+                        {onInspect && (
+                          <button type="button" onClick={() => onInspect(it)} className="rounded-[var(--tt-radius)] border border-[var(--tt-primary)] px-3 py-1 text-[11px] font-semibold text-[var(--tt-primary)] hover:bg-[var(--tt-primary-muted)]">
+                            Inspect
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
@@ -304,7 +315,7 @@ export function EvaluationReport({ items, onTruth, onInspect }) {
 
 // Kept outside the component so photos and results survive moving to another page and back.
 // Leaving the page pauses a run; photos that were already analysed keep their results.
-const store = { items: [], skipFace: true, running: false, cancel: false, nextId: 1 };
+const store = { items: [], skipFace: false, running: false, cancel: false, nextId: 1 };
 const listeners = new Set();
 const notify = () => listeners.forEach((l) => l());
 const commit = (next) => {
@@ -323,22 +334,46 @@ async function runEvaluation() {
     if (store.cancel) break;
     const it = store.items.find((i) => i.id === id);
     if (!it) continue;
-    patch(id, { status: "running", error: "" });
+    patch(id, { status: "running", error: "", errorCode: "" });
     try {
-      const payload = await analyzeSkinDisease(it.file, store.skipFace);
+      const payload = await analyzeSkinDisease(it.file, store.skipFace || it.forceSkipFace);
       if (!payload?.success || payload.data?.status === "error") {
-        patch(id, { status: "error", error: payload?.data?.message || payload?.message || "Rejected" });
+        patch(id, {
+          status: "error",
+          error: payload?.data?.message || payload?.message || "Rejected",
+          errorCode: payload?.data?.error_code || "",
+        });
         continue;
       }
       const pred = payload.data?.predictions?.skin_disease;
-      patch(id, { status: "done", answer: answerOf(pred), confidence: Number(pred?.confidence) });
+      patch(id, {
+        status: "done",
+        answer: answerOf(pred),
+        confidence: Number(pred?.confidence),
+        error: "",
+        errorCode: "",
+      });
     } catch (err) {
       const body = err?.response?.data?.data;
-      patch(id, { status: "error", error: body?.message || err?.response?.data?.message || err?.message || "Failed" });
+      const message = body?.message || err?.response?.data?.message || err?.message || "Failed";
+      const code =
+        body?.error_code ||
+        (/proceed with this skin image/i.test(message) ? "NO_FACE_SKIN" : "");
+      patch(id, {
+        status: "error",
+        error: message,
+        errorCode: code,
+      });
     }
   }
   store.running = false;
   notify();
+}
+
+async function proceedAnywayItem(it) {
+  if (!it?.id || store.running) return;
+  patch(it.id, { forceSkipFace: true, status: "queued", error: "", errorCode: "" });
+  await runEvaluation();
 }
 
 const EvaluationLab = () => {
@@ -370,6 +405,8 @@ const EvaluationLab = () => {
         answer: null,
         confidence: null,
         error: "",
+        errorCode: "",
+        forceSkipFace: false,
       }));
     commit([...store.items, ...added]);
   };
@@ -484,7 +521,12 @@ const EvaluationLab = () => {
         </div>
 
         {items.length > 0 ? (
-          <EvaluationReport items={items} onTruth={(id, v) => patch(id, { truth: v })} onInspect={inspect} />
+          <EvaluationReport
+            items={items}
+            onTruth={(id, v) => patch(id, { truth: v })}
+            onInspect={inspect}
+            onProceedAnyway={proceedAnywayItem}
+          />
         ) : (
           <p className="text-center text-xs text-[var(--tt-secondary)]">
             No photos yet. The held-out test photos from Drive work well here, as do ordinary web photos. Try 10 to 20.

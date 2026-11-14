@@ -232,21 +232,26 @@ const SkinAnalysis = () => {
     } catch (err) {
       console.error("Analysis API error:", err);
       const backendErrorData = err.response?.data?.data;
-      
-      if (backendErrorData?.error_code === "NO_FACE_NO_SKIN") {
-        setError(backendErrorData.message);
+      const errorCode = backendErrorData?.error_code || err.response?.data?.error_code;
+      const msg =
+        backendErrorData?.message ||
+        err.response?.data?.message ||
+        err.message ||
+        "Something went wrong. Please try again.";
+
+      if (errorCode === "NO_FACE_NO_SKIN") {
+        setError(msg);
+        setSkinOnlyWarning(null);
         setStage("upload");
         return;
-      } else if (backendErrorData?.error_code === "NO_FACE_SKIN") {
-        setSkinOnlyWarning(backendErrorData.message);
+      }
+      if (errorCode === "NO_FACE_SKIN" || /proceed with this skin image/i.test(msg || "")) {
+        setSkinOnlyWarning(msg);
+        setError(null);
         setStage("confirm");
         return;
       }
 
-      const msg =
-        err.response?.data?.message ||
-        err.message ||
-        "Something went wrong. Please try again.";
       setError(msg);
       setStage("confirm");
     }

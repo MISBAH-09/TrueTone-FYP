@@ -1021,6 +1021,7 @@ const PipelineInspector = () => {
   const [skipFace, setSkipFace] = useState(saved.skipFace);
   const [status, setStatus] = useState(saved.status); // idle | running | done | error
   const [error, setError] = useState(saved.error);
+  const [errorCode, setErrorCode] = useState("");
   const [data, setData] = useState(saved.data);
   const [recs, setRecs] = useState(saved.recs);
   const [recsLoading, setRecsLoading] = useState(false);
@@ -1047,6 +1048,7 @@ const PipelineInspector = () => {
     setData(null);
     setRecs(null);
     setError("");
+    setErrorCode("");
     setStatus("idle");
     setOrigDims(null);
     const probe = new Image();
@@ -1073,20 +1075,24 @@ const PipelineInspector = () => {
     }
   };
 
-  const run = async () => {
+  const run = async (forceSkipFace = false) => {
     if (!file) return;
+    const useSkip = forceSkipFace === true || skipFace === true;
+    if (forceSkipFace) setSkipFace(true);
     clearInterval(timer.current);
     setPlaying(false);
     setStatus("running");
     setError("");
+    setErrorCode("");
     setData(null);
     setRecs(null);
     setRecsError("");
     const t0 = performance.now();
     try {
-      const payload = await analyzeAll(file, skipFace);
+      const payload = await analyzeAll(file, useSkip);
       if (!payload?.success || payload.data?.status === "error") {
         setError(payload?.data?.message || payload?.message || "Analysis failed.");
+        setErrorCode(payload?.data?.error_code || "");
         setStatus("error");
         return;
       }
@@ -1097,7 +1103,12 @@ const PipelineInspector = () => {
       loadRecs(d);
     } catch (err) {
       const body = err?.response?.data?.data;
-      setError(body?.message || err?.response?.data?.message || err?.message || "Something went wrong.");
+      const message = body?.message || err?.response?.data?.message || err?.message || "Something went wrong.";
+      const code =
+        body?.error_code ||
+        (/proceed with this skin image/i.test(message) ? "NO_FACE_SKIN" : "");
+      setError(message);
+      setErrorCode(code);
       setStatus("error");
     }
   };
@@ -1197,7 +1208,7 @@ const PipelineInspector = () => {
               </button>
               <button
                 type="button"
-                onClick={run}
+                onClick={() => run(false)}
                 disabled={!file || status === "running"}
                 className="flex items-center gap-2 rounded-full bg-emerald-600 px-6 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700 disabled:opacity-40"
               >
@@ -1207,9 +1218,21 @@ const PipelineInspector = () => {
             </div>
           </div>
           {status === "error" && (
-            <div className="mt-4 flex items-start gap-2 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              {error}
+            <div className="mt-4 space-y-3 rounded-[var(--tt-radius)] border border-red-200 border-l-4 border-l-[var(--tt-avoid)] bg-red-50 px-4 py-3 text-sm text-[var(--tt-avoid)]">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+              {errorCode === "NO_FACE_SKIN" && (
+                <button
+                  type="button"
+                  onClick={() => run(true)}
+                  disabled={status === "running"}
+                  className="inline-flex h-[var(--tt-control-h)] items-center rounded-[var(--tt-radius)] bg-[var(--tt-caution)] px-4 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
+                >
+                  Proceed anyway
+                </button>
+              )}
             </div>
           )}
         </div>

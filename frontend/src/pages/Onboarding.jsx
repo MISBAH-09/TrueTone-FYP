@@ -1,12 +1,153 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Upload, FileText, ChevronRight, ChevronLeft, Loader2, CheckCircle2 } from "lucide-react";
+import {
+  Upload,
+  FileText,
+  ChevronRight,
+  ChevronLeft,
+  Loader2,
+  CheckCircle2,
+  BarChart3,
+  AlertTriangle,
+  ShieldAlert,
+} from "lucide-react";
 import { submitOnboarding } from "../services/user";
 import TrueToneLogo from "../components/TrueToneLogo";
 import { Button, Textarea, InlineAlert, ReportPanel } from "../components/ui";
 
-// gender removed - not used by any recommendation-matching logic, see
-// backend/Users/models.py for the reasoning.
+const DISEASE_LABELS = {
+  common_acne: "Acne",
+  cystic_acne: "Acne",
+  eczema: "Eczema",
+  healthy: "Healthy",
+  psoriasis: "Psoriasis",
+  rosacea: "Rosacea",
+  tinea: "Tinea",
+};
+
+const RESULT_KEYS = [
+  {
+    key: "skin_type",
+    title: "Skin Type Distribution",
+    stepLabel: "Skin Type",
+  },
+  {
+    key: "skin_tone",
+    title: "Skin Tone Distribution",
+    stepLabel: "Skin Tone",
+  },
+  {
+    key: "skin_disease",
+    title: "Condition Screening Distribution",
+    stepLabel: "Condition",
+  },
+];
+
+const labelFor = (key, value) => {
+  if (!value) return "—";
+  if (key === "skin_disease") return DISEASE_LABELS[value] || value.replace(/_/g, " ");
+  return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
+const pctBar = (value) => `${Math.round(Number(value || 0) * 100)}%`;
+
+function OnboardingDistributionCard({ metricKey, title, pred }) {
+  if (!pred) {
+    return (
+      <div className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-4 text-sm text-[var(--tt-secondary)]">
+        No prediction available for this model.
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-4">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-[var(--tt-radius)] bg-[var(--tt-primary-muted)] text-[var(--tt-primary)]">
+            <BarChart3 className="h-4 w-4" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-[var(--tt-ink)]">{title}</h3>
+            <p className="text-xs text-[var(--tt-secondary)]">
+              Top prediction:{" "}
+              <span className="font-semibold text-[var(--tt-ink)]">
+                {labelFor(metricKey, pred.label)}
+              </span>{" "}
+              ({Math.round((pred.confidence || 0) * 100)}%)
+            </p>
+          </div>
+        </div>
+        <span className="tt-mono rounded-[var(--tt-radius)] bg-[var(--tt-paper)] px-2 py-1 text-xs font-medium text-[var(--tt-ink)]">
+          {Math.round((pred.confidence || 0) * 100)}%
+        </span>
+      </div>
+
+      <div className="my-2 space-y-3">
+        {Object.entries(pred.distribution || {})
+          .sort(([, a], [, b]) => b - a)
+          .map(([cls, prob]) => {
+            const isTop = cls === pred.label;
+            return (
+              <div key={cls}>
+                <div className="mb-1 flex items-center justify-between">
+                  <span
+                    className={`text-sm ${
+                      isTop ? "font-semibold text-[var(--tt-ink)]" : "text-[var(--tt-secondary)]"
+                    }`}
+                  >
+                    {labelFor(metricKey, cls)}
+                    {isTop ? (
+                      <CheckCircle2 className="ml-1.5 inline h-3.5 w-3.5 text-[var(--tt-primary)]" />
+                    ) : null}
+                  </span>
+                  <span className="tt-mono text-xs text-[var(--tt-secondary)]">{pctBar(prob)}</span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-[var(--tt-radius)] bg-[var(--tt-border)]">
+                  <div
+                    className={`h-1.5 rounded-[var(--tt-radius)] transition-all duration-700 ${
+                      isTop ? "bg-[var(--tt-primary)]" : "bg-[var(--tt-secondary)]/30"
+                    }`}
+                    style={{ width: pctBar(prob) }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+      </div>
+
+      {metricKey === "skin_disease" ? (
+        <div
+          className={`mt-4 rounded-[var(--tt-radius)] border px-3 py-2 text-sm font-medium ${
+            pred.disease_detected
+              ? "border-red-200 border-l-4 border-l-[var(--tt-avoid)] bg-red-50 text-[var(--tt-avoid)]"
+              : pred.is_confident === false
+              ? "border-amber-200 border-l-4 border-l-[var(--tt-caution)] bg-amber-50 text-[var(--tt-caution)]"
+              : "border-[var(--tt-border)] border-l-4 border-l-[var(--tt-primary)] bg-[var(--tt-primary-muted)] text-[var(--tt-ink)]"
+          }`}
+        >
+          {pred.disease_detected ? (
+            <span className="flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 shrink-0" />
+              {labelFor(metricKey, pred.label)} detected. TrueTone is an AI screening aid.
+            </span>
+          ) : pred.is_confident === false ? (
+            <span className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              We couldn&apos;t match this photo to a condition we screen for. Try a clearer photo, or
+              consult a dermatologist if you have concerns.
+            </span>
+          ) : (
+            <span className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+              No clinical skin conditions detected in scanned zones.
+            </span>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 const ageBrackets = [
   { value: "teen", label: "Teen", desc: "Under 18" },
@@ -53,6 +194,11 @@ const Onboarding = () => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [skinOnlyWarning, setSkinOnlyWarning] = useState("");
+  const [skipFaceCheck, setSkipFaceCheck] = useState(false);
+  const [phase, setPhase] = useState("form"); // form | results
+  const [predictions, setPredictions] = useState(null);
+  const [resultIndex, setResultIndex] = useState(0);
 
   // Form state
   const [ageBracket, setAgeBracket] = useState("");
@@ -78,6 +224,9 @@ const Onboarding = () => {
     reader.onloadend = () => {
       setSkinImage(reader.result);
       setSkinImagePreview(reader.result);
+      setSkinOnlyWarning("");
+      setSkipFaceCheck(false);
+      setError("");
     };
     reader.readAsDataURL(file);
   };
@@ -104,9 +253,12 @@ const Onboarding = () => {
   };
 
   // ─── Submit ───────────────────────────────────────────────
-  const handleSubmit = async () => {
+  const handleSubmit = async (forceSkipFace = false) => {
     setLoading(true);
     setError("");
+    if (!forceSkipFace) setSkinOnlyWarning("");
+
+    const skipFace = forceSkipFace === true || skipFaceCheck === true;
 
     try {
       const payload = {
@@ -119,24 +271,160 @@ const Onboarding = () => {
 
       if (inputMethod === "image") {
         payload.skin_image = skinImage;
+        if (skipFace) payload.skip_face_check = true;
       } else {
         payload.skin_tone = skinTone;
         payload.skin_type = skinType;
         payload.skin_disease = selectedDiseases.join(",");
       }
 
-      await submitOnboarding(payload);
-      navigate("/dashboard");
+      const res = await submitOnboarding(payload);
+
+      // Image path: show model bars one-by-one before dashboard.
+      // Manual path: no scan history / bars — go straight to dashboard.
+      if (inputMethod === "image" && res?.data?.predictions) {
+        setPredictions(res.data.predictions);
+        setResultIndex(0);
+        setPhase("results");
+        setSkinOnlyWarning("");
+      } else if (inputMethod === "image") {
+        // Profile + tracking saved even if slim predictions were missing
+        navigate("/dashboard");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err) {
-      const msg = err.response?.data?.message || "Failed to save onboarding data.";
-      setError(msg);
+      const body = err.response?.data;
+      const errorCode = body?.data?.error_code || body?.error_code;
+      const msg = body?.data?.message || body?.message || "Failed to save onboarding data.";
+      const isSkinOnly =
+        errorCode === "NO_FACE_SKIN" ||
+        /proceed with this skin image/i.test(msg || "");
+
+      if (isSkinOnly) {
+        setSkinOnlyWarning(msg);
+        setError("");
+      } else {
+        setSkinOnlyWarning("");
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  const handleProceedAnyway = () => {
+    setSkipFaceCheck(true);
+    handleSubmit(true);
+  };
+
   // ─── Step labels ──────────────────────────────────────────
   const stepLabels = ["Age", "Input Method", inputMethod === "image" ? "Upload Photo" : "Skin Info", "Safety Info"];
+  const activeResult = RESULT_KEYS[resultIndex];
+  const isLastResult = resultIndex >= RESULT_KEYS.length - 1;
+
+  if (phase === "results" && predictions && activeResult) {
+    return (
+      <div className="min-h-screen bg-[var(--tt-paper)] px-4 py-10 sm:px-6">
+        <div className="mx-auto w-full max-w-2xl">
+          <TrueToneLogo className="mb-8" />
+
+          <div className="mb-8">
+            <p className="tt-mono text-xs font-medium uppercase tracking-[0.14em] text-[var(--tt-primary)]">
+              Your scan results
+            </p>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-[var(--tt-ink)] sm:text-3xl">
+              {activeResult.stepLabel}
+            </h1>
+            <p className="mt-2 text-sm text-[var(--tt-secondary)]">
+              Review each model result, then open your dashboard. This scan is already saved to Skin
+              Tracking.
+            </p>
+          </div>
+
+          <div className="mb-6">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              {RESULT_KEYS.map((item, i) => {
+                const done = i < resultIndex;
+                const current = i === resultIndex;
+                return (
+                  <div key={item.key} className="flex flex-1 flex-col items-center">
+                    <div
+                      className={`flex h-7 w-7 items-center justify-center rounded-[var(--tt-radius)] text-xs font-medium ${
+                        done || current
+                          ? "bg-[var(--tt-primary)] text-white"
+                          : "border border-[var(--tt-border)] bg-[var(--tt-surface)] text-[var(--tt-secondary)]"
+                      }`}
+                    >
+                      {done ? <CheckCircle2 size={14} /> : i + 1}
+                    </div>
+                    <span className="mt-1 hidden text-[11px] text-[var(--tt-secondary)] sm:block">
+                      {item.stepLabel}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="h-1 overflow-hidden rounded-[var(--tt-radius)] bg-[var(--tt-border)]">
+              <div
+                className="h-full bg-[var(--tt-primary)] transition-all duration-500"
+                style={{ width: `${((resultIndex + 1) / RESULT_KEYS.length) * 100}%` }}
+              />
+            </div>
+          </div>
+
+          <ReportPanel>
+            {skinImagePreview ? (
+              <div className="mb-5 flex items-center gap-3">
+                <img
+                  src={skinImagePreview}
+                  alt="Your scan"
+                  className="h-14 w-14 rounded-[var(--tt-radius)] object-cover"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-[var(--tt-ink)]">Photo used for this scan</p>
+                  <p className="text-xs text-[var(--tt-secondary)]">
+                    Step {resultIndex + 1} of {RESULT_KEYS.length}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
+            <OnboardingDistributionCard
+              metricKey={activeResult.key}
+              title={activeResult.title}
+              pred={predictions[activeResult.key]}
+            />
+
+            <div className="mt-8 flex items-center justify-between gap-3 border-t border-[var(--tt-border)] pt-6">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setResultIndex((i) => Math.max(0, i - 1))}
+                disabled={resultIndex === 0}
+              >
+                <ChevronLeft size={16} /> Back
+              </Button>
+
+              {isLastResult ? (
+                <Button type="button" variant="primary" onClick={() => navigate("/dashboard")}>
+                  Go to Dashboard <ChevronRight size={16} />
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={() => setResultIndex((i) => Math.min(RESULT_KEYS.length - 1, i + 1))}
+                >
+                  Next <ChevronRight size={16} />
+                </Button>
+              )}
+            </div>
+          </ReportPanel>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--tt-paper)] px-4 py-10 sm:px-6">
@@ -190,6 +478,23 @@ const Onboarding = () => {
             <InlineAlert tone="error" className="mb-6">
               {error}
             </InlineAlert>
+          ) : null}
+
+          {skinOnlyWarning ? (
+            <div className="mb-6 rounded-[var(--tt-radius)] border border-amber-200 border-l-4 border-l-[var(--tt-caution)] bg-amber-50 p-3 text-[var(--tt-caution)]">
+              <p className="text-sm font-semibold">Skin detected, no face</p>
+              <p className="mt-1 text-sm">{skinOnlyWarning}</p>
+              <Button
+                type="button"
+                variant="primary"
+                className="mt-3"
+                disabled={loading}
+                onClick={handleProceedAnyway}
+              >
+                {loading ? <Loader2 size={16} className="animate-spin" /> : null}
+                {loading ? "Saving..." : "Proceed anyway"}
+              </Button>
+            </div>
           ) : null}
 
           {/* ─── STEP 1: Age bracket ───────────────────────── */}
@@ -297,6 +602,9 @@ const Onboarding = () => {
                     onClick={() => {
                       setSkinImage(null);
                       setSkinImagePreview("");
+                      setSkinOnlyWarning("");
+                      setSkipFaceCheck(false);
+                      setError("");
                     }}
                     className="absolute top-3 right-3 rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] px-3 py-1 text-xs font-medium text-[var(--tt-avoid)] hover:bg-red-50"
                   >
@@ -470,8 +778,23 @@ const Onboarding = () => {
               <Button type="button" variant="primary" onClick={() => setStep((s) => s + 1)} disabled={!canProceed()}>
                 Continue <ChevronRight size={16} />
               </Button>
+            ) : skinOnlyWarning ? (
+              <Button
+                type="button"
+                variant="primary"
+                onClick={handleProceedAnyway}
+                disabled={loading}
+              >
+                {loading ? <Loader2 size={16} className="animate-spin" /> : null}
+                {loading ? "Saving..." : "Proceed anyway"}
+              </Button>
             ) : (
-              <Button type="button" variant="primary" onClick={handleSubmit} disabled={!canProceed() || loading}>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={() => handleSubmit(false)}
+                disabled={!canProceed() || loading}
+              >
                 {loading ? <Loader2 size={16} className="animate-spin" /> : null}
                 {loading ? "Saving..." : "Finish Onboarding"}
               </Button>
