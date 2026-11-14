@@ -30,6 +30,8 @@ const Auth = () => {
   const [recoveryQuestion, setRecoveryQuestion] = useState("");
   const [recoveryAnswer, setRecoveryAnswer] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [loginAsEvaluator, setLoginAsEvaluator] = useState(false);
+  const [evaluatorCode, setEvaluatorCode] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -54,9 +56,16 @@ const Auth = () => {
         setPassword("");
         alert("Account created successfully! Please login to continue.");
       } else {
-        const data = await loginUser({ username, password });
+        const data = await loginUser({
+          username,
+          password,
+          login_as_evaluator: loginAsEvaluator,
+          evaluator_code: loginAsEvaluator ? evaluatorCode : "",
+        });
 
-        if (data.data.onboarding_completed) {
+        if (data.data.role === "evaluator") {
+          navigate("/inspector");
+        } else if (data.data.onboarding_completed) {
           navigate("/dashboard");
         } else {
           navigate("/onboarding");
@@ -329,22 +338,53 @@ const Auth = () => {
             )}
 
             {!isSignUp && (
-              <div className="flex items-center justify-between text-sm text-[var(--tt-secondary)]">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-[var(--tt-border)] text-[var(--tt-primary)] focus:ring-[var(--tt-primary)]"
-                  />
-                  Remember me
-                </label>
-                <button
-                  type="button"
-                  onClick={handleForgotPassword}
-                  className="font-medium text-[var(--tt-primary)] hover:underline"
-                >
-                  Forgot password?
-                </button>
-              </div>
+              <>
+                <div className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] px-3 py-2.5">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-[var(--tt-ink)]">
+                    <input
+                      type="checkbox"
+                      checked={loginAsEvaluator}
+                      onChange={(e) => {
+                        setLoginAsEvaluator(e.target.checked);
+                        if (!e.target.checked) setEvaluatorCode("");
+                      }}
+                      className="h-4 w-4 rounded border-[var(--tt-border)] accent-[var(--tt-primary)]"
+                    />
+                    Sign in as an evaluator
+                  </label>
+                  {loginAsEvaluator ? (
+                    <div className="mt-2.5 space-y-1">
+                      <Input
+                        type="password"
+                        placeholder="Enter evaluator access code"
+                        value={evaluatorCode}
+                        onChange={(e) => setEvaluatorCode(e.target.value)}
+                        autoComplete="off"
+                      />
+                      <p className="text-xs text-[var(--tt-secondary)]">
+                        Matching code opens the evaluator panel; otherwise you sign in as a standard user.
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="flex items-center justify-between text-sm text-[var(--tt-secondary)]">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-[var(--tt-border)] text-[var(--tt-primary)] focus:ring-[var(--tt-primary)]"
+                    />
+                    Remember me
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    className="font-medium text-[var(--tt-primary)] hover:underline"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+              </>
             )}
 
             <Button type="submit" variant="primary" disabled={loading} className="w-full">

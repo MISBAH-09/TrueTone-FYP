@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { RagBody, RAG_NAV, RAG } from "./ReportRag";
 import { RecoBody, RECO_NAV, RECO } from "./ReportReco";
+import { SchemaBody, SCHEMA_NAV, SCHEMA } from "./ReportSchema";
 
 /* ════════════════════════════════════════════════════════════════════════════
    MODEL & SYSTEM REPORT - examiner view
@@ -686,7 +687,7 @@ function ConditionLimits() {
 
 /* ───────────────────────────── the other two models ───────────────────────────── */
 
-// The reports that are not about one model. "schema" has no page yet.
+// The reports that are not about one model.
 const SYSTEM_REPORTS = {
   rag: {
     title: "RAG",
@@ -700,15 +701,24 @@ const SYSTEM_REPORTS = {
     intro: "How products are filtered for safety, scored out of 10 and ranked, with the scoring you can try yourself.",
     nav: RECO_NAV,
   },
+  schema: {
+    title: "Database schema",
+    heading: "PostgreSQL & pgvector database schema",
+    intro: "All 10 application tables, 105 columns, entity–relationship diagram, foreign-key cascade rules, and seeded catalog volumes.",
+    nav: SCHEMA_NAV,
+  },
 };
 
 function ModelSwitch({ current }) {
-  // Navigation lives in the sidebar Model Report dropdown; this only labels the open page.
+  // Navigation lives in the sidebar Model Report / Reports dropdowns; this labels the open page.
   const items = {
     overview: ["Overview", "architecture, safety, coverage"],
     tone: ["Skin tone", "EfficientNet-B2, 3 classes"],
     type: ["Skin type", "EfficientNet-B0, 4 classes"],
     condition: ["Skin condition", "EfficientNet-B3, 7 outputs"],
+    rag: ["RAG", "pgvector cosine search + Groq generation"],
+    recommendation: ["Recommendation engine", "safety blocks + weighted 0–10 scoring"],
+    schema: ["Database schema", "10 PostgreSQL tables, 7 foreign keys, 384-D vectors"],
   };
   const [name, sub] = items[current] || items.overview;
   return (
@@ -1294,7 +1304,13 @@ function ReportCards() {
       what: "How products are filtered for safety, scored out of 10 and ranked.",
       stats: [["Best score", "10"], ["Products scored", fmt(335)], ["Kept per category", String(RECO.topN)]],
     },
-    { key: "schema", title: "Database schema", what: "Tables, keys and how the catalog and chat tables connect.", stats: [] },
+    {
+      key: "schema",
+      to: "/report/schema",
+      title: "Database schema",
+      what: "All 10 PostgreSQL tables, keys, cascades, and how user history and pgvector catalog tables connect.",
+      stats: [["Tables", String(SCHEMA.tablesCount)], ["Catalog rows", fmt(SCHEMA.seededRows)], ["Vectors", fmt(SCHEMA.vectorRows)]],
+    },
   ];
   return (
     <div className="grid gap-4 md:grid-cols-3">
@@ -1425,7 +1441,8 @@ const ModelReport = () => (
 // One page per model: /report/tone, /report/type, /report/condition
 function SystemReportPage({ which }) {
   const info = SYSTEM_REPORTS[which];
-  const other = which === "rag" ? "recommendation" : "rag";
+  const nextMap = { rag: "recommendation", recommendation: "schema", schema: "rag" };
+  const other = nextMap[which] || "rag";
   return (
     <div className="w-full text-slate-900">
       <div className="w-full space-y-6">
@@ -1437,7 +1454,7 @@ function SystemReportPage({ which }) {
           <PillNav items={info.nav} />
         </div>
         <ModelSwitch current={which} />
-        {which === "rag" ? <RagBody /> : <RecoBody />}
+        {which === "rag" ? <RagBody /> : which === "recommendation" ? <RecoBody /> : <SchemaBody />}
         <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
           <Link to="/report" className="rounded-full border border-slate-300 bg-white px-5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
             Back to the report overview

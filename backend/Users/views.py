@@ -20,7 +20,7 @@ from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from .models import User, SkinScanHistory
+from .models import User, SkinScanHistory, EvaluatorAccessCode
 from .middleware import require_token
 
 logger = logging.getLogger('Users')
@@ -216,6 +216,7 @@ class SignupAPI(APIView):
                 'id': user.id,
                 'username': user.username,
                 'email': user.email,
+                'role': user.role or 'end_user',
                 'first_name': user.first_name,
                 'last_name': user.last_name,
                 'created_at': user.created_at.isoformat(),
@@ -245,6 +246,8 @@ class LoginAPI(APIView):
                 'username': openapi.Schema(type=openapi.TYPE_STRING, example="misbah123"),
                 'email': openapi.Schema(type=openapi.TYPE_STRING, example="misbah@gmail.com"),
                 'password': openapi.Schema(type=openapi.TYPE_STRING, example="Password@123"),
+                'login_as_evaluator': openapi.Schema(type=openapi.TYPE_BOOLEAN, example=False),
+                'evaluator_code': openapi.Schema(type=openapi.TYPE_STRING, example=""),
             },
         ),
         responses={
@@ -264,6 +267,8 @@ class LoginAPI(APIView):
             username = request.data.get('username')
             email = request.data.get('email')
             password = request.data.get('password')
+            wants_evaluator = bool(request.data.get('login_as_evaluator'))
+            evaluator_code = (request.data.get('evaluator_code') or '').strip()
 
             if not password or (not username and not email):
                 response_data['message'] = 'Provide username or email and password'
@@ -283,19 +288,39 @@ class LoginAPI(APIView):
                 response_data['message'] = 'Invalid password'
                 return Response(response_data, status=http_status)
 
-            # Generate token and store in DB
+            # Determine session role: check evaluator code against hashed DB row(s).
+            # If evaluator mode wasn't requested or code doesn't match, sign in as end_user.
+            role = 'end_user'
+            if wants_evaluator or evaluator_code:
+                active_codes = EvaluatorAccessCode.objects.filter(is_active=True)
+                if not active_codes.exists():
+                    # Ensure default seeded row exists if migration ran against an empty DB
+                    EvaluatorAccessCode.objects.update_or_create(
+                        label='default',
+                        defaults={'code_hash': make_password('EVALTRUETONE'), 'is_active': True},
+                    )
+                    active_codes = EvaluatorAccessCode.objects.filter(is_active=True)
+
+                matched = bool(evaluator_code) and any(
+                    check_password(evaluator_code, row.code_hash) for row in active_codes
+                )
+                if matched:
+                    role = 'evaluator'
+
+            # Generate token and store token + active role in DB
             raw_string = f"{user.id}{user.username}"
             token = hashlib.sha256(raw_string.encode()).hexdigest()
 
             if token:
-                result = self.add_token_intodb(user.id, token)
+                result = self.add_token_intodb(user.id, token, role)
                 if result:
-                    logger.info(f"User logged in: {user.username}")
+                    logger.info(f"User logged in: {user.username} (role={role})")
                     response_data['success'] = True
                     response_data['message'] = 'Login successful'
                     response_data['data'] = {
                         'id': user.id,
                         'token': token,
+                        'role': role,
                         'onboarding_completed': user.onboarding_completed,
                     }
                     http_status = status.HTTP_200_OK
@@ -312,11 +337,12 @@ class LoginAPI(APIView):
 
         return Response(response_data, status=http_status)
 
-    def add_token_intodb(self, id, token):
+    def add_token_intodb(self, id, token, role='end_user'):
         user = User.objects.filter(id=id).first()
         if user:
             user.token = token
-            user.save()
+            user.role = role
+            user.save(update_fields=['token', 'role', 'updated_at'])
             return True
         return False
 
@@ -525,6 +551,7 @@ class GetByIdAPI(APIView):
                 'id': user.id,
                 'username': user.username,
                 'email': user.email,
+                'role': user.role or 'end_user',
                 'first_name': user.first_name,
                 'last_name': user.last_name,
                 'profile': user.profile,

@@ -18,6 +18,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import TrueToneLogo from "./TrueToneLogo";
+import { getUserProfile } from "../services/user";
 
 const navItems = [
   { title: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
@@ -45,11 +46,10 @@ const modelReportItems = [
 const MODEL_REPORT_PATHS = new Set(modelReportItems.map((item) => item.path));
 
 // The Reports dropdown: reports about parts of the system that are not one model.
-// Database Schema has no page yet, so it has no path and is shown as "Soon".
 const reportItems = [
   { title: "RAG", path: "/report/rag" },
   { title: "Recommendation Engine", path: "/report/recommendation" },
-  { title: "Database Schema", path: null },
+  { title: "Database Schema", path: "/report/schema" },
 ];
 
 const mobilePrimary = [
@@ -63,10 +63,29 @@ const AppSidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [role, setRole] = useState(
+    () => localStorage.getItem("truetone_role") || "end_user"
+  );
+  const isEvaluator = role === "evaluator";
+
+  useEffect(() => {
+    let active = true;
+    getUserProfile()
+      .then((res) => {
+        if (active && res?.data?.role) {
+          setRole(res.data.role);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleSignOut = () => {
     localStorage.removeItem("truetone_token");
     localStorage.removeItem("truetone_user_id");
+    localStorage.removeItem("truetone_role");
     navigate("/");
   };
 
@@ -197,8 +216,11 @@ const AppSidebar = () => {
   };
 
   const moreActive =
-    [...navItems.slice(4), ...examinerItems, ...modelReportItems, ...reportItems.filter((r) => r.path)].some(
-      (item) => (MODEL_REPORT_PATHS.has(item.path) ? isModelReportLink(item.path) : isOn(item.path))
+    (isEvaluator
+      ? [...examinerItems, ...modelReportItems, ...reportItems.filter((r) => r.path)]
+      : navItems.slice(4)
+    ).some((item) =>
+      MODEL_REPORT_PATHS.has(item.path) ? isModelReportLink(item.path) : isOn(item.path)
     ) || moreOpen;
 
   return (
@@ -210,14 +232,16 @@ const AppSidebar = () => {
         </div>
 
         <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
-          {navItems.map(renderDesktopLink)}
-
-          <div className="mt-3 space-y-0.5 border-t border-[var(--tt-border)] pt-3">
-            <p className="px-3 pb-1 text-xs font-medium text-[var(--tt-secondary)]">Evaluation Metrics</p>
-            {examinerItems.map(renderDesktopLink)}
-            {renderModelReportGroup()}
-            {renderReportsGroup()}
-          </div>
+          {isEvaluator ? (
+            <div className="space-y-0.5">
+              <p className="px-3 pb-1 text-xs font-medium text-[var(--tt-secondary)]">Evaluation Metrics</p>
+              {examinerItems.map(renderDesktopLink)}
+              {renderModelReportGroup()}
+              {renderReportsGroup()}
+            </div>
+          ) : (
+            navItems.map(renderDesktopLink)
+          )}
         </nav>
 
         <div className="border-t border-[var(--tt-border)] p-3">
@@ -234,7 +258,7 @@ const AppSidebar = () => {
 
       {/* Mobile bottom tab bar — below 768px */}
       <nav className="fixed inset-x-0 bottom-0 z-40 flex h-14 items-stretch border-t border-[var(--tt-border)] bg-[var(--tt-surface)] md:hidden">
-        {mobilePrimary.map((item) => {
+        {(isEvaluator ? examinerItems : mobilePrimary).map((item) => {
           const Icon = item.icon;
           const isActive = isOn(item.path);
           return (
@@ -282,41 +306,44 @@ const AppSidebar = () => {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="space-y-0.5">
-              {navItems.slice(4).map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={() => setMoreOpen(false)}
-                    className={linkClass(item.path)}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-                    <span>{item.title}</span>
-                  </Link>
-                );
-              })}
-            </div>
-            <div className="mt-3 space-y-0.5 border-t border-[var(--tt-border)] pt-3">
-              <p className="px-3 pb-1 text-xs font-medium text-[var(--tt-secondary)]">Lab</p>
-              {examinerItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={() => setMoreOpen(false)}
-                    className={linkClass(item.path)}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-                    <span>{item.title}</span>
-                  </Link>
-                );
-              })}
-              {renderModelReportGroup(() => setMoreOpen(false))}
-              {renderReportsGroup(() => setMoreOpen(false))}
-            </div>
+            {isEvaluator ? (
+              <div className="space-y-0.5">
+                <p className="px-3 pb-1 text-xs font-medium text-[var(--tt-secondary)]">Evaluation Metrics</p>
+                {examinerItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setMoreOpen(false)}
+                      className={linkClass(item.path)}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+                      <span>{item.title}</span>
+                    </Link>
+                  );
+                })}
+                {renderModelReportGroup(() => setMoreOpen(false))}
+                {renderReportsGroup(() => setMoreOpen(false))}
+              </div>
+            ) : (
+              <div className="space-y-0.5">
+                {navItems.slice(4).map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setMoreOpen(false)}
+                      className={linkClass(item.path)}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+                      <span>{item.title}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
             <div className="mt-3 border-t border-[var(--tt-border)] pt-3">
               <button
                 type="button"

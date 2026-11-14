@@ -25,19 +25,103 @@ const App = () => (
       <Route path="/design-system" element={<DesignSystemPreview />} />
 
       {/* Protected routes — require token */}
-      <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+      <Route
+        path="/onboarding"
+        element={
+          <ProtectedRoute requireRole="end_user">
+            <Onboarding />
+          </ProtectedRoute>
+        }
+      />
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/skin-analysis" element={<SkinAnalysis />} />
-        <Route path="/product-scanner" element={<ProductScanner />} />
-        <Route path="/recommendations" element={<Recommendations />} />
-        <Route path="/skin-tracking" element={<SkinTracking />} />
-        <Route path="/chatbot" element={<Chatbot />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/inspector" element={<PipelineInspector />} />
-        <Route path="/evaluation" element={<EvaluationLab />} />
-        <Route path="/report" element={<ModelReport />} />
-        <Route path="/report/:model" element={<ModelReportPage />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute requireRole="end_user">
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/skin-analysis"
+          element={
+            <ProtectedRoute requireRole="end_user">
+              <SkinAnalysis />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/product-scanner"
+          element={
+            <ProtectedRoute requireRole="end_user">
+              <ProductScanner />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/recommendations"
+          element={
+            <ProtectedRoute requireRole="end_user">
+              <Recommendations />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/skin-tracking"
+          element={
+            <ProtectedRoute requireRole="end_user">
+              <SkinTracking />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/chatbot"
+          element={
+            <ProtectedRoute requireRole="end_user">
+              <Chatbot />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute requireRole="end_user">
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inspector"
+          element={
+            <ProtectedRoute requireRole="evaluator">
+              <PipelineInspector />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/evaluation"
+          element={
+            <ProtectedRoute requireRole="evaluator">
+              <EvaluationLab />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/report"
+          element={
+            <ProtectedRoute requireRole="evaluator">
+              <ModelReport />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/report/:model"
+          element={
+            <ProtectedRoute requireRole="evaluator">
+              <ModelReportPage />
+            </ProtectedRoute>
+          }
+        />
       </Route>
 
       <Route path="*" element={<NotFound />} />

@@ -45,12 +45,24 @@ export const signupUser = async ({
   return data;
 };
 
-export const loginUser = async ({ username, email, password }) => {
+export const loginUser = async ({
+  username,
+  email,
+  password,
+  login_as_evaluator = false,
+  evaluator_code = "",
+}) => {
   const payload = username ? { username, password } : { email, password };
+  if (login_as_evaluator) {
+    payload.login_as_evaluator = true;
+    payload.evaluator_code = evaluator_code;
+  }
   const { data } = await api.post("/login/", payload);
-  
+
+  const role = data.data.role || "end_user";
   localStorage.setItem("truetone_token", data.data.token);
   localStorage.setItem("truetone_user_id", data.data.id);
+  localStorage.setItem("truetone_role", role);
 
   return data;
 };
@@ -76,6 +88,7 @@ export const resetPassword = async ({
   });
   localStorage.removeItem("truetone_token");
   localStorage.removeItem("truetone_user_id");
+  localStorage.removeItem("truetone_role");
   return data;
 };
 
@@ -96,8 +109,14 @@ export const setupPasswordRecovery = async ({
 
 export const getUserProfile = async () => {
   const { data } = await api.get("/profile/");
+  if (data?.data?.role) {
+    localStorage.setItem("truetone_role", data.data.role);
+  }
   return data;
 };
+
+export const isEvaluatorRole = () =>
+  localStorage.getItem("truetone_role") === "evaluator";
 
 export const updateUser = async (updates) => {
   const { data } = await api.put("/update/", updates);

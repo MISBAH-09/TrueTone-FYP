@@ -32,10 +32,16 @@ class User(models.Model):
         ('normal', 'Normal'),
     ]
 
+    ROLE_CHOICES = [
+        ('end_user', 'End User'),
+        ('evaluator', 'Evaluator'),
+    ]
+
     # ─── Auth fields ─────────────────────────────────────────
     username = models.CharField(max_length=150, unique=True, db_index=True)
     email = models.EmailField(max_length=254, unique=True, db_index=True)
     password = models.CharField(max_length=256)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='end_user')
     recovery_question = models.CharField(max_length=32, blank=True, default='')
     recovery_answer_hash = models.CharField(max_length=256, blank=True, default='')
     password_reset_failed_attempts = models.PositiveSmallIntegerField(default=0)
@@ -129,3 +135,21 @@ class SkinScanHistory(models.Model):
 
     def __str__(self):
         return f"{self.user.username} @ {self.scanned_at:%Y-%m-%d}"
+
+
+class EvaluatorAccessCode(models.Model):
+    """
+    Stores hashed evaluator access codes in the database so role elevation at
+    login is checked server-side rather than hardcoded in the frontend.
+    """
+    label = models.CharField(max_length=64, default='default', unique=True)
+    code_hash = models.CharField(max_length=256)
+    is_active = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'evaluator_access_codes'
+
+    def __str__(self):
+        return f"{self.label} ({'active' if self.is_active else 'inactive'})"
+
