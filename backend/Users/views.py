@@ -485,17 +485,6 @@ class UpdateAPI(APIView):
             user.updated_at = timezone.now()
             user.save()
 
-            # Log to history if manually changed
-            if skin_changed:
-                                SkinScanHistory.objects.create(
-                    user=user,
-                    source='manual',
-                    skin_type=skin_type,
-                    skin_tone=skin_tone,
-                    skin_disease=skin_disease,
-                    disease_detected=bool(skin_disease),
-                )
-
         except IntegrityError as e:
             if '1062' in str(e):
                 if 'username' in str(e):

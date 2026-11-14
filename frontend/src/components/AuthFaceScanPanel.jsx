@@ -24,7 +24,7 @@ export default function AuthFaceScanPanel() {
             {/* Mouth */}
             <path d="M144 206c8 8 24 8 32 0" stroke="rgba(255,255,255,0.85)" strokeWidth="1.5" strokeLinecap="round" />
             {/* Brow / hairline hint */}
-            <path d="M116 138c18-22 70-22 88 0" stroke="rgba(204,251,241,0.7)" strokeWidth="1.25" strokeLinecap="round" />
+            <path d="M116 138c18-22 70-22 88 0" stroke="rgba(245,194,163,0.85)" strokeWidth="1.25" strokeLinecap="round" />
 
             {/* Connector lines to labels */}
             <path className="tt-auth-scan-line" d="M88 72 L128 128" stroke="rgba(255,255,255,0.4)" strokeWidth="1" />

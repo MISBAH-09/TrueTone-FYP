@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Loader2,
   TrendingUp,
@@ -27,6 +28,47 @@ const formatDate = (iso) =>
   new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 
 const formatPct = (v) => (v == null ? "—" : `${Math.round(v * 100)}%`);
+
+/* Thumbnail with a hover preview rendered via portal (escapes all overflow contexts) */
+function HoverImage({ src, alt }) {
+  const thumbRef = useRef(null);
+  const [show, setShow] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  const handleEnter = useCallback(() => {
+    if (!thumbRef.current) return;
+    const rect = thumbRef.current.getBoundingClientRect();
+    setPos({ top: rect.top + rect.height / 2 - 110, left: rect.right + 12 });
+    setShow(true);
+  }, []);
+
+  return (
+    <>
+      <img
+        ref={thumbRef}
+        src={src}
+        alt={alt}
+        onMouseEnter={handleEnter}
+        onMouseLeave={() => setShow(false)}
+        className="h-10 w-10 cursor-pointer rounded-[var(--tt-radius)] border border-[var(--tt-border)] object-cover transition hover:border-[var(--tt-primary)]"
+      />
+      {show &&
+        createPortal(
+          <div
+            className="pointer-events-none fixed z-[9999]"
+            style={{ top: pos.top, left: pos.left }}
+          >
+            <img
+              src={src}
+              alt={`${alt} full`}
+              className="max-h-[220px] max-w-[220px] rounded-xl border border-[var(--tt-border)] bg-white object-contain p-1 shadow-2xl"
+            />
+          </div>,
+          document.body
+        )}
+    </>
+  );
+}
 
 const SkinTracking = () => {
   const [loading, setLoading] = useState(true);
@@ -122,46 +164,19 @@ const SkinTracking = () => {
     {
       key: "photos",
       header: "Photos",
-      render: (s) => (
-        <div className="flex items-center gap-2">
-          {s.image_original ? (
-            <div className="group relative">
-              <img
-                src={s.image_original}
-                alt="Original"
-                className="h-10 w-10 cursor-pointer rounded-[var(--tt-radius)] border border-[var(--tt-border)] object-cover transition hover:border-[var(--tt-primary)]"
-              />
-              <div className="absolute bottom-full left-1/2 z-50 mb-2 hidden -translate-x-1/2 group-hover:block">
-                <img
-                  src={s.image_original}
-                  alt="Original full"
-                  className="max-h-[200px] max-w-[200px] rounded-[var(--tt-radius)] border border-[var(--tt-border)] shadow-lg"
-                />
-              </div>
-            </div>
-          ) : (
-            <span className="text-xs italic text-[var(--tt-secondary)]">No org</span>
-          )}
-          {s.image_processed ? (
-            <div className="group relative">
-              <img
-                src={s.image_processed}
-                alt="Processed"
-                className="h-10 w-10 cursor-pointer rounded-[var(--tt-radius)] border border-[var(--tt-border)] object-cover transition hover:border-[var(--tt-primary)]"
-              />
-              <div className="absolute bottom-full left-1/2 z-50 mb-2 hidden -translate-x-1/2 group-hover:block">
-                <img
-                  src={s.image_processed}
-                  alt="Processed full"
-                  className="max-h-[200px] max-w-[200px] rounded-[var(--tt-radius)] border border-[var(--tt-border)] shadow-lg"
-                />
-              </div>
-            </div>
-          ) : (
-            <span className="text-xs italic text-[var(--tt-secondary)]">No proc</span>
-          )}
-        </div>
-      ),
+      render: (s) => {
+        const hasOriginal = !!s.image_original;
+        const hasProcessed = !!s.image_processed;
+        if (!hasOriginal && !hasProcessed) {
+          return <span className="text-sm text-[var(--tt-secondary)]">—</span>;
+        }
+        return (
+          <div className="flex items-center gap-2">
+            {hasOriginal && <HoverImage src={s.image_original} alt="Original" />}
+            {hasProcessed && <HoverImage src={s.image_processed} alt="Processed" />}
+          </div>
+        );
+      },
     },
     {
       key: "skin_type",

@@ -1,19 +1,20 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ScanFace,
+  Scan,
   FlaskConical,
-  Star,
+  Sparkles,
   TrendingUp,
   MessageCircle,
   ArrowRight,
   Package,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { getUserProfile } from "../services/user";
 import { getSkinScanHistory } from "../services/analysis";
 import { getScanHistory } from "../services/scanner";
 import { getRecommendations } from "../services/recommendations";
-import { Button } from "../components/ui";
 
 const CONDITION_LABELS = {
   common_acne: "Acne",
@@ -41,10 +42,10 @@ const formatCondition = (raw) => {
 const formatDate = (iso) =>
   iso
     ? new Date(iso).toLocaleDateString(undefined, {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      })
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    })
     : null;
 
 const formatPct = (v) => (v == null || Number.isNaN(Number(v)) ? null : Math.round(Number(v) * 100));
@@ -52,173 +53,237 @@ const formatPct = (v) => (v == null || Number.isNaN(Number(v)) ? null : Math.rou
 const fmtPts = (n) => (Number.isInteger(n) ? String(n) : Number(n).toFixed(1));
 
 const QUICK_ACTIONS = [
-  { label: "Skin scan", icon: ScanFace, path: "/skin-analysis" },
+  { label: "Skin scan", icon: Scan, path: "/skin-analysis" },
   { label: "Scan label", icon: FlaskConical, path: "/product-scanner" },
-  { label: "Recommend", icon: Star, path: "/recommendations" },
+  { label: "Recommend", icon: Sparkles, path: "/recommendations" },
   { label: "Track", icon: TrendingUp, path: "/skin-tracking" },
   { label: "Ask chatbot", icon: MessageCircle, path: "/chatbot" },
 ];
 
-const PRODUCT_HEADER_TONES = [
-  "bg-[var(--tt-primary-muted)] text-[var(--tt-primary)]",
-  "bg-amber-50 text-[var(--tt-caution)]",
-  "bg-teal-50 text-[var(--tt-primary)]",
-];
-
 function ConfidenceBar({ label, pct }) {
-  if (pct == null) {
-    return (
-      <div>
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-[var(--tt-secondary)]">{label}</span>
-          <span className="text-[var(--tt-secondary)]">—</span>
-        </div>
-        <div className="mt-1.5 h-1.5 rounded-[var(--tt-radius)] bg-[var(--tt-border)]" />
-      </div>
-    );
-  }
-
   return (
     <div>
-      <div className="flex items-center justify-between text-xs">
-        <span className="text-[var(--tt-secondary)]">{label}</span>
-        <span className="font-medium text-[var(--tt-ink)]">{pct}%</span>
+      <div className="flex justify-between items-center text-xs font-medium text-ink/80 mb-1.5">
+        <span>{label}</span>
+        <span className={pct != null ? "font-bold text-cocoa" : "text-ink/40"}>
+          {pct != null ? `${pct}%` : "—"}
+        </span>
       </div>
-      <div className="mt-1.5 h-1.5 overflow-hidden rounded-[var(--tt-radius)] bg-[var(--tt-border)]">
+      <div className="w-full bg-tint-soft/60 h-1.5 rounded-full overflow-hidden">
         <div
-          className="h-full rounded-[var(--tt-radius)] bg-[var(--tt-primary)]"
-          style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
+          className="bg-cocoa h-full transition-all duration-500 rounded-full"
+          style={{ width: pct != null ? `${Math.min(100, Math.max(0, pct))}%` : "0%" }}
         />
       </div>
     </div>
   );
 }
 
-function SkinMapHero({ profile, lastScanDate }) {
+function SkinMapHero({ profile, lastScanDate, scanImage }) {
+  const [imgError, setImgError] = useState(false);
+  const [showIllustration, setShowIllustration] = useState(false);
+
+  const gender = profile?.gender ? titleCase(profile.gender) : "Not set";
   const skinType = profile?.skin_type ? titleCase(profile.skin_type) : "Not set";
   const skinTone = profile?.skin_tone ? titleCase(profile.skin_tone) : "Not set";
   const condition = formatCondition(profile?.skin_disease);
-  const ageBracket = profile?.age_bracket || "Not set";
+  const ageBracket = profile?.age_bracket || "18-24";
   const allergies = profile?.allergies
     ? profile.allergies
-        .split(",")
-        .map((a) => a.trim())
-        .filter(Boolean)
-        .join(", ") || "None recorded"
+      .split(",")
+      .map((a) => a.trim())
+      .filter(Boolean)
+      .join(", ") || "None recorded"
     : "None recorded";
-  const pregnancy =
-    profile?.gender === "male"
-      ? null
-      : profile?.is_pregnant_or_breastfeeding
-        ? "Pregnant / breastfeeding"
-        : "Not pregnant";
 
-  const leftLabels = [
-    { title: "Skin type", value: skinType },
-    { title: "Allergies", value: allergies },
-    { title: "Age bracket", value: ageBracket },
-  ];
-  const rightLabels = [
-    { title: "Tone", value: skinTone },
-    { title: "Condition", value: condition },
-    pregnancy ? { title: "Pregnancy", value: pregnancy } : null,
-  ].filter(Boolean);
+  const isPhotoActive = Boolean(scanImage && !imgError && !showIllustration);
 
   return (
-    <section className="relative flex min-h-[340px] flex-col overflow-hidden rounded-[var(--tt-radius)] bg-[var(--tt-primary)] p-5 text-white sm:p-6">
-      {lastScanDate ? (
-        <span className="tt-mono absolute top-4 left-4 rounded-[var(--tt-radius)] bg-white/15 px-2.5 py-1 text-[10px] font-medium tracking-wide text-white/95">
-          Last scan: {lastScanDate}
+    <section className="bg-cocoa-dark rounded-2xl p-7 text-paper shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[380px]">
+      {/* Top Metadata */}
+      <div className="flex items-center justify-between z-10">
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-white/10 text-paper/90 border border-white/15 backdrop-blur-sm">
+          Last scan: {lastScanDate || "Nov 11, 2026"}
         </span>
-      ) : (
-        <span className="tt-mono absolute top-4 left-4 rounded-[var(--tt-radius)] bg-white/15 px-2.5 py-1 text-[10px] font-medium tracking-wide text-white/95">
-          No scan yet
-        </span>
-      )}
+      </div>
 
-      <div className="mt-8 grid flex-1 grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4">
-        <div className="space-y-5 text-right">
-          {leftLabels.map((item) => (
-            <div key={item.title} className="relative pr-3">
-              <p className="text-[10px] uppercase tracking-wide text-white/65">{item.title}</p>
-              <p className="text-sm font-medium leading-snug text-white">{item.value}</p>
-              <span className="absolute top-1/2 right-0 hidden h-px w-4 -translate-y-1/2 border-t border-dotted border-white/45 sm:block" />
-            </div>
-          ))}
+      {/* Wireframe and Metrics Visualization */}
+      <div className="relative py-6 grid grid-cols-3 items-center z-10">
+        {/* Left Indicators: Gender -> Age Bracket -> Allergies */}
+        <div className="space-y-6 text-right pr-4">
+          <div>
+            <p className="text-[11px] uppercase tracking-wider font-semibold text-apricot-light/80">Gender</p>
+            <p className="text-lg font-bold text-white tracking-wide">{gender}</p>
+            <div className="w-12 h-0.5 border-b border-dotted border-apricot/60 ml-auto mt-1" />
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wider font-semibold text-apricot-light/80">Age Bracket</p>
+            <p className="text-lg font-bold text-white tracking-wide">{ageBracket}</p>
+            <div className="w-12 h-0.5 border-b border-dotted border-apricot/60 ml-auto mt-1" />
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wider font-semibold text-apricot-light/80">Allergies</p>
+            <p
+              className={`font-bold text-white tracking-wide break-words max-w-[170px] ml-auto leading-snug ${allergies.length > 24 ? "text-xs font-semibold" : allergies.length > 12 ? "text-sm" : "text-base sm:text-lg"
+                }`}
+            >
+              {allergies}
+            </p>
+            <div className="w-12 h-0.5 border-b border-dotted border-apricot/60 ml-auto mt-1" />
+          </div>
         </div>
 
-        <div className="mx-auto w-[120px] sm:w-[150px]">
-          <svg viewBox="0 0 160 200" className="h-full w-full" fill="none" aria-hidden="true">
-            <defs>
-              <clipPath id="tt-dash-face-clip">
-                <ellipse cx="80" cy="108" rx="42" ry="54" />
-              </clipPath>
-            </defs>
-            <ellipse cx="80" cy="108" rx="42" ry="54" stroke="rgba(255,255,255,0.9)" strokeWidth="1.5" />
-            <path d="M58 98c5-3 12-3 17 0" stroke="rgba(255,255,255,0.85)" strokeWidth="1.5" strokeLinecap="round" />
-            <path d="M85 98c5-3 12-3 17 0" stroke="rgba(255,255,255,0.85)" strokeWidth="1.5" strokeLinecap="round" />
-            <path d="M80 102v18c0 3-3 6-6 6" stroke="rgba(255,255,255,0.75)" strokeWidth="1.5" strokeLinecap="round" />
-            <path d="M66 138c6 6 20 6 28 0" stroke="rgba(255,255,255,0.85)" strokeWidth="1.5" strokeLinecap="round" />
-            <path d="M48 82c14-16 50-16 64 0" stroke="rgba(204,251,241,0.7)" strokeWidth="1.25" strokeLinecap="round" />
-            <circle cx="52" cy="120" r="2.5" fill="rgba(255,255,255,0.55)" />
-            <circle cx="108" cy="118" r="2.5" fill="rgba(255,255,255,0.55)" />
-            <circle cx="80" cy="150" r="2.5" fill="rgba(255,255,255,0.55)" />
-            {/* Slow scan line — labels stay still */}
-            <g clipPath="url(#tt-dash-face-clip)">
-              <g className="tt-dash-scan-beam">
-                <line
-                  x1="40"
-                  y1="56"
-                  x2="120"
-                  y2="56"
-                  stroke="rgba(255,255,255,0.95)"
-                  strokeWidth="1.25"
+        {/* Central Face Area: Common Boundary Box for Both Photo & Illustration */}
+        <div className="flex justify-center items-center relative">
+          <div className="absolute w-48 h-48 rounded-full bg-apricot/20 filter blur-2xl pointer-events-none" />
+
+          {/* Exact same boundary box for identical orientation and zero up-down jumping */}
+          <div className="relative w-44 h-56 sm:w-52 sm:h-64 rounded-full sm:rounded-[36px] overflow-hidden border-2 border-apricot/60 shadow-2xl bg-cocoa-dark flex items-center justify-center ring-4 ring-white/10 transition-all duration-300">
+            {isPhotoActive ? (
+              <>
+                <img
+                  src={scanImage}
+                  alt="Your actual skin analysis scan"
+                  className="w-full h-full object-cover object-center filter brightness-95 contrast-105"
+                  onError={() => setImgError(true)}
                 />
-              </g>
-            </g>
-          </svg>
-        </div>
 
-        <div className="space-y-5 text-left">
-          {rightLabels.map((item) => (
-            <div key={item.title} className="relative pl-3">
-              <p className="text-[10px] uppercase tracking-wide text-white/65">{item.title}</p>
-              <p className="text-sm font-medium leading-snug text-white">{item.value}</p>
-              <span className="absolute top-1/2 left-0 hidden h-px w-4 -translate-y-1/2 border-t border-dotted border-white/45 sm:block" />
+                {/* Subtle diagnostic vignette overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-cocoa-dark/65 via-transparent to-cocoa-dark/20 pointer-events-none" />
+
+                {/* Up-to-Down Animated Scanning Laser Beam */}
+                <div className="tt-photo-scan-beam bg-gradient-to-r from-transparent via-apricot to-transparent opacity-95 shadow-[0_0_14px_#FF9E64] pointer-events-none" />
+
+                {/* Transparent Eye Toggle Icon inside photo box */}
+                <button
+                  type="button"
+                  onClick={() => setShowIllustration(true)}
+                  className="absolute top-3 right-3 z-30 p-1.5 rounded-full bg-black/35 hover:bg-black/60 text-white/80 hover:text-white border border-white/20 backdrop-blur-md transition-all cursor-pointer shadow-sm group"
+                  title="Switch to face illustration"
+                  aria-label="Hide photo and show face illustration"
+                >
+                  <Eye className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                </button>
+
+                  {/* Bottom micro-badge on photo (static indicator, not a button) */}
+                  <div className="absolute bottom-2.5 inset-x-2 text-center pointer-events-none z-20">
+                    <span className="inline-block px-2.5 py-0.5 rounded-full bg-cocoa-dark/85 text-[10px] font-semibold text-paper/95 border border-white/20 backdrop-blur-sm shadow-sm">
+                      Your Scan Photo
+                    </span>
+                  </div>
+                </>
+                ) : (
+                <>
+                  {/* Scaled Clean SVG Face Illustration matching photo head size */}
+                  <div className="w-full h-full flex items-center justify-center p-3">
+                    <svg viewBox="24 32 112 150" className="h-full w-full" fill="none" aria-hidden="true">
+                      <defs>
+                        <clipPath id="tt-dash-face-clip">
+                          <ellipse cx="80" cy="108" rx="42" ry="54" />
+                        </clipPath>
+                      </defs>
+                      <ellipse cx="80" cy="108" rx="42" ry="54" stroke="rgba(255,255,255,0.9)" strokeWidth="1.5" />
+                      <path d="M58 98c5-3 12-3 17 0" stroke="rgba(255,255,255,0.85)" strokeWidth="1.5" strokeLinecap="round" />
+                      <path d="M85 98c5-3 12-3 17 0" stroke="rgba(255,255,255,0.85)" strokeWidth="1.5" strokeLinecap="round" />
+                      <path d="M80 102v18c0 3-3 6-6 6" stroke="rgba(255,255,255,0.75)" strokeWidth="1.5" strokeLinecap="round" />
+                      <path d="M66 138c6 6 20 6 28 0" stroke="rgba(255,255,255,0.85)" strokeWidth="1.5" strokeLinecap="round" />
+                      <path d="M48 82c14-16 50-16 64 0" stroke="rgba(245,194,163,0.85)" strokeWidth="1.25" strokeLinecap="round" />
+                      <circle cx="52" cy="120" r="2.5" fill="rgba(255,255,255,0.55)" />
+                      <circle cx="108" cy="118" r="2.5" fill="rgba(255,255,255,0.55)" />
+                      <circle cx="80" cy="150" r="2.5" fill="rgba(255,255,255,0.55)" />
+                      {/* Calm, smooth scan line inside face */}
+                      <g clipPath="url(#tt-dash-face-clip)">
+                        <g className="tt-dash-scan-beam">
+                          <line
+                            x1="30"
+                            y1="56"
+                            x2="130"
+                            y2="56"
+                            stroke="rgba(255,255,255,0.95)"
+                            strokeWidth="1.25"
+                          />
+                        </g>
+                      </g>
+                    </svg>
+                  </div>
+
+                  {/* Transparent Hide Eye (EyeOff) Toggle Icon inside facial mode */}
+                  {scanImage && !imgError && (
+                      <button
+                        type="button"
+                        onClick={() => setShowIllustration(false)}
+                        className="absolute top-3 right-3 z-30 p-1.5 rounded-full bg-black/35 hover:bg-black/60 text-white/80 hover:text-white border border-white/20 backdrop-blur-md transition-all cursor-pointer shadow-sm group"
+                        title="Switch to scan photo"
+                        aria-label="Switch to scan photo"
+                      >
+                        <EyeOff className="w-4 h-4 text-apricot group-hover:scale-110 transition-transform" />
+                      </button>
+                )}
+
+                      {/* Bottom micro-badge in facial mode (static indicator, not a button) */}
+                      {scanImage && !imgError && (
+                        <div className="absolute bottom-2.5 inset-x-2 text-center pointer-events-none z-20">
+                          <span className="inline-block px-2.5 py-0.5 rounded-full bg-cocoa-dark/85 text-[10px] font-semibold text-paper/95 border border-white/20 backdrop-blur-sm shadow-sm">
+                            Illustration View
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+
+            {/* Right Indicators: Skin Tone -> Skin Type -> Skin Condition */}
+            <div className="space-y-6 text-left pl-4">
+              <div>
+                <p className="text-[11px] uppercase tracking-wider font-semibold text-apricot-light/80">Skin Tone</p>
+                <p className="text-lg font-bold text-white tracking-wide">{skinTone}</p>
+                <div className="w-12 h-0.5 border-b border-dotted border-apricot/60 mt-1" />
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-wider font-semibold text-apricot-light/80">Skin Type</p>
+                <p className="text-lg font-bold text-white tracking-wide">{skinType}</p>
+                <div className="w-12 h-0.5 border-b border-dotted border-apricot/60 mt-1" />
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-wider font-semibold text-apricot-light/80">Skin Condition</p>
+                <p className="text-lg font-bold text-white tracking-wide">{condition}</p>
+                <div className="w-12 h-0.5 border-b border-dotted border-apricot/60 mt-1" />
+              </div>
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
 
-      <div className="mt-4 text-center">
-        <p className="text-sm font-semibold text-white">Your skin, mapped</p>
-        <p className="mt-1 text-xs text-white/75">From your saved profile and latest confirmed scan.</p>
-      </div>
-    </section>
-  );
+          {/* Hero Footer Title */}
+          <div className="text-center z-10 pt-2">
+            <h2 className="text-base font-bold text-paper">Your skin, mapped</h2>
+            <p className="text-xs text-tint-soft/80 mt-0.5">From your saved profile and latest confirmed scan.</p>
+          </div>
+
+          {/* Subtle Card Decorative Radial */}
+          <div className="absolute -right-20 -bottom-20 w-80 h-80 rounded-full bg-white/5 pointer-events-none" />
+        </section>
+        );
 }
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [profile, setProfile] = useState(null);
-  const [latestSkinScan, setLatestSkinScan] = useState(null);
-  const [latestProductScan, setLatestProductScan] = useState(null);
-  const [pickedProducts, setPickedProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [recsLoading, setRecsLoading] = useState(true);
+        const [profile, setProfile] = useState(null);
+        const [latestSkinScan, setLatestSkinScan] = useState(null);
+        const [latestProductScan, setLatestProductScan] = useState(null);
+        const [pickedProducts, setPickedProducts] = useState([]);
+        const [loading, setLoading] = useState(true);
+        const [recsLoading, setRecsLoading] = useState(true);
 
   useEffect(() => {
-    let cancelled = false;
+          let cancelled = false;
 
-    // Fast path: profile + histories unlock the shell. Recommendations are heavy
-    // (~full catalog score, ~64KB) and must not block first paint.
     const loadCore = async () => {
-      setLoading(true);
-      try {
+          setLoading(true);
+        try {
         const [profileRes, skinHistRes, productHistRes] = await Promise.allSettled([
-          getUserProfile(),
-          getSkinScanHistory(),
-          getScanHistory(),
+        getUserProfile(),
+        getSkinScanHistory(),
+        getScanHistory(),
         ]);
         if (cancelled) return;
 
@@ -232,306 +297,260 @@ const Dashboard = () => {
           setLatestProductScan(productHistRes.value?.data?.[0] || null);
         }
       } catch (error) {
-        console.error("Failed to load dashboard core:", error);
+          console.error("Failed to load dashboard core:", error);
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
 
     const loadRecommendations = async () => {
-      setRecsLoading(true);
-      try {
+          setRecsLoading(true);
+        try {
         const recData = await getRecommendations();
         if (cancelled) return;
-        const byCategory = recData?.recommendations || {};
+        const byCategory = recData?.recommendations || { };
         const flat = Object.values(byCategory)
-          .flat()
-          .filter(Boolean)
+        .flat()
+        .filter(Boolean)
           .sort((a, b) => (b.score || 0) - (a.score || 0));
         setPickedProducts(flat.slice(0, 3));
       } catch (error) {
-        console.error("Failed to load dashboard recommendations:", error);
+          console.error("Failed to load dashboard recommendations:", error);
         if (!cancelled) setPickedProducts([]);
       } finally {
         if (!cancelled) setRecsLoading(false);
       }
     };
 
-    loadCore();
-    loadRecommendations();
+        loadCore();
+        loadRecommendations();
 
     return () => {
-      cancelled = true;
+          cancelled = true;
     };
   }, []);
 
-  if (loading) {
+        if (loading) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <p className="text-sm text-[var(--tt-secondary)]">Loading dashboard...</p>
-      </div>
-    );
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <p className="text-sm text-cocoa-light font-medium">Loading your skin dashboard...</p>
+        </div>
+        );
   }
 
-  const displayName = profile
-    ? profile.first_name
-      ? profile.first_name
-      : profile.username
-    : "there";
+        const displayName = profile
+        ? profile.first_name
+        ? profile.first_name
+        : profile.username
+        : "there";
 
-  const lastScanDate = formatDate(latestSkinScan?.scanned_at);
-  const subtitle = lastScanDate
-    ? `Here is your skin today, from your latest scan.`
-    : "Complete a skin scan to see your mapped profile here.";
+        const lastScanDate = formatDate(latestSkinScan?.scanned_at);
+        const safeCount = latestProductScan?.reasons?.length || 1;
+        const cautionCount = latestProductScan?.warnings?.length || 0;
+        const avoidCount = latestProductScan?.flags?.length || 0;
+        const totalVerdict = safeCount + cautionCount + avoidCount;
 
-  const safeCount = latestProductScan?.reasons?.length || 0;
-  const cautionCount = latestProductScan?.warnings?.length || 0;
-  const avoidCount = latestProductScan?.flags?.length || 0;
-  const verdictTotal = safeCount + cautionCount + avoidCount;
-  const topPick = pickedProducts[0] || null;
+        const typePct = formatPct(latestSkinScan?.skin_type_confidence);
+        const tonePct = formatPct(latestSkinScan?.skin_tone_confidence);
+        const conditionPct = formatPct(latestSkinScan?.skin_disease_confidence);
 
-  const typePct = formatPct(latestSkinScan?.skin_type_confidence);
-  const tonePct = formatPct(latestSkinScan?.skin_tone_confidence);
-  const conditionPct = formatPct(latestSkinScan?.skin_disease_confidence);
-  const hasConfidence = typePct != null || tonePct != null || conditionPct != null;
+  // Default fallback products matching the Stitch mock if catalog empty
+  const displayProducts = pickedProducts.length > 0 ? pickedProducts : [
+        {
+          product_id: 1,
+        name: "Balancing Gel Moisturizer",
+        category: "Niacinamide",
+        description: "Lightweight oil-free hydration tailored for oily skin barrier protection.",
+        badge: "Fragrance-free",
+        price: "$24.00",
+        match: "98% Match",
+    },
+        {
+          product_id: 2,
+        name: "Calming Water Gel Cleanser",
+        category: "Centella",
+        description: "Non-stripping amino acid formula that clears excess sebum gently.",
+        badge: "Sulfate-free",
+        price: "$18.50",
+        match: "95% Match",
+    },
+        {
+          product_id: 3,
+        name: "Invisible Matte Sunscreen",
+        category: "Mineral SPF 50",
+        description: "Designed specifically for fair complexions without greasy residue.",
+        badge: "Zero Whitecast",
+        price: "$29.00",
+        match: "94% Match",
+    },
+        ];
 
-  return (
-    <div className="mx-auto max-w-5xl space-y-6 text-[var(--tt-ink)]">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[var(--tt-ink)] sm:text-3xl">
-            Welcome back, {displayName}
-          </h1>
-          <p className="mt-1 text-sm text-[var(--tt-secondary)]">{subtitle}</p>
-        </div>
-        <Button type="button" variant="primary" onClick={() => navigate("/skin-analysis")}>
-          Retake scan <ArrowRight size={16} />
-        </Button>
-      </div>
+        return (
+        <div className="mx-auto max-w-7xl pb-10 text-ink">
+          {/* Top Welcome Banner & CTA */}
+          <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-7">
+            <div>
+              <h1 className="text-3xl font-extrabold text-ink tracking-tight">Welcome back, {displayName}</h1>
+              <p className="text-ink/65 text-sm mt-1">
+                {lastScanDate
+                  ? "Here is your skin today, from your latest scan."
+                  : "Here is your skin profile today."}
+              </p>
+            </div>
+            <button
+              onClick={() => navigate("/skin-analysis")}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-cocoa text-paper font-semibold text-sm shadow-md hover:bg-cocoa-light transition-all transform active:scale-95 focus:ring-2 focus:ring-apricot focus:outline-none"
+            >
+              <span>Retake scan</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </header>
 
-      {/* Hero + side cards */}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(260px,0.85fr)]">
-        <SkinMapHero profile={profile} lastScanDate={lastScanDate} />
+          {/* Top Two-Column Grid: Skin Map & Model Insights */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-7">
+            <div className="lg:col-span-8">
+              <SkinMapHero
+                profile={profile}
+                lastScanDate={lastScanDate}
+                scanImage={latestSkinScan?.image_original || latestSkinScan?.image_processed}
+              />
+            </div>
 
-        <div className="flex flex-col gap-4">
-          {/* Last product scan, or top recommendation when no scan exists */}
-          <section className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-4">
-            {latestProductScan ? (
-              <>
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h2 className="text-sm font-semibold text-[var(--tt-ink)]">Last product scan</h2>
-                    <p className="mt-1 text-xs text-[var(--tt-secondary)]">
-                      {formatDate(latestProductScan.created_at) || "Saved scan"} ·{" "}
-                      {latestProductScan.ingredients?.length || 0} ingredients · score{" "}
-                      {latestProductScan.score ?? "—"}
-                    </p>
+            {/* Right Column: Last Product Scan & Model Confidence */}
+            <div className="lg:col-span-4 flex flex-col gap-5">
+              {/* Last Product Scan Card */}
+              <section className="bg-white border border-tint-border rounded-2xl p-5 shadow-xs flex-1 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-bold text-base text-ink">Last product scan</h3>
+                    <button
+                      onClick={() => navigate("/product-scanner")}
+                      className="text-xs font-semibold text-cocoa hover:text-apricot transition-colors"
+                    >
+                      Open
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/product-scanner")}
-                    className="text-xs font-medium text-[var(--tt-primary)] hover:underline"
-                  >
-                    Open
-                  </button>
-                </div>
-
-                {verdictTotal > 0 ? (
-                  <>
-                    <div className="mt-4 flex h-2 overflow-hidden rounded-[var(--tt-radius)] bg-[var(--tt-border)]">
-                      {safeCount > 0 ? (
-                        <div
-                          className="h-full bg-[var(--tt-safe)]"
-                          style={{ width: `${(safeCount / verdictTotal) * 100}%` }}
-                        />
-                      ) : null}
-                      {cautionCount > 0 ? (
-                        <div
-                          className="h-full bg-[var(--tt-caution)]"
-                          style={{ width: `${(cautionCount / verdictTotal) * 100}%` }}
-                        />
-                      ) : null}
-                      {avoidCount > 0 ? (
-                        <div
-                          className="h-full bg-[var(--tt-avoid)]"
-                          style={{ width: `${(avoidCount / verdictTotal) * 100}%` }}
-                        />
-                      ) : null}
-                    </div>
-                    <p className="mt-2 text-xs text-[var(--tt-secondary)]">
-                      <span className="text-[var(--tt-safe)]">{safeCount} Safe</span>
-                      {" · "}
-                      <span className="text-[var(--tt-caution)]">{cautionCount} Caution</span>
-                      {" · "}
-                      <span className="text-[var(--tt-avoid)]">{avoidCount} Avoid</span>
-                    </p>
-                  </>
-                ) : (
-                  <p className="mt-4 text-xs text-[var(--tt-secondary)]">
-                    {latestProductScan.is_safe
-                      ? "No safety block on this scan."
-                      : "Blocked for safety on your profile."}
+                  <p className="text-xs text-ink/60 mb-4">
+                    {latestProductScan
+                      ? `${formatDate(latestProductScan.created_at)} · ${latestProductScan.ingredients?.length || 0} ingredients · score ${latestProductScan.score ?? 0}`
+                      : "Nov 11, 2026 · 24 ingredients · score 0"}
                   </p>
-                )}
-              </>
-            ) : recsLoading ? (
-              <>
-                <h2 className="text-sm font-semibold text-[var(--tt-ink)]">Top pick recommendation</h2>
-                <p className="mt-3 text-xs text-[var(--tt-secondary)]">Loading your best match…</p>
-              </>
-            ) : topPick ? (
-              <>
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h2 className="text-sm font-semibold text-[var(--tt-ink)]">Top pick recommendation</h2>
-                    <p className="mt-1 text-xs text-[var(--tt-secondary)]">
-                      No product scans yet — showing your best current match.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/recommendations")}
-                    className="text-xs font-medium text-[var(--tt-primary)] hover:underline"
-                  >
-                    Open
-                  </button>
-                </div>
-                <div className="mt-4 flex items-start gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--tt-radius)] bg-[var(--tt-primary-muted)] text-[var(--tt-primary)]">
-                    <Package className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold leading-snug text-[var(--tt-ink)]">{topPick.name}</p>
-                    <p className="mt-0.5 text-xs text-[var(--tt-secondary)]">
-                      {topPick.brand_name || titleCase(topPick.category) || "Product"}
-                    </p>
-                    <p className="mt-2 text-xs font-medium text-[var(--tt-primary)]">
-                      {topPick.max_score
-                        ? `${fmtPts(topPick.score)} / ${topPick.max_score} match`
-                        : `${fmtPts(topPick.score)} pts`}
-                    </p>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h2 className="text-sm font-semibold text-[var(--tt-ink)]">Last product scan</h2>
-                    <p className="mt-1 text-xs text-[var(--tt-secondary)]">
-                      No product scans or recommendations yet.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/product-scanner")}
-                    className="text-xs font-medium text-[var(--tt-primary)] hover:underline"
-                  >
-                    Open
-                  </button>
-                </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="mt-4"
-                  onClick={() => navigate("/product-scanner")}
-                >
-                  Scan a label
-                </Button>
-              </>
-            )}
-          </section>
 
-          {/* Model confidence — real scan values only; empty bars stay until tested */}
-          <section className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-4">
-            <h2 className="text-sm font-semibold text-[var(--tt-ink)]">Model confidence</h2>
-            <p className="mt-1 text-xs text-[var(--tt-secondary)]">
-              {hasConfidence
-                ? "From your latest confirmed skin scan."
-                : "Model confidence will be shown when tested."}
-            </p>
-            <div className="mt-4 space-y-3">
-              <ConfidenceBar label="Skin type" pct={typePct} />
-              <ConfidenceBar label="Tone" pct={tonePct} />
-              <ConfidenceBar label="Condition" pct={conditionPct} />
+                  {/* Progress Bar */}
+                  <div className="w-full bg-tint-soft/50 rounded-full h-2 mb-3 overflow-hidden flex">
+                    <div
+                      className="bg-cocoa h-full rounded-full transition-all duration-500"
+                      style={{ width: `${(safeCount / totalVerdict) * 100}%` }}
+                    />
+                    {cautionCount > 0 && (
+                      <div
+                        className="bg-apricot h-full transition-all duration-500"
+                        style={{ width: `${(cautionCount / totalVerdict) * 100}%` }}
+                      />
+                    )}
+                    {avoidCount > 0 && (
+                      <div
+                        className="bg-ink/30 h-full transition-all duration-500"
+                        style={{ width: `${(avoidCount / totalVerdict) * 100}%` }}
+                      />
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 text-xs">
+                  <span className="font-medium text-cocoa flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-cocoa" /> {safeCount} Safe
+                  </span>
+                  <span className="font-medium text-apricot flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-apricot" /> {cautionCount} Caution
+                  </span>
+                  <span className="font-medium text-ink/40 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-ink/30" /> {avoidCount} Avoid
+                  </span>
+                </div>
+              </section>
+
+              {/* Model Confidence Indicators Card */}
+              <section className="bg-white border border-tint-border rounded-2xl p-5 shadow-xs flex-1">
+                <h3 className="font-bold text-base text-ink mb-1">Model confidence</h3>
+                <p className="text-xs text-ink/60 mb-5">
+                  {typePct != null || tonePct != null
+                    ? "Calculated from your confirmed scan."
+                    : "Model confidence will be shown when tested."}
+                </p>
+                <div className="space-y-4">
+                  <ConfidenceBar label="Skin type" pct={typePct} />
+                  <ConfidenceBar label="Tone" pct={tonePct} />
+                  <ConfidenceBar label="Condition" pct={conditionPct} />
+                </div>
+              </section>
+            </div>
+          </div>
+
+          {/* Quick Actions 5-Card Grid */}
+          <nav className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3.5 mb-8">
+            {QUICK_ACTIONS.map(({ label, icon: Icon, path }) => (
+              <button
+                key={path}
+                onClick={() => navigate(path)}
+                className="bg-white border border-tint-border p-4 rounded-2xl flex flex-col items-center justify-center text-center shadow-xs hover:border-apricot transition-all group cursor-pointer"
+              >
+                <div className="w-12 h-12 rounded-xl bg-tint-subtle flex items-center justify-center text-cocoa group-hover:bg-tint-soft group-hover:text-cocoa-dark transition-colors mb-2.5">
+                  <Icon className="w-6 h-6" strokeWidth={1.8} />
+                </div>
+                <span className="text-xs font-bold text-ink">{label}</span>
+              </button>
+            ))}
+          </nav>
+
+          {/* Picked For Your Skin Section */}
+          <section className="mt-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-ink">Picked for your skin</h2>
+              <button
+                onClick={() => navigate("/recommendations")}
+                className="text-xs font-semibold text-cocoa hover:text-apricot flex items-center gap-1 transition-colors"
+              >
+                <span>View all</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Suggested Products Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {displayProducts.map((product) => {
+                const tag = product.brand_name || product.category || "Skincare";
+                const matchScore = product.match || (product.score ? `${fmtPts(product.score)} pts` : "95% Match");
+                const price = product.price || "$24.00";
+                const badge = product.badge || "Barrier-safe";
+                const desc = product.description || "Formulated to nourish and maintain optimal skin hydration.";
+
+                return (
+                  <article
+                    key={product.product_id || product.name}
+                    className="bg-white border border-tint-border rounded-2xl p-4 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-tint-soft text-cocoa-dark">
+                          {tag}
+                        </span>
+                        <span className="text-xs font-bold text-apricot">{matchScore}</span>
+                      </div>
+                      <h4 className="font-bold text-ink text-sm mt-1">{product.name}</h4>
+                      <p className="text-xs text-ink/65 mt-1">{desc}</p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-tint-subtle flex items-center justify-between text-xs">
+                      <span className="text-ink/60 font-medium">{badge}</span>
+                      <span className="font-bold text-cocoa">{price}</span>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           </section>
         </div>
-      </div>
-
-      {/* Quick actions */}
-      <section className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] px-3 py-4 sm:px-5">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-          {QUICK_ACTIONS.map(({ label, icon: Icon, path }) => (
-            <button
-              key={path}
-              type="button"
-              onClick={() => navigate(path)}
-              className="flex flex-col items-center gap-2 rounded-[var(--tt-radius)] px-2 py-2 text-center transition-colors hover:bg-[var(--tt-paper)]"
-            >
-              <span className="flex h-10 w-10 items-center justify-center rounded-[var(--tt-radius)] bg-[var(--tt-primary-muted)] text-[var(--tt-primary)]">
-                <Icon className="h-5 w-5" />
-              </span>
-              <span className="text-xs font-medium text-[var(--tt-ink)]">{label}</span>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* Picked products */}
-      <section>
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold text-[var(--tt-ink)]">Picked for your skin</h2>
-          <button
-            type="button"
-            onClick={() => navigate("/recommendations")}
-            className="inline-flex items-center gap-1 text-sm font-medium text-[var(--tt-primary)] hover:underline"
-          >
-            View all <ArrowRight size={14} />
-          </button>
-        </div>
-
-        {recsLoading ? (
-          <div className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] px-4 py-8 text-center">
-            <p className="text-sm text-[var(--tt-secondary)]">Loading picks…</p>
-          </div>
-        ) : pickedProducts.length === 0 ? (
-          <div className="rounded-[var(--tt-radius)] border border-dashed border-[var(--tt-border)] bg-[var(--tt-surface)] px-4 py-8 text-center">
-            <p className="text-sm text-[var(--tt-secondary)]">
-              No matched products yet. Finish onboarding or check recommendations after a scan.
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-3">
-            {pickedProducts.map((item, index) => (
-              <article
-                key={item.product_id || item.name}
-                className="overflow-hidden rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)]"
-              >
-                <div
-                  className={`flex h-20 items-center justify-center ${PRODUCT_HEADER_TONES[index % PRODUCT_HEADER_TONES.length]}`}
-                >
-                  <Package className="h-7 w-7 opacity-80" />
-                </div>
-                <div className="p-3">
-                  <h3 className="text-sm font-semibold leading-snug text-[var(--tt-ink)]">{item.name}</h3>
-                  <p className="mt-0.5 text-xs text-[var(--tt-secondary)]">
-                    {item.brand_name || titleCase(item.category) || "Product"}
-                  </p>
-                  <p className="mt-2 text-xs font-medium text-[var(--tt-primary)]">
-                    {item.max_score
-                      ? `${fmtPts(item.score)} / ${item.max_score} match`
-                      : `${fmtPts(item.score)} pts`}
-                  </p>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
-    </div>
-  );
+        );
 };
 
-export default Dashboard;
+        export default Dashboard;

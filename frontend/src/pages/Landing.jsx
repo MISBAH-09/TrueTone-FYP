@@ -1,7 +1,9 @@
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import TrueToneLogo from "../components/TrueToneLogo";
-import { Button, ReportPanel, Verdict, ScoreLabel, DataTable } from "../components/ui";
+import HeroDermalScanner from "../components/HeroDermalScanner";
+import HowItWorks from "../components/HowItWorks/HowItWorks";
+import { Button, ReportPanel } from "../components/ui";
 
 const features = [
   {
@@ -26,35 +28,6 @@ const features = [
   },
 ];
 
-const steps = [
-  {
-    step: "01",
-    title: "Upload & Analyze",
-    desc: "Take a photo of your skin. Our CNN model identifies your skin type, tone, and any conditions.",
-  },
-  {
-    step: "02",
-    title: "Scan Products",
-    desc: "Photograph product labels. OCR + NLP extracts ingredients and flags harmful substances.",
-  },
-  {
-    step: "03",
-    title: "Get Recommendations",
-    desc: "Receive safe, personalized product suggestions matched to your unique skin profile.",
-  },
-];
-
-const sampleRows = [
-  { id: 1, name: "Fragrance", note: "Matches allergy on profile.", level: "avoid" },
-  { id: 2, name: "Alcohol denat.", note: "Drying on oily acne skin.", level: "caution" },
-  { id: 3, name: "Niacinamide", note: "Suits oily, acne-prone skin.", level: "safe" },
-];
-
-const sampleColumns = [
-  { key: "name", header: "Ingredient" },
-  { key: "verdict", header: "Verdict", render: (row) => <Verdict level={row.level} /> },
-  { key: "note", header: "Note" },
-];
 
 const Landing = () => {
   return (
@@ -81,53 +54,61 @@ const Landing = () => {
         </div>
       </nav>
 
-      <section className="mx-auto max-w-6xl px-4 pb-16 pt-24 sm:px-6 md:pb-20 md:pt-28">
-        <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-12">
-          <div>
-            <p className="text-sm font-medium text-[var(--tt-primary)]">TrueTone</p>
-            <h1 className="mt-2 text-4xl font-semibold tracking-tight text-[var(--tt-ink)] sm:text-5xl">
-              Know what belongs on your skin
+      <section className="relative mx-auto max-w-7xl px-4 pt-12 sm:pt-14 md:pt-14 pb-4 sm:pb-6 md:pb-8 overflow-hidden">
+        {/* Soft atmospheric background illumination */}
+        <div className="absolute top-1/4 left-1/4 w-[420px] h-[420px] rounded-full bg-apricot/15 filter blur-3xl pointer-events-none -z-10 animate-pulse duration-1000" />
+        <div className="absolute top-10 right-10 w-[450px] h-[450px] rounded-full bg-tint-soft/60 filter blur-3xl pointer-events-none -z-10" />
+
+        <div className="grid items-center gap-6 lg:grid-cols-12 lg:gap-8 relative">
+          {/* Left Column: Stitched Typography & CTAs */}
+          <div className="lg:col-span-6 z-10">
+            {/* Eyebrow badge */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/80 border border-tint-border text-xs font-semibold text-cocoa tracking-wide mb-3 shadow-xs backdrop-blur-sm">
+              <span className="w-2 h-2 rounded-full bg-apricot animate-pulse" />
+              <span>TrueTone: Skin analysis and product recommendation system</span>
+            </div>
+
+            {/* Main Headline */}
+            <h1 className="text-4xl sm:text-5xl lg:text-[52px] font-extrabold tracking-tight text-ink leading-[1.12]">
+              Know what belongs <br className="hidden sm:inline" />
+              on{" "}
+              <span className="text-cocoa relative inline-block">
+                your skin
+                <span className="absolute -bottom-1 left-0 right-0 h-1.5 bg-apricot/30 rounded-full" />
+              </span>
+              .
             </h1>
-            <p className="mt-4 max-w-lg text-base leading-7 text-[var(--tt-secondary)]">
+
+            {/* Subtitle */}
+            <p className="mt-4 text-base sm:text-lg leading-relaxed text-ink/75 max-w-lg font-normal">
               TrueTone analyzes your skin with CNN models, reads product labels, and recommends
               products matched to your profile, allergies, and conditions.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
+
+            {/* Action buttons */}
+            <div className="mt-6 sm:mt-7 flex flex-wrap items-center gap-3">
               <Link to="/auth?signup=true">
-                <Button variant="primary" className="px-5">
-                  Start Free Analysis
+                <button className="inline-flex items-center justify-center gap-2 px-7 py-3 rounded-full bg-cocoa text-paper font-semibold text-sm shadow-md hover:bg-cocoa-light hover:shadow-xl transition-all transform active:scale-95 cursor-pointer">
+                  <span>Start Free Analysis</span>
                   <ArrowRight className="h-4 w-4" />
-                </Button>
+                </button>
               </Link>
               <a href="#features">
-                <Button variant="secondary" className="px-5">
-                  Learn More
-                </Button>
+                <button className="inline-flex items-center justify-center gap-2 px-7 py-3 rounded-full bg-white/80 hover:bg-white text-cocoa-dark border border-tint-border font-semibold text-sm shadow-xs hover:shadow-md transition-all cursor-pointer backdrop-blur-sm">
+                  <span>Explore Technology</span>
+                </button>
               </a>
             </div>
           </div>
 
-          <ReportPanel className="self-start">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="text-sm font-semibold text-[var(--tt-ink)]">Acnedol Anti acne Serum 15ml</p>
-                <p className="text-xs text-[var(--tt-secondary)]">Sample scan report preview</p>
-              </div>
-              <span className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-paper)] px-2 py-1 text-xs font-medium text-[var(--tt-secondary)]">
-                Sample
-              </span>
-            </div>
-            <div className="mb-4 flex flex-wrap gap-6 border-b border-[var(--tt-border)] pb-4">
-              <ScoreLabel value="0.61" label="Profile score" rangeText="0 to 1" size="lg" />
-              <div className="text-sm text-[var(--tt-secondary)]">
-                <p className="font-medium text-[var(--tt-ink)]">Profile used in sample</p>
-                <p className="mt-1">Oily · Medium · Common acne · Fragrance allergy</p>
-              </div>
-            </div>
-            <DataTable columns={sampleColumns} rows={sampleRows} />
-          </ReportPanel>
+          {/* Right Column: Seamless 5-Frame Motion Graphics (Moved up slightly without going behind header) */}
+          <div className="lg:col-span-6 flex justify-center items-center z-10 -translate-y-5 sm:-translate-y-6">
+            <HeroDermalScanner />
+          </div>
         </div>
       </section>
+
+      <HowItWorks />
 
       <section id="features" className="border-t border-[var(--tt-border)] bg-[var(--tt-paper)] py-16 sm:py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
@@ -140,25 +121,6 @@ const Landing = () => {
             {features.map((feature) => (
               <ReportPanel key={feature.title} title={feature.title}>
                 <p className="text-sm leading-6 text-[var(--tt-secondary)]">{feature.description}</p>
-              </ReportPanel>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="how-it-works" className="border-t border-[var(--tt-border)] py-16 sm:py-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <PageSection
-            eyebrow="How TrueTone Works"
-            title="Three steps to safer skincare decisions"
-            subtitle="Built for accuracy and safety: identify concerns, scan products, then get matched recommendations."
-          />
-          <div className="mt-8 grid gap-3 md:grid-cols-3">
-            {steps.map((item) => (
-              <ReportPanel key={item.step}>
-                <p className="tt-mono text-sm font-medium text-[var(--tt-primary)]">{item.step}</p>
-                <h3 className="mt-2 text-base font-semibold text-[var(--tt-ink)]">{item.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-[var(--tt-secondary)]">{item.desc}</p>
               </ReportPanel>
             ))}
           </div>

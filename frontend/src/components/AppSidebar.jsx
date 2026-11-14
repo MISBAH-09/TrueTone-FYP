@@ -57,18 +57,19 @@ const AppSidebar = () => {
   const linkClass = (path) => {
     const isActive = isOn(path);
     return [
-      "flex items-center gap-3 rounded-[var(--tt-radius)] px-3 py-2 text-sm font-medium transition-colors",
+      "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
       isActive
-        ? "border-l-[3px] border-[var(--tt-primary)] bg-[var(--tt-primary-muted)] pl-[9px] text-[var(--tt-ink)]"
-        : "border-l-[3px] border-transparent text-[var(--tt-secondary)] hover:bg-[var(--tt-paper)] hover:text-[var(--tt-ink)]",
+        ? "bg-tint-soft text-cocoa-dark font-semibold shadow-xs"
+        : "text-ink/70 hover:text-cocoa hover:bg-tint-subtle",
     ].join(" ");
   };
 
   const renderDesktopLink = (item) => {
     const Icon = item.icon;
+    const isActive = location.pathname === item.path;
     return (
       <Link key={item.path} to={item.path} className={linkClass(item.path)}>
-        <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+        <Icon className={`h-5 w-5 shrink-0 transition-colors ${isActive ? "text-cocoa" : "text-ink/60"}`} strokeWidth={1.8} />
         <span>{item.title}</span>
       </Link>
     );
@@ -80,28 +81,28 @@ const AppSidebar = () => {
 
   return (
     <>
-      {/* Desktop Clinical sidebar — visible from 768px */}
-      <aside className="fixed left-0 top-0 z-40 hidden h-full w-60 flex-col border-r border-[var(--tt-border)] bg-[var(--tt-surface)] md:flex">
-        <div className="flex items-center border-b border-[var(--tt-border)] px-4 py-4">
+      {/* Desktop sidebar — visible from 768px */}
+      <aside className="fixed left-0 top-0 z-40 hidden h-full w-64 flex-col border-r border-tint-border bg-white md:flex">
+        <div className="flex items-center px-4 py-5 mb-2">
           <TrueToneLogo />
         </div>
 
-        <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3">
           {navItems.map(renderDesktopLink)}
 
-          <div className="mt-3 space-y-0.5 border-t border-[var(--tt-border)] pt-3">
-            <p className="px-3 pb-1 text-xs font-medium text-[var(--tt-secondary)]">Evaluation Metrics</p>
+          <div className="mt-5 space-y-1 border-t border-tint-border/70 pt-4">
+            <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-cocoa/50">Evaluation Metrics</p>
             {examinerItems.map(renderDesktopLink)}
           </div>
         </nav>
 
-        <div className="border-t border-[var(--tt-border)] p-3">
+        <div className="border-t border-tint-border/70 p-3">
           <button
             type="button"
             onClick={handleSignOut}
-            className="flex w-full items-center gap-3 rounded-[var(--tt-radius)] px-3 py-2 text-sm font-medium text-[var(--tt-secondary)] hover:bg-[var(--tt-paper)] hover:text-[var(--tt-ink)]"
+            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-ink/60 hover:bg-tint-subtle hover:text-cocoa transition-colors"
           >
-            <LogOut className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+            <LogOut className="h-4 w-4 shrink-0" strokeWidth={1.8} />
             <span>Sign Out</span>
           </button>
         </div>

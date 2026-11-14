@@ -9,16 +9,18 @@ const TrueToneLogo = ({ variant = "ink", to = "/", className = "" }) => {
   return (
     <Link
       to={to}
-      className={`inline-flex items-center gap-2 ${onPrimary ? "text-white" : "text-[var(--tt-ink)]"} ${className}`}
+      className={`inline-flex items-center gap-3 ${className}`}
     >
       <span
-        className={`flex h-8 w-8 items-center justify-center rounded-[var(--tt-radius)] text-sm font-bold ${
-          onPrimary ? "bg-white/15 text-white" : "bg-[var(--tt-primary)] text-white"
+        className={`flex h-9 w-9 items-center justify-center rounded-xl text-lg font-bold shadow-sm ${
+          onPrimary ? "bg-white/20 text-white" : "bg-cocoa text-paper"
         }`}
       >
         T
       </span>
-      <span className="text-lg font-semibold tracking-tight">TrueTone</span>
+      <span className={`text-xl font-bold tracking-tight ${onPrimary ? "text-white" : "text-cocoa-dark"}`}>
+        TrueTone
+      </span>
     </Link>
   );
 };

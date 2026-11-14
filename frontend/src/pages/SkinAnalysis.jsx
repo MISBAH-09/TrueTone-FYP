@@ -226,36 +226,9 @@ const SkinAnalysis = () => {
 
       setStage("results");
 
-      // Disease checks wait for an explicit "this is my photo" answer
+      // All modes now wait for an explicit "Save to my profile" click
       // before anything is written to the profile or Skin Tracking.
-      if (selectedMode.key === "skin_disease") {
-        setSaveState("confirming");
-        return;
-      }
-
-      // Auto-update user profile in background if logged in
-      const token = localStorage.getItem("truetone_token");
-      if (token) {
-        const updates = {};
-        if (resultsData.predictions?.skin_type?.label)
-          updates.skin_type = resultsData.predictions.skin_type.label;
-        if (resultsData.predictions?.skin_tone?.label)
-          updates.skin_tone = resultsData.predictions.skin_tone.label;
-                if (resultsData.predictions?.skin_disease) {
-          const d = resultsData.predictions.skin_disease;
-          if (d.disease_detected) updates.skin_disease = d.label;
-          else if (d.is_confident && d.is_healthy) updates.skin_disease = "";
-          // unclear result: leave the saved condition as it is
-        }
-
-        if (Object.keys(updates).length > 0) {
-          try {
-            await updateUser(updates);
-          } catch (updateErr) {
-            console.error("Profile update failed:", updateErr);
-          }
-        }
-      }
+      setSaveState("idle");
     } catch (err) {
       console.error("Analysis API error:", err);
       const backendErrorData = err.response?.data?.data;
@@ -578,7 +551,7 @@ const SkinAnalysis = () => {
                 {selectedMode?.label}
               </span>
               <div className="flex items-center gap-2">
-                {selectedMode?.key === "all" && saveState === "idle" && (
+                {saveState === "idle" && (
                   <button
                     onClick={() => setSaveState("confirming")}
                     className="inline-flex h-[var(--tt-control-h)] items-center gap-2 rounded-[var(--tt-radius)] bg-[var(--tt-primary)] px-3 text-sm font-medium text-white transition-colors hover:bg-[var(--tt-primary-hover)]"

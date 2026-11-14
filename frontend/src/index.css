@@ -45,6 +45,79 @@
   --radius-2xl: 0.5rem;
   --radius-3xl: 0.75rem;
 
+@theme {
+  --color-paper: #F8F0EA;
+  --color-paper-alt: #F4ECE4;
+  --color-ink: #2A1D18;
+  --color-cocoa: #5A3A2E;
+  --color-cocoa-dark: #3E271F;
+  --color-cocoa-deep: #2F1E17;
+  --color-cocoa-light: #724D3E;
+  --color-apricot: #E0925F;
+  --color-apricot-light: #F5C2A3;
+  --color-apricot-glow: #FF9E64;
+  --color-tint-subtle: #F4ECE4;
+  --color-tint-soft: #EAD7C8;
+  --color-tint-border: #EDE1D6;
+  --color-badge: #EAD7C8;
+  --color-status-avoid: #B91C1C;
+  --color-status-caution: #D97706;
+  --color-status-safe: #5A3A2E;
+  --shadow-browser: 0 24px 48px -12px rgba(62,39,31,0.08), 0 4px 16px -2px rgba(62,39,31,0.04);
+  --shadow-chip: 0 8px 20px -4px rgba(62,39,31,0.12), 0 2px 6px -1px rgba(62,39,31,0.06);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F8F0EA;
+}
+::-webkit-scrollbar-thumb {
+  background: #EAD7C8;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #5A3A2E;
+}
+
+/* Face map and diagnostic node pulse */
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+.glow-dot {
+  animation: pulse-subtle 3s infinite ease-in-out;
+  box-shadow: 0 0 10px rgba(224, 146, 95, 0.7);
+}
+
+/* User actual photo diagnostic scan beam (top to bottom) */
+@keyframes tt-photo-scan-beam {
+  0% {
+    top: 2%;
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    top: 98%;
+    opacity: 0;
+  }
+}
+.tt-photo-scan-beam {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  animation: tt-photo-scan-beam 3.5s ease-in-out infinite;
+}
+
 /* Self-hosted IBM Plex — offline-safe for demos */
 @font-face {
   font-family: "IBM Plex Sans";
@@ -90,23 +163,36 @@
 }
 
 :root {
-  /* Clinical palette */
-  --tt-paper: #f8fafc;
-  --tt-paper-warm: #f7f5f0;
-  --tt-surface: #ffffff;
-  --tt-ink: #0f172a;
-  --tt-secondary: #475569;
-  --tt-border: #e2e8f0;
-  --tt-primary: #0f766e;
-  --tt-primary-hover: #0d9488;
-  --tt-primary-muted: #ccfbf1;
-  --tt-avoid: #b91c1c;
-  --tt-caution: #b45309;
-  --tt-safe: #047857;
-  --tt-radius: 6px;
-  --tt-control-h: 36px;
-  --tt-font: "IBM Plex Sans", system-ui, sans-serif;
-  --tt-mono: "IBM Plex Mono", ui-monospace, monospace;
+  /* Humanistic Cocoa, Apricot & Warm Paper Palette */
+  --tt-paper: #F8F0EA;
+  --tt-paper-warm: #F4ECE4;
+  --tt-surface: #FFFFFF;
+  --tt-ink: #2A1D18;
+  --tt-secondary: #724D3E;
+  --tt-border: #EDE1D6;
+  --tt-primary: #5A3A2E;
+  --tt-primary-hover: #3E271F;
+  --tt-primary-muted: #EAD7C8;
+  --tt-cocoa: #5A3A2E;
+  --tt-cocoa-dark: #3E271F;
+  --tt-cocoa-deep: #2F1E17;
+  --tt-cocoa-light: #724D3E;
+  --tt-apricot: #E0925F;
+  --tt-apricot-light: #F5C2A3;
+  --tt-apricot-glow: #FF9E64;
+  --tt-tint-subtle: #F4ECE4;
+  --tt-tint-soft: #EAD7C8;
+  --tt-tint-border: #EDE1D6;
+  --tt-avoid: #B91C1C;
+  --tt-caution: #D97706;
+  --tt-safe: #5A3A2E;
+  --tt-radius: 12px;
+  --tt-control-h: 38px;
+  --tt-font: "DM Sans", "Inter", "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --tt-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+  --tt-serif: "Fraunces", Georgia, serif;
+  --tt-badge: #EAD7C8;
+  --tt-paper-alt: #F4ECE4;
   --tt-bp-mobile: 768px;
 
   font-family: var(--tt-font);
@@ -117,6 +203,10 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
@@ -153,6 +243,10 @@ a {
 
 .tt-mono {
   font-family: var(--tt-mono);
+}
+
+.tt-serif {
+  font-family: var(--tt-serif);
 }
 
 .tt-score {
