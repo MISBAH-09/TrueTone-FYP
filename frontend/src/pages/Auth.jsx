@@ -1,7 +1,13 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
-import { signupUser, loginUser } from "../services/user";
+import {
+  getPasswordRecoveryQuestion,
+  loginUser,
+  RECOVERY_QUESTIONS,
+  resetPassword,
+  signupUser,
+} from "../services/user";
 import TrueToneLogo from "../components/TrueToneLogo";
 import AuthFaceScanPanel from "../components/AuthFaceScanPanel";
 import { Button, Input, InlineAlert } from "../components/ui";
@@ -13,12 +19,17 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [forgotPassword, setForgotPassword] = useState(false);
 
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [recoveryQuestion, setRecoveryQuestion] = useState("");
+  const [recoveryAnswer, setRecoveryAnswer] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,10 +44,13 @@ const Auth = () => {
           password,
           first_name: firstName,
           last_name: lastName,
+          recovery_question: recoveryQuestion,
+          recovery_answer: recoveryAnswer,
         });
 
         setIsSignUp(false);
         setError("");
+        setSuccess("Account created successfully. Please sign in to continue.");
         setPassword("");
         alert("Account created successfully! Please login to continue.");
       } else {
@@ -56,19 +70,95 @@ const Auth = () => {
     }
   };
 
+  const handleRecoverySubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+
+    if (recoveryQuestion && password !== confirmPassword) {
+      setError("The new passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (!recoveryQuestion) {
+        const result = await getPasswordRecoveryQuestion({ username, email });
+        const question = result.data?.question;
+        if (!question) {
+          setError(
+            "We couldn't verify those details or recovery isn't set up for this account. Existing users can configure a recovery question in Profile while signed in.",
+          );
+          return;
+        }
+        setRecoveryQuestion(question);
+        return;
+      }
+
+      const result = await resetPassword({
+        username,
+        email,
+        recovery_question: recoveryQuestion,
+        recovery_answer: recoveryAnswer,
+        password,
+      });
+      setForgotPassword(false);
+      setRecoveryQuestion("");
+      setRecoveryAnswer("");
+      setPassword("");
+      setConfirmPassword("");
+      setSuccess(result.message || "Password updated. Please sign in.");
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to reset the password. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = () => {
+    setForgotPassword(true);
+    setIsSignUp(false);
+    setRecoveryQuestion("");
+    setRecoveryAnswer("");
+    setPassword("");
+    setConfirmPassword("");
+    setError("");
+    setSuccess("");
+  };
+
+  const handleBackToSignIn = () => {
+    setForgotPassword(false);
+    setRecoveryQuestion("");
+    setRecoveryAnswer("");
+    setPassword("");
+    setConfirmPassword("");
+    setError("");
+    setSuccess("");
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-[var(--tt-paper)] md:flex-row">
       <div className="flex flex-1 items-center justify-center px-4 py-10 sm:px-6">
         <div className="w-full max-w-md">
           <TrueToneLogo className="mb-8" />
           <h1 className="text-2xl font-semibold tracking-tight text-[var(--tt-ink)] sm:text-3xl">
-            {isSignUp ? "Create Account" : "Welcome Back"}
+            {forgotPassword ? "Reset your password" : isSignUp ? "Create Account" : "Welcome Back"}
           </h1>
           <p className="mt-2 text-sm text-[var(--tt-secondary)]">
-            {isSignUp
+            {forgotPassword
+              ? recoveryQuestion
+                ? "Answer your recovery question and choose a new password."
+                : "Enter the username and email address associated with your account."
+              : isSignUp
               ? "Start your personalized skincare journey."
               : "Sign in to continue your skincare journey."}
           </p>
+
+          {success ? (
+            <div className="mt-6 rounded-[var(--tt-radius)] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+              {success}
+            </div>
+          ) : null}
 
           {error ? (
             <InlineAlert tone="error" className="mt-6">
@@ -76,6 +166,75 @@ const Auth = () => {
             </InlineAlert>
           ) : null}
 
+          {forgotPassword ? (
+            <form onSubmit={handleRecoverySubmit} className="mt-6 space-y-3">
+              <Input
+                type="text"
+                placeholder="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                autoComplete="username"
+                disabled={Boolean(recoveryQuestion)}
+              />
+              <Input
+                type="email"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                disabled={Boolean(recoveryQuestion)}
+              />
+
+              {recoveryQuestion ? (
+                <>
+                  <p className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-paper-alt)] px-3 py-3 text-sm font-medium text-[var(--tt-ink)]">
+                    {RECOVERY_QUESTIONS.find((item) => item.value === recoveryQuestion)?.label}
+                  </p>
+                  <Input
+                    type="text"
+                    placeholder="Your answer"
+                    value={recoveryAnswer}
+                    onChange={(e) => setRecoveryAnswer(e.target.value)}
+                    required
+                    autoComplete="off"
+                  />
+                  <Input
+                    type="password"
+                    placeholder="New password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    autoComplete="new-password"
+                  />
+                  <Input
+                    type="password"
+                    placeholder="Confirm new password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    autoComplete="new-password"
+                  />
+                  <p className="text-xs text-[var(--tt-secondary)]">
+                    Min 8 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special character
+                  </p>
+                </>
+              ) : null}
+
+              <Button type="submit" variant="primary" disabled={loading} className="w-full">
+                {loading && <Loader2 size={16} className="animate-spin" />}
+                {loading ? "Please wait..." : recoveryQuestion ? "Update Password" : "Continue"}
+              </Button>
+              <button
+                type="button"
+                onClick={handleBackToSignIn}
+                className="w-full py-2 text-sm font-medium text-[var(--tt-primary)] hover:underline"
+              >
+                Back to sign in
+              </button>
+            </form>
+          ) : (
           <form onSubmit={handleSubmit} className="mt-6 space-y-3">
             <Input
               type="text"
@@ -134,9 +293,39 @@ const Auth = () => {
             </div>
 
             {isSignUp && (
-              <p className="text-xs text-[var(--tt-secondary)]">
-                Min 8 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special character
-              </p>
+              <>
+                <p className="text-xs text-[var(--tt-secondary)]">
+                  Min 8 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special character
+                </p>
+                <label className="block space-y-1.5 text-sm font-medium text-[var(--tt-ink)]">
+                  Password recovery question
+                  <select
+                    value={recoveryQuestion}
+                    onChange={(e) => setRecoveryQuestion(e.target.value)}
+                    required
+                    className="h-[var(--tt-control-h)] w-full rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] px-3 text-sm font-normal text-[var(--tt-ink)] focus:border-[var(--tt-primary)] focus:outline-none"
+                  >
+                    <option value="" disabled>Choose a question</option>
+                    {RECOVERY_QUESTIONS.map((question) => (
+                      <option key={question.value} value={question.value}>{question.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block space-y-1.5 text-sm font-medium text-[var(--tt-ink)]">
+                  Your answer
+                  <Input
+                    type="text"
+                    placeholder="Enter a private answer"
+                    value={recoveryAnswer}
+                    onChange={(e) => setRecoveryAnswer(e.target.value)}
+                    required
+                    autoComplete="off"
+                  />
+                </label>
+                <p className="text-xs text-[var(--tt-secondary)]">
+                  Choose an answer that is hard for others to guess. We store it securely, but recovery questions are less secure than email verification.
+                </p>
+              </>
             )}
 
             {!isSignUp && (
@@ -148,7 +337,11 @@ const Auth = () => {
                   />
                   Remember me
                 </label>
-                <button type="button" className="font-medium text-[var(--tt-primary)] hover:underline">
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="font-medium text-[var(--tt-primary)] hover:underline"
+                >
                   Forgot password?
                 </button>
               </div>
@@ -165,19 +358,23 @@ const Auth = () => {
                   : "Sign In"}
             </Button>
           </form>
+          )}
 
           <p className="mt-6 text-center text-sm text-[var(--tt-secondary)]">
-            {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+            {forgotPassword ? "" : isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+            {!forgotPassword && (
             <button
               type="button"
               onClick={() => {
                 setIsSignUp(!isSignUp);
                 setError("");
+                setSuccess("");
               }}
               className="font-medium text-[var(--tt-primary)] hover:underline"
             >
               {isSignUp ? "Sign In" : "Sign Up"}
             </button>
+            )}
           </p>
 
           <p className="mt-4 text-center text-xs text-[var(--tt-secondary)]">

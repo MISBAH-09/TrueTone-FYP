@@ -79,7 +79,7 @@ const Landing = () => (
     </header>
 
     <main>
-      <section className="relative mx-auto grid max-w-7xl items-center gap-2 px-4 pb-8 pt-8 sm:px-6 sm:pt-12 lg:grid-cols-2 lg:gap-8 lg:px-8 lg:pb-16 lg:pt-10">
+      <section className="relative mx-auto grid max-w-7xl items-center gap-2 px-4 pb-8 sm:px-6 sm:pt-12 lg:grid-cols-2 lg:gap-8 lg:px-8 lg:pb-16 lg:pt-10">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute -left-48 top-8 h-96 w-96 rounded-full bg-tint-soft/45 blur-3xl"

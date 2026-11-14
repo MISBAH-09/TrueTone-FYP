@@ -1,5 +1,10 @@
 import { useState, useEffect } from "react";
-import { getUserProfile, updateUser } from "../services/user";
+import {
+  getUserProfile,
+  RECOVERY_QUESTIONS,
+  setupPasswordRecovery,
+  updateUser,
+} from "../services/user";
 import { CheckCircle2, Loader2, Save } from "lucide-react";
 
 const ageBrackets = [
@@ -40,6 +45,7 @@ const selectClass = (active) =>
 const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [recoverySaving, setRecoverySaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -53,6 +59,9 @@ const Profile = () => {
   const [allergiesText, setAllergiesText] = useState("");
   const [isPregnantOrBreastfeeding, setIsPregnantOrBreastfeeding] = useState(false);
   const [currentProductsText, setCurrentProductsText] = useState("");
+  const [recoveryQuestion, setRecoveryQuestion] = useState("");
+  const [recoveryAnswer, setRecoveryAnswer] = useState("");
+  const [recoveryCurrentPassword, setRecoveryCurrentPassword] = useState("");
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -62,6 +71,7 @@ const Profile = () => {
           const p = response.data;
           setUsername(p.username || "");
           setEmail(p.email || "");
+          setRecoveryQuestion(p.recovery_question || "");
           setAgeBracket(p.age_bracket || "");
           setSkinTone(p.skin_tone || "");
           setSkinType(p.skin_type || "");
@@ -110,6 +120,32 @@ const Profile = () => {
       setError(err.response?.data?.message || "Failed to update profile.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleRecoverySave = async (e) => {
+    e.preventDefault();
+    setRecoverySaving(true);
+    setError("");
+    setSuccess("");
+    try {
+      const response = await setupPasswordRecovery({
+        current_password: recoveryCurrentPassword,
+        recovery_question: recoveryQuestion,
+        recovery_answer: recoveryAnswer,
+      });
+      if (response.success) {
+        setRecoveryQuestion(response.data.recovery_question);
+        setRecoveryAnswer("");
+        setRecoveryCurrentPassword("");
+        setSuccess("Password recovery question updated.");
+      } else {
+        setError(response.message || "Failed to update password recovery.");
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to update password recovery.");
+    } finally {
+      setRecoverySaving(false);
     }
   };
 
@@ -375,6 +411,69 @@ const Profile = () => {
           </button>
         </div>
       </form>
+
+      <section className="space-y-4 border-t border-[var(--tt-border)] pt-6">
+        <div>
+          <h2 className="text-lg font-semibold text-[var(--tt-ink)]">Password Recovery</h2>
+          <p className="text-sm text-[var(--tt-secondary)]">
+            {recoveryQuestion
+              ? "Update your recovery question or answer. Your current password is required."
+              : "Set a recovery question for this account. Your current password is required."}
+          </p>
+        </div>
+        <form onSubmit={handleRecoverySave} className="grid gap-3 sm:grid-cols-2">
+          <label className="block space-y-1.5 text-sm font-medium text-[var(--tt-ink)]">
+            Security question
+            <select
+              value={recoveryQuestion}
+              onChange={(e) => setRecoveryQuestion(e.target.value)}
+              required
+              className="h-[var(--tt-control-h)] w-full rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] px-3 text-sm font-normal text-[var(--tt-ink)] focus:border-[var(--tt-primary)] focus:outline-none"
+            >
+              <option value="" disabled>Choose a question</option>
+              {RECOVERY_QUESTIONS.map((question) => (
+                <option key={question.value} value={question.value}>{question.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block space-y-1.5 text-sm font-medium text-[var(--tt-ink)]">
+            Recovery answer
+            <input
+              type="text"
+              value={recoveryAnswer}
+              onChange={(e) => setRecoveryAnswer(e.target.value)}
+              placeholder="Enter a private answer"
+              autoComplete="off"
+              required
+              className="h-[var(--tt-control-h)] w-full rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] px-3 text-sm font-normal text-[var(--tt-ink)] focus:border-[var(--tt-primary)] focus:outline-none"
+            />
+          </label>
+          <label className="block space-y-1.5 text-sm font-medium text-[var(--tt-ink)] sm:col-span-2">
+            Current password
+            <input
+              type="password"
+              value={recoveryCurrentPassword}
+              onChange={(e) => setRecoveryCurrentPassword(e.target.value)}
+              autoComplete="current-password"
+              required
+              className="h-[var(--tt-control-h)] w-full rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] px-3 text-sm font-normal text-[var(--tt-ink)] focus:border-[var(--tt-primary)] focus:outline-none"
+            />
+          </label>
+          <p className="text-xs text-[var(--tt-secondary)] sm:col-span-2">
+            Use an answer others cannot easily guess. Recovery questions are less secure than email verification.
+          </p>
+          <div className="flex justify-end sm:col-span-2">
+            <button
+              type="submit"
+              disabled={recoverySaving}
+              className="inline-flex h-[var(--tt-control-h)] items-center gap-2 rounded-[var(--tt-radius)] bg-[var(--tt-primary)] px-5 text-sm font-medium text-white hover:bg-[var(--tt-primary-hover)] disabled:opacity-50"
+            >
+              {recoverySaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {recoverySaving ? "Saving..." : "Save Recovery Question"}
+            </button>
+          </div>
+        </form>
+      </section>
     </div>
   );
 };

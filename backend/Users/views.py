@@ -6,13 +6,15 @@ import hashlib
 import re
 import logging
 import base64
-from datetime import date
+import unicodedata
+from datetime import date, timedelta
+from django.core.cache import cache
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.contrib.auth.hashers import check_password, make_password
 from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
@@ -22,6 +24,37 @@ from .models import User, SkinScanHistory
 from .middleware import require_token
 
 logger = logging.getLogger('Users')
+
+RECOVERY_QUESTIONS = {
+    'first_school': "What was your first school's name?",
+    'childhood_nickname': 'What was your childhood nickname?',
+    'first_pet': 'What was the name of your first pet?',
+}
+RESET_ATTEMPT_LIMIT = 5
+RESET_LOCKOUT_DURATION = timedelta(minutes=15)
+RESET_RATE_LIMIT_WINDOW = 900
+
+
+def normalize_recovery_answer(answer):
+    if not isinstance(answer, str) or len(answer) > 120:
+        return ''
+    normalized = unicodedata.normalize('NFKC', answer).strip().casefold()
+    return re.sub(r'\s+', ' ', normalized)
+
+
+def is_reset_rate_limited(request, action, limit=RESET_ATTEMPT_LIMIT):
+    remote_address = request.META.get('REMOTE_ADDR', 'unknown')
+    address_hash = hashlib.sha256(remote_address.encode('utf-8')).hexdigest()
+    key = f'password-recovery:{action}:{address_hash}'
+    if cache.add(key, 1, timeout=RESET_RATE_LIMIT_WINDOW):
+        attempts = 1
+    else:
+        try:
+            attempts = cache.incr(key)
+        except ValueError:
+            cache.set(key, 1, timeout=RESET_RATE_LIMIT_WINDOW)
+            attempts = 1
+    return attempts > limit
 
 
 # ─── Validation Helpers ──────────────────────────────────────────────────────
@@ -99,6 +132,9 @@ class SignupAPI(APIView):
             first_name = request.data.get('first_name', '')
             last_name = request.data.get('last_name', '')
             password = request.data.get('password')
+            recovery_question = request.data.get('recovery_question')
+            recovery_answer_value = request.data.get('recovery_answer')
+            recovery_answer = normalize_recovery_answer(recovery_answer_value)
             profile = request.data.get('profile')
 
             errors = []
@@ -128,6 +164,11 @@ class SignupAPI(APIView):
                 except ValidationError:
                     errors.append('Invalid email format')
 
+            if not isinstance(recovery_question, str) or recovery_question not in RECOVERY_QUESTIONS:
+                errors.append('Choose a valid password recovery question')
+            if len(recovery_answer) < 3 or len(recovery_answer) > 120:
+                errors.append('Recovery answer must be between 3 and 120 characters')
+
             if errors:
                 response_data['message'] = ', '.join(errors)
                 return Response(response_data, status=http_status)
@@ -148,6 +189,8 @@ class SignupAPI(APIView):
                 user = User.objects.create(
                     username=username,
                     email=email,
+                    recovery_question=recovery_question,
+                    recovery_answer_hash=make_password(recovery_answer),
                     first_name=first_name,
                     last_name=last_name,
                     password=make_password(password),
@@ -278,6 +321,174 @@ class LoginAPI(APIView):
         return False
 
 
+# ─── Password Recovery ──────────────────────────────────────────────────────
+
+class PasswordRecoveryQuestionAPI(APIView):
+    def post(self, request):
+        if is_reset_rate_limited(request, 'question', limit=10):
+            return Response(
+                {'success': False, 'message': 'Too many recovery attempts. Please try again later.', 'data': None},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        username = request.data.get('username')
+        email = request.data.get('email')
+        question = None
+        if (
+            isinstance(username, str)
+            and isinstance(email, str)
+            and username.strip()
+            and email.strip()
+        ):
+            user = User.objects.filter(
+                username=username.strip(),
+                email__iexact=email.strip(),
+            ).only('recovery_question', 'recovery_answer_hash').first()
+            if (
+                user
+                and user.recovery_question in RECOVERY_QUESTIONS
+                and user.recovery_answer_hash
+            ):
+                question = user.recovery_question
+
+        return Response({
+            'success': True,
+            'message': 'If the details match an account with recovery set up, its question is shown.',
+            'data': {'question': question},
+        }, status=status.HTTP_200_OK)
+
+
+class PasswordResetAPI(APIView):
+    def post(self, request):
+        if is_reset_rate_limited(request, 'reset'):
+            return Response(
+                {'success': False, 'message': 'Too many recovery attempts. Please try again later.', 'data': None},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        username = request.data.get('username')
+        email = request.data.get('email')
+        question = request.data.get('recovery_question')
+        answer_value = request.data.get('recovery_answer')
+        answer = normalize_recovery_answer(answer_value)
+        new_password = request.data.get('password')
+
+        if not isinstance(username, str) or not isinstance(email, str):
+            return Response(
+                {'success': False, 'message': 'Unable to verify recovery details.', 'data': None},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not isinstance(new_password, str):
+            return Response(
+                {'success': False, 'message': 'A new password is required.', 'data': None},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        valid_password, password_message = Validations().isValidPassword(new_password)
+        if not valid_password:
+            return Response(
+                {'success': False, 'message': password_message, 'data': None},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        invalid_details = Response(
+            {'success': False, 'message': 'Unable to verify recovery details.', 'data': None},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+        with transaction.atomic():
+            user = User.objects.select_for_update().filter(
+                username=username.strip(),
+                email__iexact=email.strip(),
+            ).first()
+            if (
+                not user
+                or user.recovery_question not in RECOVERY_QUESTIONS
+                or not user.recovery_answer_hash
+            ):
+                return invalid_details
+
+            now = timezone.now()
+            if user.password_reset_locked_until and user.password_reset_locked_until > now:
+                return invalid_details
+
+            answer_matches = (
+                question == user.recovery_question
+                and bool(answer)
+                and check_password(answer, user.recovery_answer_hash)
+            )
+            if not answer_matches:
+                user.password_reset_failed_attempts += 1
+                update_fields = ['password_reset_failed_attempts']
+                if user.password_reset_failed_attempts >= RESET_ATTEMPT_LIMIT:
+                    user.password_reset_failed_attempts = 0
+                    user.password_reset_locked_until = now + RESET_LOCKOUT_DURATION
+                    update_fields.extend([
+                        'password_reset_failed_attempts',
+                        'password_reset_locked_until',
+                    ])
+                user.save(update_fields=update_fields)
+                return invalid_details
+
+            user.password = make_password(new_password)
+            user.token = None
+            user.password_reset_failed_attempts = 0
+            user.password_reset_locked_until = None
+            user.save(update_fields=[
+                'password',
+                'token',
+                'password_reset_failed_attempts',
+                'password_reset_locked_until',
+                'updated_at',
+            ])
+
+        return Response(
+            {'success': True, 'message': 'Password updated. Please sign in with your new password.', 'data': None},
+            status=status.HTTP_200_OK,
+        )
+
+
+class PasswordRecoverySetupAPI(APIView):
+    @require_token
+    def post(self, request):
+        user = request.auth_user
+        current_password = request.data.get('current_password')
+        question = request.data.get('recovery_question')
+        answer_value = request.data.get('recovery_answer')
+        answer = normalize_recovery_answer(answer_value)
+
+        if not isinstance(current_password, str) or not check_password(current_password, user.password):
+            return Response(
+                {'success': False, 'message': 'Current password is incorrect.', 'data': None},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not isinstance(question, str) or question not in RECOVERY_QUESTIONS:
+            return Response(
+                {'success': False, 'message': 'Choose a valid password recovery question.', 'data': None},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(answer) < 3 or len(answer) > 120:
+            return Response(
+                {'success': False, 'message': 'Recovery answer must be between 3 and 120 characters.', 'data': None},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.recovery_question = question
+        user.recovery_answer_hash = make_password(answer)
+        user.password_reset_failed_attempts = 0
+        user.password_reset_locked_until = None
+        user.save(update_fields=[
+            'recovery_question',
+            'recovery_answer_hash',
+            'password_reset_failed_attempts',
+            'password_reset_locked_until',
+            'updated_at',
+        ])
+        return Response(
+            {'success': True, 'message': 'Password recovery question updated.', 'data': {'recovery_question': question}},
+            status=status.HTTP_200_OK,
+        )
+
+
 # ─── Get User By ID (Protected) ─────────────────────────────────────────────
 
 class GetByIdAPI(APIView):
@@ -318,6 +529,7 @@ class GetByIdAPI(APIView):
                 'last_name': user.last_name,
                 'profile': user.profile,
                 'token': user.token,
+                'recovery_question': user.recovery_question,
                 'age_bracket': user.age_bracket,
                 'gender': user.gender,
                 'skin_tone': user.skin_tone,
