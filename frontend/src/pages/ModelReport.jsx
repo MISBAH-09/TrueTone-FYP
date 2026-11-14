@@ -1110,13 +1110,13 @@ function TypeTraining() {
         </div>
         <div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border border-sky-200 bg-sky-50/40 p-4">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs font-bold text-slate-900">Phase 1: 10 epochs</p>
               <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
                 Backbone frozen, only the new head trains. Adam, learning rate 1e-3, halved when progress stalls (patience 3).
               </p>
             </div>
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4">
+            <div className="rounded-2xl border border-tint-border bg-tint-subtle p-4">
               <p className="text-xs font-bold text-slate-900">Phase 2: 15 epochs</p>
               <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
                 All layers unfrozen and fine-tuned. Adam, learning rate 1e-5 (100 times smaller), cosine annealing down to 1e-7.

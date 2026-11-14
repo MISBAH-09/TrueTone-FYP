@@ -261,7 +261,7 @@ export const ManualCropScreen = ({ imageSrc, onApply, onCancel }) => {
           width: 16px !important;
           height: 16px !important;
           background-color: #ffffff !important;
-          border: 2px solid #0f766e !important;
+          border: 2px solid var(--tt-primary) !important;
           border-radius: 6px !important;
           box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
         }

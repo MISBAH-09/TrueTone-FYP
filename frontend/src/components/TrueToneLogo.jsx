@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 /**
  * Clinical logo for light chrome (sidebar, landing, auth).
- * variant: "ink" (default) | "onPrimary" for teal/dark strips if needed later.
+ * variant: "ink" (default) | "onPrimary" for dark brand surfaces.
  */
 const TrueToneLogo = ({ variant = "ink", to = "/", className = "" }) => {
   const onPrimary = variant === "onPrimary";

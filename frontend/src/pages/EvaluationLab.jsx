@@ -167,7 +167,7 @@ export function ConfusionMatrix({ matrix }) {
 
 const statusChip = {
   queued: "bg-[var(--tt-paper)] text-[var(--tt-secondary)]",
-  running: "bg-sky-100 text-sky-700",
+  running: "bg-[var(--tt-primary-muted)] text-[var(--tt-primary)]",
   done: "bg-[var(--tt-primary-muted)] text-[var(--tt-primary)]",
   error: "bg-red-50 text-[var(--tt-avoid)]",
 };

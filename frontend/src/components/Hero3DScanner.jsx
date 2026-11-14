@@ -37,7 +37,7 @@ export default function Hero3DScanner() {
       style={{ perspective: 1200 }}
     >
       {/* Soft ethereal ambient back-glows */}
-      <div className="absolute top-1/4 -right-10 w-72 h-72 rounded-full bg-purple-200/35 filter blur-3xl pointer-events-none -z-10" />
+      <div className="absolute top-1/4 -right-10 w-72 h-72 rounded-full bg-tint-soft/45 filter blur-3xl pointer-events-none -z-10" />
       <div className="absolute bottom-10 left-0 w-80 h-80 rounded-full bg-apricot/20 filter blur-3xl pointer-events-none -z-10" />
 
       {/* Main 3D Tilting Canvas */}

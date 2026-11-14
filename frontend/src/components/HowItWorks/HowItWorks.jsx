@@ -206,8 +206,8 @@ export default function HowItWorks() {
     const vh = window.innerHeight;
     const scrollable = sectionH - vh;
     const targetScroll = sectionTop + (idx / totalSlides) * scrollable;
-    window.scrollTo({ top: targetScroll, behavior: "smooth" });
-  }, [isDesktop, totalSlides]);
+    window.scrollTo({ top: targetScroll, behavior: prefersReduced ? "auto" : "smooth" });
+  }, [isDesktop, prefersReduced, totalSlides]);
 
   const scrollToStep = useCallback((stepIdx) => {
     scrollToSlide(starts[stepIdx]);
@@ -284,7 +284,7 @@ export default function HowItWorks() {
               {/* Step pill + title + subtitle */}
               <AnimatePresence mode="wait">
                 <motion.div key={currentStepIndex} {...fadeOnly}>
-                  <div className="mb-4 inline-flex items-center gap-2 rounded border border-tint-border bg-badge/40 px-2.5 py-1 tt-mono text-sm font-semibold tracking-widest text-apricot">
+                  <div className="mb-4 inline-flex items-center gap-2 rounded border border-tint-border bg-badge/40 px-2.5 py-1 tt-mono text-sm font-semibold tracking-widest text-cocoa">
                     STEP {pad(currentStepIndex + 1)}
                   </div>
                   <h2 className="tt-serif text-5xl font-normal leading-[1.1] tracking-tight text-ink">
@@ -584,4 +584,3 @@ function useIsDesktop() {
   }, []);
   return isDesktop;
 }
-

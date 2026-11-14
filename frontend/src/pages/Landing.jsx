@@ -1,176 +1,261 @@
 import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  FlaskConical,
+  ScanFace,
+  ShieldCheck,
+  Sparkles,
+  TrendingUp,
+} from "lucide-react";
 import TrueToneLogo from "../components/TrueToneLogo";
 import HeroDermalScanner from "../components/HeroDermalScanner";
 import HowItWorks from "../components/HowItWorks/HowItWorks";
-import { Button, ReportPanel } from "../components/ui";
 
 const features = [
   {
-    title: "AI Skin Analysis",
+    icon: <ScanFace aria-hidden="true" className="h-5 w-5" />,
+    title: "Understand your skin",
     description:
-      "Upload a photo and our CNN-powered engine detects your skin type, tone, and conditions instantly.",
+      "Get a clear picture of your skin type, tone, and visible concerns with AI-powered analysis.",
   },
   {
-    title: "Product Scanner",
+    icon: <FlaskConical aria-hidden="true" className="h-5 w-5" />,
+    title: "Read the ingredient list",
     description:
-      "Scan product labels with OCR to extract ingredients and flag harmful chemicals for your skin.",
+      "Scan a product label and review ingredient flags in the context of your profile.",
   },
   {
-    title: "Smart Recommendations",
+    icon: <Sparkles aria-hidden="true" className="h-5 w-5" />,
+    title: "Find a better match",
     description:
-      "Get personalized product suggestions tailored to your unique skin profile and concerns.",
+      "Explore skincare recommendations selected around your skin profile and preferences.",
   },
   {
-    title: "Track Progress",
+    icon: <TrendingUp aria-hidden="true" className="h-5 w-5" />,
+    title: "See your progress",
     description:
-      "Monitor your skin health journey over time with visual analytics and improvement insights.",
+      "Keep a visual history of your scans and follow changes in your skin over time.",
   },
 ];
 
-
-const Landing = () => {
-  return (
-    <div className="min-h-screen bg-[var(--tt-paper-warm)] text-[var(--tt-ink)]">
-      <nav className="fixed inset-x-0 top-0 z-50 border-b border-[var(--tt-border)] bg-[var(--tt-paper-warm)]/95 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-          <TrueToneLogo />
-          <div className="hidden items-center gap-6 md:flex">
-            <a href="#features" className="text-sm text-[var(--tt-secondary)] hover:text-[var(--tt-ink)]">
-              Features
-            </a>
-            <a href="#how-it-works" className="text-sm text-[var(--tt-secondary)] hover:text-[var(--tt-ink)]">
-              How It Works
-            </a>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link to="/auth">
-              <Button variant="ghost">Sign In</Button>
-            </Link>
-            <Link to="/auth?signup=true">
-              <Button variant="primary">Get Started</Button>
-            </Link>
-          </div>
+const Landing = () => (
+  <div className="min-h-screen overflow-hidden bg-paper text-ink">
+    <header className="sticky top-0 z-50 border-b border-tint-border/80 bg-paper/95 backdrop-blur-md">
+      <nav
+        aria-label="Main navigation"
+        className="mx-auto flex h-[68px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8"
+      >
+        <TrueToneLogo />
+        <div className="hidden items-center gap-8 md:flex">
+          <a
+            href="#features"
+            className="text-sm font-medium text-cocoa-light transition-colors hover:text-cocoa-dark"
+          >
+            Features
+          </a>
+          <a
+            href="#how-it-works"
+            className="text-sm font-medium text-cocoa-light transition-colors hover:text-cocoa-dark"
+          >
+            How it works
+          </a>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link to="/auth">
+            <span className="inline-flex h-[var(--tt-control-h)] items-center justify-center rounded-full px-3 text-sm font-medium text-secondary transition-colors hover:bg-paper-alt hover:text-ink sm:px-4">
+              Sign in
+            </span>
+          </Link>
+          <Link to="/auth?signup=true">
+            <span className="inline-flex h-[var(--tt-control-h)] items-center justify-center gap-2 rounded-full border border-cocoa bg-cocoa px-3 text-sm font-medium text-white transition-colors hover:border-cocoa-dark hover:bg-cocoa-dark sm:px-4">
+              <span className="hidden sm:inline">Get started</span>
+              <span className="sm:hidden">Start</span>
+              <ArrowRight aria-hidden="true" className="h-4 w-4" />
+            </span>
+          </Link>
         </div>
       </nav>
+    </header>
 
-      <section className="relative mx-auto max-w-7xl px-4 pt-12 sm:pt-14 md:pt-14 pb-4 sm:pb-6 md:pb-8 overflow-hidden">
-        {/* Soft atmospheric background illumination */}
-        <div className="absolute top-1/4 left-1/4 w-[420px] h-[420px] rounded-full bg-apricot/15 filter blur-3xl pointer-events-none -z-10 animate-pulse duration-1000" />
-        <div className="absolute top-10 right-10 w-[450px] h-[450px] rounded-full bg-tint-soft/60 filter blur-3xl pointer-events-none -z-10" />
-
-        <div className="grid items-center gap-6 lg:grid-cols-12 lg:gap-8 relative">
-          {/* Left Column: Stitched Typography & CTAs */}
-          <div className="lg:col-span-6 z-10">
-            {/* Eyebrow badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/80 border border-tint-border text-xs font-semibold text-cocoa tracking-wide mb-3 shadow-xs backdrop-blur-sm">
-              <span className="w-2 h-2 rounded-full bg-apricot animate-pulse" />
-              <span>TrueTone: Skin analysis and product recommendation system</span>
-            </div>
-
-            {/* Main Headline */}
-            <h1 className="text-4xl sm:text-5xl lg:text-[52px] font-extrabold tracking-tight text-ink leading-[1.12]">
-              Know what belongs <br className="hidden sm:inline" />
-              on{" "}
-              <span className="text-cocoa relative inline-block">
-                your skin
-                <span className="absolute -bottom-1 left-0 right-0 h-1.5 bg-apricot/30 rounded-full" />
+    <main>
+      <section className="relative mx-auto grid max-w-7xl items-center gap-2 px-4 pb-8 pt-8 sm:px-6 sm:pt-12 lg:grid-cols-2 lg:gap-8 lg:px-8 lg:pb-16 lg:pt-10">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -left-48 top-8 h-96 w-96 rounded-full bg-tint-soft/45 blur-3xl"
+        />
+        <div className="relative z-10 py-8 lg:py-12">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-tint-border bg-white/80 px-3.5 py-2 text-xs font-semibold tracking-wide text-cocoa shadow-sm">
+            <Sparkles aria-hidden="true" className="h-4 w-4 text-apricot" />
+            A more personal way to care for your skin
+          </div>
+          <h1 className="max-w-2xl text-4xl font-semibold leading-[1.08] tracking-tight text-ink sm:text-5xl lg:text-6xl">
+            Skincare starts with{" "}
+            <span className="relative inline-block text-cocoa">
+              understanding.
+              <span
+                aria-hidden="true"
+                className="absolute -bottom-1 left-0 -z-10 h-3 w-full rounded-full bg-apricot-light/70 sm:-bottom-0.5 sm:h-4"
+              />
+            </span>
+          </h1>
+          <p className="mt-6 max-w-xl text-base leading-7 text-secondary sm:text-lg sm:leading-8">
+            Discover your skin profile, check product ingredients, and find
+            recommendations that consider what matters to you.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <Link to="/auth?signup=true">
+              <span className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-cocoa bg-cocoa px-6 text-sm font-medium text-white shadow-md transition hover:border-cocoa-dark hover:bg-cocoa-dark hover:shadow-lg">
+                Start your free analysis
+                <ArrowRight aria-hidden="true" className="h-4 w-4" />
               </span>
-              .
-            </h1>
+            </Link>
+            <a href="#features">
+              <span className="inline-flex h-12 items-center justify-center rounded-full border border-tint-border bg-white/80 px-6 text-sm font-medium text-ink transition-colors hover:bg-paper">
+                Explore TrueTone
+              </span>
+            </a>
+          </div>
+          <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-secondary">
+            {["Skin insights", "Ingredient checks", "Progress tracking"].map(
+              (item) => (
+                <span key={item} className="inline-flex items-center gap-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-tint-soft text-cocoa">
+                    <Check aria-hidden="true" className="h-3 w-3" strokeWidth={2.5} />
+                  </span>
+                  {item}
+                </span>
+              ),
+            )}
+          </div>
+        </div>
 
-            {/* Subtitle */}
-            <p className="mt-4 text-base sm:text-lg leading-relaxed text-ink/75 max-w-lg font-normal">
-              TrueTone analyzes your skin with CNN models, reads product labels, and recommends
-              products matched to your profile, allergies, and conditions.
-            </p>
-
-            {/* Action buttons */}
-            <div className="mt-6 sm:mt-7 flex flex-wrap items-center gap-3">
-              <Link to="/auth?signup=true">
-                <button className="inline-flex items-center justify-center gap-2 px-7 py-3 rounded-full bg-cocoa text-paper font-semibold text-sm shadow-md hover:bg-cocoa-light hover:shadow-xl transition-all transform active:scale-95 cursor-pointer">
-                  <span>Start Free Analysis</span>
-                  <ArrowRight className="h-4 w-4" />
-                </button>
-              </Link>
-              <a href="#features">
-                <button className="inline-flex items-center justify-center gap-2 px-7 py-3 rounded-full bg-white/80 hover:bg-white text-cocoa-dark border border-tint-border font-semibold text-sm shadow-xs hover:shadow-md transition-all cursor-pointer backdrop-blur-sm">
-                  <span>Explore Technology</span>
-                </button>
-              </a>
+        <div className="relative mx-auto w-full max-w-[600px] lg:max-w-none">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-10 top-16 aspect-square rounded-full bg-apricot-light/25 blur-3xl"
+          />
+          <div className="relative">
+            <HeroDermalScanner />
+            <div className="absolute bottom-8 left-2 flex items-center gap-3 rounded-2xl border border-tint-border/80 bg-white/95 px-4 py-3 shadow-browser sm:bottom-14 sm:left-0">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-tint-subtle text-cocoa">
+                <ShieldCheck aria-hidden="true" className="h-5 w-5" />
+              </span>
+              <span>
+                <span className="block text-sm font-semibold text-ink">
+                  Made for your profile
+                </span>
+                <span className="block text-xs text-secondary">
+                  Your skin and sensitivities in mind
+                </span>
+              </span>
             </div>
           </div>
+        </div>
+      </section>
 
-          {/* Right Column: Seamless 5-Frame Motion Graphics (Moved up slightly without going behind header) */}
-          <div className="lg:col-span-6 flex justify-center items-center z-10 -translate-y-5 sm:-translate-y-6">
-            <HeroDermalScanner />
+      <section
+        id="features"
+        className="scroll-mt-20 border-y border-tint-border bg-white/70 py-16 sm:py-20"
+      >
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-cocoa">
+              Thoughtful tools, one place
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
+              A clearer picture of your skincare
+            </h2>
+            <p className="mt-4 text-base leading-7 text-secondary">
+              From your first skin scan to the products you choose, make each
+              step feel more informed.
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:mt-14 lg:grid-cols-4">
+            {features.map(({ icon, title, description }, index) => (
+              <article
+                key={title}
+                className="group rounded-2xl border border-tint-border bg-white p-6 transition duration-200 hover:-translate-y-1 hover:border-apricot-light hover:shadow-browser motion-reduce:transform-none motion-reduce:transition-none"
+              >
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-tint-subtle text-cocoa transition-colors group-hover:bg-tint-soft">
+                  {icon}
+                </span>
+                <p className="mt-6 text-xs font-semibold uppercase tracking-[0.14em] text-cocoa">
+                  0{index + 1}
+                </p>
+                <h3 className="mt-2 text-lg font-semibold text-ink">{title}</h3>
+                <p className="mt-2 text-sm leading-6 text-secondary">
+                  {description}
+                </p>
+              </article>
+            ))}
           </div>
         </div>
       </section>
 
       <HowItWorks />
 
-      <section id="features" className="border-t border-[var(--tt-border)] bg-[var(--tt-paper)] py-16 sm:py-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <PageSection
-            eyebrow="Features"
-            title="Tools built around your skin profile"
-            subtitle="Analyze skin, read labels, recommend products, and track changes — one Clinical report system."
+      <section className="px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+        <div className="relative mx-auto max-w-7xl overflow-hidden rounded-3xl bg-cocoa-dark px-6 py-12 text-white sm:px-10 sm:py-14 lg:px-14">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-20 -top-32 h-96 w-96 rounded-full bg-apricot/20 blur-3xl"
           />
-          <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            {features.map((feature) => (
-              <ReportPanel key={feature.title} title={feature.title}>
-                <p className="text-sm leading-6 text-[var(--tt-secondary)]">{feature.description}</p>
-              </ReportPanel>
-            ))}
+          <div className="relative flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-apricot-light">
+                Your skin, your routine
+              </p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+                Make your next skincare choice with more confidence.
+              </h2>
+              <p className="mt-4 max-w-xl text-sm leading-6 text-white/75 sm:text-base">
+                Create your profile to explore skin analysis, product safety
+                checks, and recommendations in one place.
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-3">
+              <Link to="/auth?signup=true">
+                <span className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-apricot bg-apricot px-6 text-sm font-medium text-ink transition-colors hover:border-apricot-glow hover:bg-apricot-glow">
+                  Create your account
+                  <ArrowRight aria-hidden="true" className="h-4 w-4" />
+                </span>
+              </Link>
+              <Link to="/auth">
+                <span className="inline-flex h-12 items-center justify-center rounded-full border border-white/25 bg-white/10 px-6 text-sm font-medium text-white transition-colors hover:bg-white/20">
+                  Sign in
+                </span>
+              </Link>
+            </div>
           </div>
         </div>
       </section>
+    </main>
 
-      <section className="border-t border-[var(--tt-border)] bg-[var(--tt-paper)] py-16 sm:py-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <ReportPanel>
-            <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h2 className="text-2xl font-semibold text-[var(--tt-ink)]">Start your skin journey</h2>
-                <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--tt-secondary)]">
-                  Create an account to run a skin analysis, scan product labels, and get recommendations
-                  matched to your allergies and conditions.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Link to="/auth?signup=true">
-                  <Button variant="primary" className="px-5">
-                    Create Free Account
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </Link>
-                <a href="#features">
-                  <Button variant="secondary" className="px-5">
-                    Learn More
-                  </Button>
-                </a>
-              </div>
-            </div>
-          </ReportPanel>
+    <footer className="border-t border-tint-border bg-white/70">
+      <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-7 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
+        <TrueToneLogo />
+        <p className="text-sm text-secondary">
+          Skin insights and product guidance, thoughtfully brought together.
+        </p>
+        <div className="flex items-center gap-5 text-sm font-medium text-cocoa-light">
+          <a className="transition-colors hover:text-cocoa-dark" href="#features">
+            Features
+          </a>
+          <a
+            className="transition-colors hover:text-cocoa-dark"
+            href="#how-it-works"
+          >
+            How it works
+          </a>
         </div>
-      </section>
-
-      <footer className="border-t border-[var(--tt-border)] py-8 text-center text-sm text-[var(--tt-secondary)]">
-        © 2026 TrueTone. Smart Skin Analysis and Product Safety System.
-      </footer>
-    </div>
-  );
-};
-
-function PageSection({ eyebrow, title, subtitle }) {
-  return (
-    <div className="max-w-2xl">
-      <p className="text-sm font-medium text-[var(--tt-primary)]">{eyebrow}</p>
-      <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[var(--tt-ink)] sm:text-3xl">{title}</h2>
-      <p className="mt-3 text-sm leading-6 text-[var(--tt-secondary)] sm:text-base">{subtitle}</p>
-    </div>
-  );
-}
+      </div>
+      <div className="border-t border-tint-border/70 py-4 text-center text-xs text-secondary">
+        © 2026 TrueTone. Skin analysis and product safety.
+      </div>
+    </footer>
+  </div>
+);
 
 export default Landing;

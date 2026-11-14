@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useReducedMotion } from "framer-motion";
 
 const FRAMES = [
   { id: 0, src: "/frames/hero-mesh-1.webp", fallback: "/frames/Frame 1.jfif" },
@@ -12,6 +13,7 @@ export default function HeroDermalScanner() {
   const [opacities, setOpacities] = useState([1, 0, 0, 0, 0]);
   const animFrameRef = useRef(null);
   const lastTimeRef = useRef(null);
+  const prefersReducedMotion = useReducedMotion();
 
   // Preload all 5 transparent feathered frames immediately
   useEffect(() => {
@@ -26,6 +28,8 @@ export default function HeroDermalScanner() {
 
   // Continuous, non-stopping 1 -> 5 -> 1 -> 5 loop
   useEffect(() => {
+    if (prefersReducedMotion) return undefined;
+
     const CYCLE_DURATION = 4600; // ms
 
     const animate = (timestamp) => {
@@ -62,7 +66,7 @@ export default function HeroDermalScanner() {
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
-  }, []);
+  }, [prefersReducedMotion]);
 
   return (
     <div className="relative w-full max-w-[560px] lg:max-w-[620px] mx-auto select-none">
