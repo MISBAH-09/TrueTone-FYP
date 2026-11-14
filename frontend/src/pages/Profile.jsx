@@ -30,6 +30,13 @@ const skinDiseases = [
   { value: "tinea", label: "Tinea", desc: "Fungal skin infection" },
 ];
 
+const selectClass = (active) =>
+  `rounded-[var(--tt-radius)] border p-3 text-left transition-colors ${
+    active
+      ? "border-[var(--tt-primary)] bg-[var(--tt-primary-muted)] text-[var(--tt-ink)]"
+      : "border-[var(--tt-border)] bg-[var(--tt-surface)] text-[var(--tt-ink)] hover:bg-[var(--tt-paper)]"
+  }`;
+
 const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -66,11 +73,7 @@ const Profile = () => {
         }
       } catch (err) {
         console.error("Profile fetch error:", err);
-        setError(
-          err.response?.data?.message || 
-          err.message || 
-          "Failed to load profile."
-        );
+        setError(err.response?.data?.message || err.message || "Failed to load profile.");
       } finally {
         setLoading(false);
       }
@@ -96,7 +99,7 @@ const Profile = () => {
         is_pregnant_or_breastfeeding: gender === "male" ? false : isPregnantOrBreastfeeding,
         current_products: currentProductsText,
       };
-      
+
       const response = await updateUser(updates);
       if (response.success) {
         setSuccess("Profile updated successfully!");
@@ -113,151 +116,141 @@ const Profile = () => {
   if (loading) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--tt-primary)]" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8 animate-fadeIn pb-24">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Settings</h1>
-        <p className="mt-2 text-slate-500">
+    <div className="mx-auto max-w-5xl space-y-6 pb-16 text-[var(--tt-ink)]">
+      <div className="border-b border-[var(--tt-border)] pb-4">
+        <p className="tt-mono text-xs font-medium uppercase tracking-[0.14em] text-[var(--tt-primary)]">
+          Profile
+        </p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Settings</h1>
+        <p className="mt-1.5 text-sm text-[var(--tt-secondary)]">
           Update your profile, skin profile, and safety information.
         </p>
       </div>
 
       {error && (
-        <div className="rounded-2xl bg-rose-50 border border-rose-200 px-4 py-3 text-sm font-semibold text-rose-700">
+        <div className="rounded-[var(--tt-radius)] border border-red-200 border-l-4 border-l-[var(--tt-avoid)] bg-red-50 px-4 py-3 text-sm font-medium text-[var(--tt-avoid)]">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="flex items-center gap-2 rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm font-semibold text-emerald-700">
+        <div className="flex items-center gap-2 rounded-[var(--tt-radius)] border border-emerald-200 border-l-4 border-l-[var(--tt-safe)] bg-emerald-50 px-4 py-3 text-sm font-medium text-[var(--tt-safe)]">
           <CheckCircle2 className="h-5 w-5" />
           {success}
         </div>
       )}
 
-      <form onSubmit={handleSave} className="space-y-12">
-        
-        {/* Account Details */}
-        <div className="space-y-6">
+      <form onSubmit={handleSave} className="space-y-6">
+        <div className="space-y-4">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">Account Details</h2>
-            <p className="text-sm text-slate-500">Your basic TrueTone account info.</p>
+            <h2 className="text-lg font-semibold text-[var(--tt-ink)]">Account Details</h2>
+            <p className="text-sm text-[var(--tt-secondary)]">Your basic TrueTone account info.</p>
           </div>
-          
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Username</label>
+              <label className="mb-2 block text-sm font-medium text-[var(--tt-ink)]">Username</label>
               <input
                 type="text"
                 value={username}
                 disabled
-                className="w-full rounded-2xl border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-500 cursor-not-allowed outline-none"
+                className="h-[var(--tt-control-h)] w-full cursor-not-allowed rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-paper)] px-3 text-sm text-[var(--tt-secondary)] outline-none"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Email Address</label>
+              <label className="mb-2 block text-sm font-medium text-[var(--tt-ink)]">Email Address</label>
               <input
                 type="email"
                 value={email}
                 disabled
-                className="w-full rounded-2xl border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-500 cursor-not-allowed outline-none"
+                className="h-[var(--tt-control-h)] w-full cursor-not-allowed rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-paper)] px-3 text-sm text-[var(--tt-secondary)] outline-none"
               />
             </div>
           </div>
         </div>
 
-        {/* Skin Profile */}
-        <div className="space-y-8">
+        <div className="space-y-4">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">Skin Profile</h2>
-            <p className="text-sm text-slate-500">Used by TrueTone to filter and recommend products accurately.</p>
+            <h2 className="text-lg font-semibold text-[var(--tt-ink)]">Skin Profile</h2>
+            <p className="text-sm text-[var(--tt-secondary)]">
+              Used by TrueTone to filter and recommend products accurately.
+            </p>
           </div>
 
-          <div className="space-y-4">
-            <label className="block text-sm font-bold text-slate-900">Age Bracket</label>
+          <div className="space-y-3">
+            <label className="block text-sm font-semibold text-[var(--tt-ink)]">Age Bracket</label>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {ageBrackets.map((item) => (
                 <button
                   key={item.value}
                   type="button"
                   onClick={() => setAgeBracket(item.value)}
-                  className={`flex flex-col items-center justify-center rounded-2xl border-2 p-3 text-center transition-all ${
+                  className={`flex flex-col items-center justify-center p-3 text-center ${selectClass(
                     ageBracket === item.value
-                      ? "border-emerald-500 bg-emerald-50 text-emerald-900"
-                      : "border-slate-100 bg-white text-slate-600 hover:border-slate-200 hover:bg-slate-50"
-                  }`}
+                  )}`}
                 >
                   <span className="font-semibold">{item.label}</span>
-                  {item.desc && <span className="text-xs mt-0.5 opacity-80">{item.desc}</span>}
+                  {item.desc && <span className="mt-0.5 text-xs text-[var(--tt-secondary)]">{item.desc}</span>}
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="space-y-4">
-            <label className="block text-sm font-bold text-slate-900">Skin Tone</label>
+          <div className="space-y-3">
+            <label className="block text-sm font-semibold text-[var(--tt-ink)]">Skin Tone</label>
             <div className="grid grid-cols-3 gap-3">
               {skinTones.map((item) => (
                 <button
                   key={item.value}
                   type="button"
                   onClick={() => setSkinTone(item.value)}
-                  className={`flex flex-col items-center justify-center rounded-2xl border-2 p-4 transition-all ${
+                  className={`flex flex-col items-center justify-center p-4 ${selectClass(
                     skinTone === item.value
-                      ? "border-emerald-500 bg-emerald-50"
-                      : "border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50"
-                  }`}
+                  )}`}
                 >
                   <div
-                    className="h-8 w-8 rounded-full border border-black/10 shadow-sm mb-3"
+                    className="mb-3 h-8 w-8 rounded-[var(--tt-radius)] border border-black/10"
                     style={{ backgroundColor: item.color }}
                   />
-                  <span className={`text-sm font-semibold ${skinTone === item.value ? "text-emerald-900" : "text-slate-700"}`}>
-                    {item.label}
-                  </span>
+                  <span className="text-sm font-semibold">{item.label}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="space-y-4">
-            <label className="block text-sm font-bold text-slate-900">Skin Type</label>
+          <div className="space-y-3">
+            <label className="block text-sm font-semibold text-[var(--tt-ink)]">Skin Type</label>
             <div className="grid grid-cols-2 gap-3">
               {skinTypes.map((item) => (
                 <button
                   key={item.value}
                   type="button"
                   onClick={() => setSkinType(item.value)}
-                  className={`flex flex-col items-start rounded-2xl border-2 p-4 text-left transition-all ${
-                    skinType === item.value
-                      ? "border-emerald-500 bg-emerald-50"
-                      : "border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50"
-                  }`}
+                  className={`flex flex-col items-start p-4 ${selectClass(skinType === item.value)}`}
                 >
-                  <span className={`text-sm font-semibold ${skinType === item.value ? "text-emerald-900" : "text-slate-700"}`}>
-                    {item.label}
-                  </span>
-                  <span className={`text-xs mt-1 ${skinType === item.value ? "text-emerald-700" : "text-slate-500"}`}>
-                    {item.desc}
-                  </span>
+                  <span className="text-sm font-semibold">{item.label}</span>
+                  <span className="mt-1 text-xs text-[var(--tt-secondary)]">{item.desc}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex justify-between items-end">
-              <label className="block text-sm font-bold text-slate-900">Skin Condition (Optional)</label>
+          <div className="space-y-3">
+            <div className="flex items-end justify-between">
+              <label className="block text-sm font-semibold text-[var(--tt-ink)]">
+                Skin Condition (Optional)
+              </label>
               {skinDisease && (
-                <button 
+                <button
                   type="button"
                   onClick={() => setSkinDisease("")}
-                  className="text-xs font-semibold text-rose-600 hover:text-rose-700"
+                  className="text-xs font-medium text-[var(--tt-avoid)] hover:underline"
                 >
                   Clear Selection
                 </button>
@@ -271,16 +264,10 @@ const Profile = () => {
                     key={item.value}
                     type="button"
                     onClick={() => setSkinDisease(isSelected ? "" : item.value)}
-                    className={`flex flex-col items-start rounded-2xl border-2 p-3 text-left transition-all ${
-                      isSelected
-                        ? "border-emerald-500 bg-emerald-50"
-                        : "border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50"
-                    }`}
+                    className={`flex flex-col items-start p-3 ${selectClass(isSelected)}`}
                   >
-                    <span className={`text-sm font-semibold ${isSelected ? "text-emerald-900" : "text-slate-700"}`}>
-                      {item.label}
-                    </span>
-                    <span className={`text-[11px] leading-tight mt-1 ${isSelected ? "text-emerald-700" : "text-slate-500"}`}>
+                    <span className="text-sm font-semibold">{item.label}</span>
+                    <span className="mt-1 text-[11px] leading-tight text-[var(--tt-secondary)]">
                       {item.desc}
                     </span>
                   </button>
@@ -290,26 +277,31 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* Safety & Habits */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">Safety & Habits</h2>
-            <p className="text-sm text-slate-500">Crucial for ingredient safety checks and routine matching.</p>
+            <h2 className="text-lg font-semibold text-[var(--tt-ink)]">Safety & Habits</h2>
+            <p className="text-sm text-[var(--tt-secondary)]">
+              Crucial for ingredient safety checks and routine matching.
+            </p>
           </div>
 
-          <div className="space-y-3">
-            <label className="block text-sm font-bold text-slate-900">Allergies or sensitivities</label>
-            <p className="text-xs text-slate-500">List any ingredients you know you react badly to.</p>
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-[var(--tt-ink)]">
+              Allergies or sensitivities
+            </label>
+            <p className="text-xs text-[var(--tt-secondary)]">
+              List any ingredients you know you react badly to.
+            </p>
             <textarea
               value={allergiesText}
               onChange={(e) => setAllergiesText(e.target.value)}
               placeholder="e.g., fragrance, niacinamide, essential oils..."
-              className="h-24 w-full resize-none rounded-2xl border-slate-200 bg-slate-50 p-4 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-1 focus:ring-emerald-500"
+              className="h-24 w-full resize-none rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-paper)] p-3 text-sm outline-none transition focus:border-[var(--tt-primary)] focus:bg-[var(--tt-surface)] focus:ring-1 focus:ring-[var(--tt-primary)]"
             />
           </div>
 
-          <div className="space-y-3">
-            <label className="block text-sm font-bold text-slate-900">Gender</label>
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-[var(--tt-ink)]">Gender</label>
             <div className="grid grid-cols-3 gap-3">
               {[
                 { value: "female", label: "Woman" },
@@ -323,11 +315,7 @@ const Profile = () => {
                     setGender(option.value);
                     if (option.value === "male") setIsPregnantOrBreastfeeding(false);
                   }}
-                  className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition-all ${
-                    gender === option.value
-                      ? "border-emerald-600 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600"
-                      : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400"
-                  }`}
+                  className={`px-4 py-3 text-sm font-medium ${selectClass(gender === option.value)}`}
                 >
                   {option.label}
                 </button>
@@ -336,40 +324,42 @@ const Profile = () => {
           </div>
 
           {gender !== "male" && (
-            <div className="space-y-3">
-              <label className="block text-sm font-bold text-slate-900">Pregnancy Status</label>
-              <p className="text-xs text-slate-500">Helps us flag ingredients to avoid (like retinoids).</p>
-              <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 hover:bg-slate-50 transition">
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-[var(--tt-ink)]">Pregnancy Status</label>
+              <p className="text-xs text-[var(--tt-secondary)]">
+                Helps us flag ingredients to avoid (like retinoids).
+              </p>
+              <label className="flex cursor-pointer items-center gap-3 rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-4 hover:bg-[var(--tt-paper)]">
                 <input
                   type="checkbox"
                   checked={isPregnantOrBreastfeeding}
                   onChange={(e) => setIsPregnantOrBreastfeeding(e.target.checked)}
-                  className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                  className="h-4 w-4 rounded-[var(--tt-radius)] border-[var(--tt-border)] text-[var(--tt-primary)] focus:ring-[var(--tt-primary)]"
                 />
-                <span className="text-sm font-medium text-slate-700">
+                <span className="text-sm font-medium text-[var(--tt-ink)]">
                   I am currently pregnant or breastfeeding
                 </span>
               </label>
             </div>
           )}
 
-          <div className="space-y-3">
-            <label className="block text-sm font-bold text-slate-900">Current Routine</label>
-            <p className="text-xs text-slate-500">What products do you use regularly?</p>
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-[var(--tt-ink)]">Current Routine</label>
+            <p className="text-xs text-[var(--tt-secondary)]">What products do you use regularly?</p>
             <textarea
               value={currentProductsText}
               onChange={(e) => setCurrentProductsText(e.target.value)}
               placeholder="e.g., CeraVe Foaming Cleanser, The Ordinary Niacinamide 10%..."
-              className="h-24 w-full resize-none rounded-2xl border-slate-200 bg-slate-50 p-4 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-1 focus:ring-emerald-500"
+              className="h-24 w-full resize-none rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-paper)] p-3 text-sm outline-none transition focus:border-[var(--tt-primary)] focus:bg-[var(--tt-surface)] focus:ring-1 focus:ring-[var(--tt-primary)]"
             />
           </div>
         </div>
 
-        <div className="flex justify-end pt-4 border-t border-slate-100">
+        <div className="flex justify-end border-t border-[var(--tt-border)] pt-4">
           <button
             type="submit"
             disabled={saving}
-            className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 transition"
+            className="inline-flex h-[var(--tt-control-h)] items-center gap-2 rounded-[var(--tt-radius)] bg-[var(--tt-primary)] px-5 text-sm font-medium text-white hover:bg-[var(--tt-primary-hover)] disabled:opacity-50"
           >
             {saving ? (
               <>

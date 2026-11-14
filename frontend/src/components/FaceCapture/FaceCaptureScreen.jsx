@@ -81,27 +81,27 @@ export const FaceCaptureScreen = ({ onCaptureSuccess, onCancel }) => {
   }, [isLoaded, faceLandmarker]);
 
   return (
-    <div className="relative w-full h-[85vh] sm:rounded-3xl overflow-hidden bg-black flex flex-col items-center justify-center shadow-2xl">
+    <div className="relative flex h-[85vh] w-full flex-col items-center justify-center overflow-hidden bg-black sm:rounded-[var(--tt-radius)]">
       {hasCameraError ? (
-        <div className="text-center text-white px-6">
-          <Camera className="w-16 h-16 mx-auto mb-4 text-white/50" />
-          <h3 className="text-xl font-bold mb-2">Camera Error</h3>
-          <p className="text-white/70 mb-6">
+        <div className="px-6 text-center text-white">
+          <Camera className="mx-auto mb-4 h-16 w-16 text-white/50" />
+          <h3 className="mb-2 text-xl font-semibold">Camera Error</h3>
+          <p className="mb-6 text-white/70">
             Please allow camera permissions to use Smart Scan.
           </p>
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex items-center justify-center gap-3">
             <button
               onClick={startCamera}
-              className="px-6 py-3 bg-white text-black font-semibold rounded-full hover:bg-gray-100 transition-colors inline-flex items-center gap-2"
+              className="inline-flex h-[var(--tt-control-h)] items-center gap-2 rounded-[var(--tt-radius)] bg-white px-4 text-sm font-medium text-black transition-colors hover:bg-gray-100"
             >
-              <RefreshCw className="w-5 h-5" /> Retry Camera
+              <RefreshCw className="h-4 w-4" /> Retry Camera
             </button>
             <button
               onClick={() => {
                 stopCamera();
                 onCancel();
               }}
-              className="px-6 py-3 bg-white/20 text-white font-semibold rounded-full hover:bg-white/30 transition-colors"
+              className="inline-flex h-[var(--tt-control-h)] items-center rounded-[var(--tt-radius)] bg-white/20 px-4 text-sm font-medium text-white transition-colors hover:bg-white/30"
             >
               Cancel
             </button>
@@ -111,7 +111,7 @@ export const FaceCaptureScreen = ({ onCaptureSuccess, onCancel }) => {
         <>
           <video
             ref={videoRef}
-            className="absolute inset-0 w-full h-full object-cover mirror-mode"
+            className="absolute inset-0 h-full w-full object-cover mirror-mode"
             style={{ transform: 'scaleX(-1)' }}
             autoPlay
             playsInline
@@ -120,9 +120,9 @@ export const FaceCaptureScreen = ({ onCaptureSuccess, onCancel }) => {
           />
 
           {!isLoaded ? (
-            <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-30">
-              <div className="w-12 h-12 border-4 border-white/20 border-t-emerald-400 rounded-full animate-spin mb-4" />
-              <p className="text-white font-medium">Initializing AI Quality Engine...</p>
+            <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/80">
+              <div className="mb-4 h-10 w-10 animate-spin rounded-[var(--tt-radius)] border-2 border-white/20 border-t-[var(--tt-primary-hover)]" />
+              <p className="font-medium text-white">Initializing AI Quality Engine...</p>
             </div>
           ) : (
             <CaptureOverlay

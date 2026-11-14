@@ -3,9 +3,9 @@ import AppSidebar from "./AppSidebar";
 
 const AppLayout = () => {
   return (
-    <div className="min-h-screen flex w-full bg-slate-100 text-slate-900">
+    <div className="flex min-h-screen w-full bg-[var(--tt-paper)] text-[var(--tt-ink)]">
       <AppSidebar />
-      <main className="flex-1 lg:ml-64 min-h-screen p-4 lg:p-6">
+      <main className="min-h-screen min-w-0 flex-1 px-4 pb-20 pt-4 md:ml-60 md:px-6 md:pb-6 md:pt-6">
         <Outlet />
       </main>
     </div>

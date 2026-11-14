@@ -8,12 +8,12 @@ import {
   TrendingUp,
   User,
   LogOut,
-  Menu,
-  X,
   MessageCircle,
   Layers,
   BarChart3,
   FileText,
+  MoreHorizontal,
+  X,
 } from "lucide-react";
 import TrueToneLogo from "./TrueToneLogo";
 
@@ -27,17 +27,23 @@ const navItems = [
   { title: "Profile", path: "/profile", icon: User },
 ];
 
-// Pages for examiners
 const examinerItems = [
   { title: "Pipeline Inspector", path: "/inspector", icon: Layers },
   { title: "Evaluation Lab", path: "/evaluation", icon: BarChart3 },
   { title: "Model Report", path: "/report", icon: FileText },
 ];
 
+const mobilePrimary = [
+  navItems[0],
+  navItems[1],
+  navItems[2],
+  navItems[3],
+];
+
 const AppSidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const handleSignOut = () => {
     localStorage.removeItem("truetone_token");
@@ -45,97 +51,161 @@ const AppSidebar = () => {
     navigate("/");
   };
 
-  const renderLink = (item) => {
-    const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + "/");
-    const Icon = item.icon;
+  // A link is "on" for its own page and for pages below it (the Model Report has /report/tone, /report/type, /report/condition)
+  const isOn = (path) => location.pathname === path || location.pathname.startsWith(path + "/");
 
+  const linkClass = (path) => {
+    const isActive = isOn(path);
+    return [
+      "flex items-center gap-3 rounded-[var(--tt-radius)] px-3 py-2 text-sm font-medium transition-colors",
+      isActive
+        ? "border-l-[3px] border-[var(--tt-primary)] bg-[var(--tt-primary-muted)] pl-[9px] text-[var(--tt-ink)]"
+        : "border-l-[3px] border-transparent text-[var(--tt-secondary)] hover:bg-[var(--tt-paper)] hover:text-[var(--tt-ink)]",
+    ].join(" ");
+  };
+
+  const renderDesktopLink = (item) => {
+    const Icon = item.icon;
     return (
-      <Link
-        key={item.path}
-        to={item.path}
-        onClick={() => {
-          if (window.innerWidth < 1024) setCollapsed(true);
-        }}
-        className={`flex items-center ${
-          collapsed ? "justify-center" : "gap-3"
-        } px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-          isActive
-            ? "bg-slate-800 text-white shadow-sm"
-            : "text-slate-400 hover:bg-slate-900 hover:text-white"
-        }`}
-      >
-        <Icon className="w-5 h-5 flex-shrink-0" />
-        {!collapsed && <span>{item.title}</span>}
+      <Link key={item.path} to={item.path} className={linkClass(item.path)}>
+        <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+        <span>{item.title}</span>
       </Link>
     );
   };
 
+  const moreActive =
+    [...navItems.slice(4), ...examinerItems].some((item) => isOn(item.path)) ||
+    moreOpen;
+
   return (
     <>
-      {/* Mobile overlay */}
-      {!collapsed && (
-        <div
-          className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-40 lg:hidden"
-          onClick={() => setCollapsed(true)}
-        />
-      )}
-
-      <aside
-        className={`fixed left-0 top-0 h-full z-50 bg-slate-950 text-slate-100 border-r border-slate-800 transition-all duration-300 flex flex-col ${
-          collapsed ? "w-0 lg:w-16 overflow-hidden" : "w-64"
-        }`}
-      >
-        {/* Header */}
-        <div className="p-4 flex items-center justify-between border-b border-slate-800">
-          {!collapsed && <TrueToneLogo />}
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="p-2 rounded-lg bg-slate-800 transition-colors"
-          >
-            <X className="w-4 h-4 lg:hidden" />
-            <Menu className="w-4 h-4 hidden lg:block" />
-          </button>
+      {/* Desktop Clinical sidebar — visible from 768px */}
+      <aside className="fixed left-0 top-0 z-40 hidden h-full w-60 flex-col border-r border-[var(--tt-border)] bg-[var(--tt-surface)] md:flex">
+        <div className="flex items-center border-b border-[var(--tt-border)] px-4 py-4">
+          <TrueToneLogo />
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {navItems.map(renderLink)}
+        <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
+          {navItems.map(renderDesktopLink)}
 
-          {/* Examiner tools */}
-          <div className="mt-3 space-y-1 border-t border-slate-800 pt-3">
-            {!collapsed && (
-              <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                Examiner tools
-              </p>
-            )}
-            {examinerItems.map(renderLink)}
+          <div className="mt-3 space-y-0.5 border-t border-[var(--tt-border)] pt-3">
+            <p className="px-3 pb-1 text-xs font-medium text-[var(--tt-secondary)]">Evaluation Metrics</p>
+            {examinerItems.map(renderDesktopLink)}
           </div>
         </nav>
 
-        {/* Sign Out (FIXED) */}
-        <div className="p-3 border-t border-slate-800">
+        <div className="border-t border-[var(--tt-border)] p-3">
           <button
             type="button"
             onClick={handleSignOut}
-            className={`w-full text-left flex items-center ${
-              collapsed ? "justify-center" : "gap-3"
-            } px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:bg-slate-900 hover:text-white transition-colors`}
+            className="flex w-full items-center gap-3 rounded-[var(--tt-radius)] px-3 py-2 text-sm font-medium text-[var(--tt-secondary)] hover:bg-[var(--tt-paper)] hover:text-[var(--tt-ink)]"
           >
-            <LogOut className="w-5 h-5 flex-shrink-0" />
-            {!collapsed && <span>Sign Out</span>}
+            <LogOut className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+            <span>Sign Out</span>
           </button>
         </div>
       </aside>
 
-      {/* Open button (when collapsed on mobile) */}
-      <button
-        onClick={() => setCollapsed(false)}
-        className={`fixed top-4 left-4 z-50 p-2 rounded-lg bg-slate-950 border border-slate-800 shadow-sm hover:bg-slate-900 transition-colors ${
-          collapsed ? "block" : "hidden"
-        }`}
-      >
-        <Menu className="w-5 h-5 text-white" />
-      </button>
+      {/* Mobile bottom tab bar — below 768px */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex h-14 items-stretch border-t border-[var(--tt-border)] bg-[var(--tt-surface)] md:hidden">
+        {mobilePrimary.map((item) => {
+          const Icon = item.icon;
+          const isActive = isOn(item.path);
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium ${
+                isActive ? "text-[var(--tt-primary)]" : "text-[var(--tt-secondary)]"
+              }`}
+            >
+              <Icon className="h-5 w-5" strokeWidth={1.75} />
+              <span className="truncate px-0.5">{item.title.split(" ")[0]}</span>
+            </Link>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setMoreOpen(true)}
+          className={`flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium ${
+            moreActive ? "text-[var(--tt-primary)]" : "text-[var(--tt-secondary)]"
+          }`}
+        >
+          <MoreHorizontal className="h-5 w-5" strokeWidth={1.75} />
+          <span>More</span>
+        </button>
+      </nav>
+
+      {moreOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <button
+            type="button"
+            aria-label="Close menu"
+            className="absolute inset-0 bg-[var(--tt-ink)]/30"
+            onClick={() => setMoreOpen(false)}
+          />
+          <div className="absolute inset-x-0 bottom-0 max-h-[80vh] overflow-y-auto rounded-t-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-4 pb-8">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm font-semibold text-[var(--tt-ink)]">More</p>
+              <button
+                type="button"
+                onClick={() => setMoreOpen(false)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--tt-radius)] text-[var(--tt-secondary)] hover:bg-[var(--tt-paper)]"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-0.5">
+              {navItems.slice(4).map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setMoreOpen(false)}
+                    className={linkClass(item.path)}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+                    <span>{item.title}</span>
+                  </Link>
+                );
+              })}
+            </div>
+            <div className="mt-3 space-y-0.5 border-t border-[var(--tt-border)] pt-3">
+              <p className="px-3 pb-1 text-xs font-medium text-[var(--tt-secondary)]">Lab</p>
+              {examinerItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setMoreOpen(false)}
+                    className={linkClass(item.path)}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+                    <span>{item.title}</span>
+                  </Link>
+                );
+              })}
+            </div>
+            <div className="mt-3 border-t border-[var(--tt-border)] pt-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setMoreOpen(false);
+                  handleSignOut();
+                }}
+                className="flex w-full items-center gap-3 rounded-[var(--tt-radius)] px-3 py-2 text-sm font-medium text-[var(--tt-secondary)] hover:bg-[var(--tt-paper)] hover:text-[var(--tt-ink)]"
+              >
+                <LogOut className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+                <span>Sign Out</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

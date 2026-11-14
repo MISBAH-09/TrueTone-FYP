@@ -45,20 +45,86 @@
   --radius-2xl: 0.5rem;
   --radius-3xl: 0.75rem;
 
+/* Self-hosted IBM Plex — offline-safe for demos */
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("/fonts/ibm-plex-sans/IBMPlexSans-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("/fonts/ibm-plex-sans/IBMPlexSans-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("/fonts/ibm-plex-sans/IBMPlexSans-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("/fonts/ibm-plex-sans/IBMPlexSans-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("/fonts/ibm-plex-mono/IBMPlexMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("/fonts/ibm-plex-mono/IBMPlexMono-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  /* Clinical palette */
+  --tt-paper: #f8fafc;
+  --tt-paper-warm: #f7f5f0;
+  --tt-surface: #ffffff;
+  --tt-ink: #0f172a;
+  --tt-secondary: #475569;
+  --tt-border: #e2e8f0;
+  --tt-primary: #0f766e;
+  --tt-primary-hover: #0d9488;
+  --tt-primary-muted: #ccfbf1;
+  --tt-avoid: #b91c1c;
+  --tt-caution: #b45309;
+  --tt-safe: #047857;
+  --tt-radius: 6px;
+  --tt-control-h: 36px;
+  --tt-font: "IBM Plex Sans", system-ui, sans-serif;
+  --tt-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --tt-bp-mobile: 768px;
+
+  font-family: var(--tt-font);
   line-height: 1.5;
   font-weight: 400;
-  color-scheme: light dark;
-  color: #111827;
-  background-color: #f8fafc;
+  color: var(--tt-ink);
+  background-color: var(--tt-paper);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: #f8fafc;
-  font-family: inherit;
+  background-color: var(--tt-paper);
+  font-family: var(--tt-font);
+  color: var(--tt-ink);
 }
 
 * {
@@ -66,46 +132,181 @@ body {
 }
 
 a {
-  font-weight: 500;
-  /* color: #646cff; */
-  text-decoration: inherit;
+  color: inherit;
+  text-decoration: none;
 }
 
+/* Reset Vite default button chrome that crushed icon buttons */
 @layer base {
   button {
-    border-radius: 8px;
-    border: 1px solid transparent;
-    padding: 0.6em 1.2em;
-    font-size: 1em;
-    font-weight: 500;
     font-family: inherit;
     cursor: pointer;
-    transition: border-color 0.25s;
   }
-  button:hover {
-    /* border-color: #646cff; */
-  }
-  button:focus,
-  button:focus-visible {
-    outline: 4px auto -webkit-focus-ring-color;
-  }
-
-  @media (prefers-color-scheme: light) {
-    button {
-      background-color: #f9f9f9;
-    }
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 2px solid var(--tt-primary);
+    outline-offset: 2px;
   }
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  /* a:hover {
-    color: #747bff;
-  } */
+.tt-mono {
+  font-family: var(--tt-mono);
 }
+
+.tt-score {
+  font-family: var(--tt-mono);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Auth face-scan panel — 5s loop; disabled when reduced motion */
+.tt-auth-scan-headline {
+  font-family: var(--tt-mono);
+  font-size: clamp(1.5rem, 2.4vw, 2.15rem);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.tt-auth-scan-beam {
+  transform-box: fill-box;
+  transform-origin: center top;
+  animation: tt-auth-scan-beam 5s ease-in-out infinite;
+}
+
+.tt-auth-scan-label {
+  opacity: 0;
+}
+
+.tt-auth-scan-label-1 {
+  animation: tt-auth-label-in 5s ease-in-out infinite;
+  animation-delay: 0.25s;
+}
+.tt-auth-scan-label-2 {
+  animation: tt-auth-label-in 5s ease-in-out infinite;
+  animation-delay: 0.55s;
+}
+.tt-auth-scan-label-3 {
+  animation: tt-auth-label-in 5s ease-in-out infinite;
+  animation-delay: 0.85s;
+}
+.tt-auth-scan-label-4 {
+  animation: tt-auth-label-in 5s ease-in-out infinite;
+  animation-delay: 1.15s;
+}
+.tt-auth-scan-label-5 {
+  animation: tt-auth-label-in 5s ease-in-out infinite;
+  animation-delay: 1.45s;
+}
+.tt-auth-scan-label-6 {
+  animation: tt-auth-label-in 5s ease-in-out infinite;
+  animation-delay: 1.75s;
+}
+.tt-auth-scan-label-7 {
+  animation: tt-auth-label-in 5s ease-in-out infinite;
+  animation-delay: 2.05s;
+}
+.tt-auth-scan-label-8 {
+  animation: tt-auth-label-in 5s ease-in-out infinite;
+  animation-delay: 2.35s;
+}
+
+.tt-auth-scan-line {
+  opacity: 0.35;
+}
+
+@keyframes tt-auth-scan-beam {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  70% {
+    transform: translateY(128px);
+    opacity: 1;
+  }
+  85%,
+  100% {
+    transform: translateY(128px);
+    opacity: 0;
+  }
+}
+
+@keyframes tt-auth-label-in {
+  0%,
+  5% {
+    opacity: 0;
+  }
+  18%,
+  78% {
+    opacity: 0.95;
+  }
+  90%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Dashboard skin-map face — scan line only; labels stay still */
+.tt-dash-scan-beam {
+  transform-box: fill-box;
+  transform-origin: center top;
+  animation: tt-dash-scan-beam 4.5s ease-in-out infinite;
+}
+
+@keyframes tt-dash-scan-beam {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  72% {
+    transform: translateY(100px);
+    opacity: 1;
+  }
+  88%,
+  100% {
+    transform: translateY(100px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tt-auth-scan-beam,
+  .tt-auth-scan-label-1,
+  .tt-auth-scan-label-2,
+  .tt-auth-scan-label-3,
+  .tt-auth-scan-label-4,
+  .tt-auth-scan-label-5,
+  .tt-auth-scan-label-6,
+  .tt-auth-scan-label-7,
+  .tt-auth-scan-label-8,
+  .tt-dash-scan-beam {
+    animation: none !important;
+  }
+
+  .tt-auth-scan-beam {
+    transform: translateY(64px);
+    opacity: 0.7;
+  }
+
+  .tt-dash-scan-beam {
+    transform: translateY(50px);
+    opacity: 0.7;
+  }
+
+  .tt-auth-scan-label {
+    opacity: 0.95;
+  }
+}
+
 /* ───────────── Flatter corners, whichever way a big radius was written ─────────────
    Paste this at the very END of frontend/src/index.css (after everything else), then restart npm run dev.
    Cards and boxes get 12px / 8px / 6px. Pills, circles, small radii and one-sided corners (rounded-t-..., rounded-b-none) are left alone.
@@ -130,4 +331,15 @@ a {
 :is([class*="rounded-xl"]):not([class*="rounded-t"], [class*="rounded-b"], [class*="rounded-l"], [class*="rounded-r"], [class*="rounded-s"], [class*="rounded-e"]) {
   border-radius: 6px;
 }
- 
+/* ───────────── TrueTone colours: cool steel theme for the --tt- variables ─────────────
+   Paste this at the very END of frontend/src/index.css (after the @theme block and after the corner block).
+   It re-points the teammate's colour variables at the steel-blue theme, so every page changes together.
+   To undo it, delete this block. */
+:root {
+  --tt-primary: #2F6285;        /* buttons, links, active menu item (steel blue) */
+  --tt-primary-muted: #EEF4F8;  /* pale tint behind the active menu item */
+  --tt-ink: #1A2128;            /* main text */
+  --tt-secondary: #5F6C78;      /* secondary text, inactive menu items */
+  --tt-paper: #F4F6F8;          /* page background, hover background */
+  --tt-border: #DCE2E8;         /* lines and outlines */
+} 

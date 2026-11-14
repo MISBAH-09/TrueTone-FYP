@@ -40,8 +40,8 @@ const MODES = [
     label: "Skin Type Only",
     description: "Detect if your skin is oily, dry, combination, or normal.",
     icon: Droplets,
-    color: "bg-blue-100 text-blue-700",
-    activeBg: "bg-blue-600 text-white border-transparent",
+    color: "bg-[var(--tt-primary-muted)] text-[var(--tt-primary)]",
+    activeBg: "bg-[var(--tt-primary)] text-white border-transparent",
     apiFn: analyzeSkinType,
   },
   {
@@ -49,8 +49,8 @@ const MODES = [
     label: "Skin Tone Only",
     description: "Identify your skin tone (fair, medium, or dark).",
     icon: Palette,
-    color: "bg-amber-100 text-amber-700",
-    activeBg: "bg-amber-600 text-white border-transparent",
+    color: "bg-[var(--tt-primary-muted)] text-[var(--tt-primary)]",
+    activeBg: "bg-[var(--tt-primary)] text-white border-transparent",
     apiFn: analyzeSkinTone,
   },
   {
@@ -58,8 +58,8 @@ const MODES = [
     label: "Diseases Only",
     description: "Screen for skin conditions like acne, eczema, or rosacea.",
     icon: ShieldAlert,
-    color: "bg-rose-100 text-rose-700",
-    activeBg: "bg-rose-600 text-white border-transparent",
+    color: "bg-red-50 text-[var(--tt-avoid)]",
+    activeBg: "bg-[var(--tt-avoid)] text-white border-transparent",
     apiFn: analyzeSkinDisease,
   },
   {
@@ -67,8 +67,8 @@ const MODES = [
     label: "Skin Type & Tone",
     description: "Combined analysis of your skin type and tone together.",
     icon: Layers,
-    color: "bg-violet-100 text-violet-700",
-    activeBg: "bg-violet-600 text-white border-transparent",
+    color: "bg-[var(--tt-primary-muted)] text-[var(--tt-primary)]",
+    activeBg: "bg-[var(--tt-primary)] text-white border-transparent",
     apiFn: analyzeSkin,
   },
   {
@@ -76,8 +76,8 @@ const MODES = [
     label: "Full Analysis",
     description: "Complete report (skin type, tone, and condition screening).",
     icon: Sparkles,
-    color: "bg-emerald-100 text-emerald-700",
-    activeBg: "bg-emerald-600 text-white border-transparent",
+    color: "bg-[var(--tt-primary-muted)] text-[var(--tt-primary)]",
+    activeBg: "bg-[var(--tt-primary)] text-white border-transparent",
     apiFn: analyzeAll,
   },
 ];
@@ -351,7 +351,7 @@ const SkinAnalysis = () => {
           key: "skin_type",
           label: "Skin Type",
           confidence: pred?.confidence ?? 0.75,
-          activeBg: "bg-orange-500 text-white ring-4 ring-orange-200",
+          activeBg: "bg-[var(--tt-primary)] text-white border-[var(--tt-primary)]",
         };
       }
       if (key === "skin_tone") {
@@ -359,7 +359,7 @@ const SkinAnalysis = () => {
           key: "skin_tone",
           label: "Skin Tone",
           confidence: pred?.confidence ?? 0.8,
-          activeBg: "bg-amber-600 text-white ring-4 ring-amber-200",
+          activeBg: "bg-[var(--tt-primary)] text-white border-[var(--tt-primary)]",
         };
       }
       return {
@@ -369,8 +369,8 @@ const SkinAnalysis = () => {
           : "Skin Health",
         confidence: pred?.confidence ?? 0.85,
         activeBg: pred?.disease_detected
-          ? "bg-rose-500 text-white ring-4 ring-rose-200"
-          : "bg-emerald-500 text-white ring-4 ring-emerald-200",
+          ? "bg-[var(--tt-avoid)] text-white border-[var(--tt-avoid)]"
+          : "bg-[var(--tt-safe)] text-white border-[var(--tt-safe)]",
       };
     });
   };
@@ -378,20 +378,19 @@ const SkinAnalysis = () => {
   /* ═════════════════════════════════════════════════════════════════════════ */
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 sm:px-6 py-8 text-slate-900">
-      <div className="mx-auto max-w-5xl space-y-8">
+    <div className="mx-auto max-w-5xl space-y-6 text-[var(--tt-ink)]">
         {/* Header (Only on select, upload, or results) */}
         {["select", "upload", "results"].includes(stage) && (
-          <div>
-            <p className="text-sm font-semibold text-emerald-600 tracking-wide uppercase">
-              TrueTone AI Dermatological Lab
+          <div className="border-b border-[var(--tt-border)] pb-4">
+            <p className="tt-mono text-xs font-medium uppercase tracking-[0.14em] text-[var(--tt-primary)]">
+              Skin Analysis
             </p>
-            <h1 className="text-3xl font-extrabold text-slate-900 mt-1">
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-[var(--tt-ink)] sm:text-3xl">
               {stage === "select" && "Choose Analysis Type"}
               {stage === "upload" && "Select Photo Capture Method"}
               {stage === "results" && "Clinical Analysis Report"}
             </h1>
-            <p className="mt-1.5 text-slate-600 text-sm sm:text-base">
+            <p className="mt-1.5 text-sm text-[var(--tt-secondary)]">
               {stage === "select" &&
                 "Select what specific dermatological properties you want our AI models to analyze."}
               {stage === "upload" &&
@@ -404,24 +403,24 @@ const SkinAnalysis = () => {
 
         {/* ─── STAGE 1: SELECT MODE ─────────────────────────────────────── */}
         {stage === "select" && (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {MODES.map((mode) => {
               const Icon = mode.icon;
               return (
                 <button
                   key={mode.key}
                   onClick={() => handleModeSelect(mode)}
-                  className="group rounded-3xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:shadow-md hover:border-emerald-300 hover:-translate-y-0.5 focus:outline-none"
+                  className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-5 text-left transition-colors hover:border-[var(--tt-primary)] focus:outline-none"
                 >
                   <div
-                    className={`mb-4 flex h-12 w-12 items-center justify-center rounded-2xl ${mode.color} transition group-hover:scale-110`}
+                    className={`mb-3 flex h-10 w-10 items-center justify-center rounded-[var(--tt-radius)] ${mode.color}`}
                   >
-                    <Icon className="h-6 w-6" />
+                    <Icon className="h-5 w-5" />
                   </div>
-                  <h3 className="font-bold text-slate-900 text-lg">
+                  <h3 className="text-base font-semibold text-[var(--tt-ink)]">
                     {mode.label}
                   </h3>
-                  <p className="mt-1.5 text-sm text-slate-500 leading-relaxed">
+                  <p className="mt-1 text-sm leading-relaxed text-[var(--tt-secondary)]">
                     {mode.description}
                   </p>
                 </button>
@@ -432,20 +431,20 @@ const SkinAnalysis = () => {
 
         {/* ─── STAGE 2: UPLOAD OR SCAN CHOICE ───────────────────────────── */}
         {stage === "upload" && (
-          <div className="space-y-4 max-w-2xl mx-auto">
+          <div className="mx-auto max-w-2xl space-y-4">
             <button
               onClick={() => setStage("select")}
-              className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition"
+              className="inline-flex items-center gap-2 text-sm text-[var(--tt-secondary)] transition hover:text-[var(--tt-ink)]"
             >
               <ArrowLeft className="h-4 w-4" />
               Change analysis type
             </button>
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm text-center">
+            <div className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-6 text-center sm:p-8">
               {selectedMode && (
-                <div className="mb-6 flex justify-center">
+                <div className="mb-5 flex justify-center">
                   <span
-                    className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${selectedMode.color}`}
+                    className={`inline-flex items-center gap-2 rounded-[var(--tt-radius)] px-3 py-1.5 text-sm font-medium ${selectedMode.color}`}
                   >
                     <selectedMode.icon className="h-4 w-4" />
                     {selectedMode.label}
@@ -453,20 +452,20 @@ const SkinAnalysis = () => {
                 </div>
               )}
 
-              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-emerald-100 text-emerald-700">
-                <Camera className="w-10 h-10" />
+              <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-[var(--tt-radius)] bg-[var(--tt-primary-muted)] text-[var(--tt-primary)]">
+                <Camera className="h-7 w-7" />
               </div>
 
-              <h3 className="text-xl font-bold text-slate-900 mb-2">
+              <h3 className="mb-2 text-xl font-semibold text-[var(--tt-ink)]">
                 Capture or Upload Your Photo
               </h3>
-              <p className="text-slate-600 text-sm max-w-md mx-auto">
+              <p className="mx-auto max-w-md text-sm text-[var(--tt-secondary)]">
                 For optimal diagnostic precision, ensure good frontal lighting,
                 a neutral expression, and hair away from your forehead.
               </p>
 
               {error && (
-                <div className="mx-auto mt-4 flex max-w-md items-center gap-2 rounded-2xl bg-rose-50 border border-rose-200 px-4 py-3 text-sm text-rose-700">
+                <div className="mx-auto mt-4 flex max-w-md items-center gap-2 rounded-[var(--tt-radius)] border border-red-200 border-l-4 border-l-[var(--tt-avoid)] bg-red-50 px-3 py-2 text-sm text-[var(--tt-avoid)]">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
                   {error}
                 </div>
@@ -481,29 +480,29 @@ const SkinAnalysis = () => {
                 className="hidden"
               />
 
-              <div className="mt-8 flex flex-col sm:flex-row justify-center items-center gap-4">
+              <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <button
                   onClick={handleStartSmartScan}
-                  className="w-full sm:w-auto rounded-full bg-emerald-600 hover:bg-emerald-700 px-8 py-3.5 text-sm font-bold text-white transition shadow-md flex justify-center items-center gap-2 active:scale-95"
+                  className="inline-flex h-[var(--tt-control-h)] w-full items-center justify-center gap-2 rounded-[var(--tt-radius)] bg-[var(--tt-primary)] px-4 text-sm font-medium text-white transition-colors hover:bg-[var(--tt-primary-hover)] sm:w-auto"
                 >
-                  <Camera className="w-4 h-4" /> Smart Face Scan
+                  <Camera className="h-4 w-4" /> Smart Face Scan
                 </button>
-                <span className="text-slate-400 text-sm font-medium">or</span>
+                <span className="text-sm text-[var(--tt-secondary)]">or</span>
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full sm:w-auto rounded-full bg-white border border-slate-300 hover:bg-slate-50 px-8 py-3.5 text-sm font-bold text-slate-700 transition flex justify-center items-center gap-2 active:scale-95 shadow-sm"
+                  className="inline-flex h-[var(--tt-control-h)] w-full items-center justify-center gap-2 rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] px-4 text-sm font-medium text-[var(--tt-ink)] transition-colors hover:bg-[var(--tt-paper)] sm:w-auto"
                 >
-                  <Upload className="w-4 h-4" /> Upload Existing Photo
+                  <Upload className="h-4 w-4" /> Upload Existing Photo
                 </button>
               </div>
 
               {/* Tips Help Link */}
-              <div className="mt-6 pt-4 border-t border-slate-100 flex justify-center">
+              <div className="mt-6 flex justify-center border-t border-[var(--tt-border)] pt-4">
                 <button
                   onClick={() => setStage("onboarding")}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-700"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--tt-primary)] hover:underline"
                 >
-                  <HelpCircle className="w-3.5 h-3.5" />
+                  <HelpCircle className="h-3.5 w-3.5" />
                   View photo capture tips & requirements
                 </button>
               </div>
@@ -569,11 +568,11 @@ const SkinAnalysis = () => {
 
         {/* ─── STAGE 8: RESULTS REPORT WITH TEMPLATE-ZONE OVERLAYS ──────── */}
         {stage === "results" && results && (
-          <div className="space-y-6 animate-fadeIn">
+          <div className="animate-fadeIn space-y-5">
             {/* Action Bar */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <span
-                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${selectedMode?.color}`}
+                className={`inline-flex items-center gap-2 rounded-[var(--tt-radius)] px-3 py-1.5 text-sm font-medium ${selectedMode?.color}`}
               >
                 {selectedMode && <selectedMode.icon className="h-4 w-4" />}
                 {selectedMode?.label}
@@ -582,14 +581,14 @@ const SkinAnalysis = () => {
                 {selectedMode?.key === "all" && saveState === "idle" && (
                   <button
                     onClick={() => setSaveState("confirming")}
-                    className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition shadow-sm active:scale-95"
+                    className="inline-flex h-[var(--tt-control-h)] items-center gap-2 rounded-[var(--tt-radius)] bg-[var(--tt-primary)] px-3 text-sm font-medium text-white transition-colors hover:bg-[var(--tt-primary-hover)]"
                   >
                     Save to my profile
                   </button>
                 )}
                 <button
                   onClick={handleReset}
-                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm active:scale-95"
+                  className="inline-flex h-[var(--tt-control-h)] items-center gap-2 rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] px-3 text-sm font-medium text-[var(--tt-ink)] transition-colors hover:bg-[var(--tt-paper)]"
                 >
                   <RotateCcw className="h-4 w-4" />
                   New Analysis
@@ -599,24 +598,24 @@ const SkinAnalysis = () => {
 
             {/* Disease check asks if the photo is the user's before saving */}
             {saveState === "confirming" && selectedMode?.key === "skin_disease" && (
-              <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6">
-                <p className="text-sm font-semibold text-emerald-900">
+              <div className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] border-l-4 border-l-[var(--tt-primary)] bg-[var(--tt-primary-muted)] p-4">
+                <p className="text-sm font-semibold text-[var(--tt-ink)]">
                   Is this your own photo?
                 </p>
-                <p className="mt-1 text-xs text-emerald-700">
+                <p className="mt-1 text-xs text-[var(--tt-secondary)]">
                   If yes, this condition is saved on your profile and added to Skin Tracking.
                   If this is someone else's photo, nothing is saved.
                 </p>
-                <div className="mt-4 flex gap-3">
+                <div className="mt-4 flex flex-wrap gap-2">
                   <button
                     onClick={handleConfirmSave}
-                    className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition"
+                    className="inline-flex h-[var(--tt-control-h)] items-center rounded-[var(--tt-radius)] bg-[var(--tt-primary)] px-3 text-sm font-medium text-white hover:bg-[var(--tt-primary-hover)]"
                   >
                     Yes, this is me
                   </button>
                   <button
                     onClick={() => setSaveState("skipped")}
-                    className="rounded-full border border-emerald-300 bg-white px-5 py-2 text-sm text-emerald-800 hover:bg-emerald-100 transition"
+                    className="inline-flex h-[var(--tt-control-h)] items-center rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] px-3 text-sm font-medium text-[var(--tt-ink)] hover:bg-[var(--tt-paper)]"
                   >
                     No, just checking
                   </button>
@@ -625,24 +624,24 @@ const SkinAnalysis = () => {
             )}
 
             {saveState === "confirming" && selectedMode?.key !== "skin_disease" && (
-              <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6">
-                <p className="text-sm font-semibold text-emerald-900">
+              <div className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] border-l-4 border-l-[var(--tt-primary)] bg-[var(--tt-primary-muted)] p-4">
+                <p className="text-sm font-semibold text-[var(--tt-ink)]">
                   Update your saved profile with this result?
                 </p>
-                <p className="mt-1 text-xs text-emerald-700">
+                <p className="mt-1 text-xs text-[var(--tt-secondary)]">
                   This replaces your current skin type, tone, and condition on file, and your
                   Recommendations will refresh to match. It's also logged to Skin Tracking.
                 </p>
-                <div className="mt-4 flex gap-3">
+                <div className="mt-4 flex flex-wrap gap-2">
                   <button
                     onClick={handleConfirmSave}
-                    className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition"
+                    className="inline-flex h-[var(--tt-control-h)] items-center rounded-[var(--tt-radius)] bg-[var(--tt-primary)] px-3 text-sm font-medium text-white hover:bg-[var(--tt-primary-hover)]"
                   >
                     Yes, update my profile
                   </button>
                   <button
                     onClick={() => setSaveState("idle")}
-                    className="rounded-full border border-emerald-300 bg-white px-5 py-2 text-sm text-emerald-800 hover:bg-emerald-100 transition"
+                    className="inline-flex h-[var(--tt-control-h)] items-center rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] px-3 text-sm font-medium text-[var(--tt-ink)] hover:bg-[var(--tt-paper)]"
                   >
                     Cancel
                   </button>
@@ -651,29 +650,29 @@ const SkinAnalysis = () => {
             )}
 
             {saveState === "saving" && (
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 text-center text-sm font-semibold text-slate-500">
+              <div className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-4 text-center text-sm font-medium text-[var(--tt-secondary)]">
                 Saving…
               </div>
             )}
 
             {saveState === "skipped" && (
-              <div className="rounded-3xl border border-slate-200 bg-white p-6">
-                <p className="text-sm font-semibold text-slate-800">Nothing was saved.</p>
-                <p className="mt-1 text-xs text-slate-500">
+              <div className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-4">
+                <p className="text-sm font-semibold text-[var(--tt-ink)]">Nothing was saved.</p>
+                <p className="mt-1 text-xs text-[var(--tt-secondary)]">
                   Your profile and Skin Tracking stay as they were.
                 </p>
               </div>
             )}
 
             {saveState === "saved" && (
-              <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6">
-                <p className="text-sm font-semibold text-emerald-900">
+              <div className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] border-l-4 border-l-[var(--tt-safe)] bg-emerald-50 p-4">
+                <p className="text-sm font-semibold text-[var(--tt-ink)]">
                   {selectedMode?.key === "skin_disease"
                     ? "Profile and Skin Tracking updated."
                     : "Profile updated."}
                 </p>
                 {savedChanges && Object.keys(savedChanges).length > 0 ? (
-                  <ul className="mt-2 space-y-1 text-xs text-emerald-700">
+                  <ul className="mt-2 space-y-1 text-xs text-[var(--tt-secondary)]">
                     {Object.entries(savedChanges).map(([field, change]) => (
                       <li key={field}>
                         {field.replace("_", " ")}:{" "}
@@ -683,20 +682,20 @@ const SkinAnalysis = () => {
                     ))}
                   </ul>
                 ) : (
-                  <p className="mt-1 text-xs text-emerald-700">
+                  <p className="mt-1 text-xs text-[var(--tt-secondary)]">
                     No change from your last saved profile - logged anyway for your tracking history.
                   </p>
                 )}
                 <div className="mt-3 flex flex-wrap gap-4">
                   <a
                     href="/dashboard"
-                    className="text-sm font-semibold text-emerald-700 underline"
+                    className="text-sm font-medium text-[var(--tt-primary)] underline"
                   >
                     View profile on dashboard
                   </a>
                   <a
                     href="/skin-tracking"
-                    className="text-sm font-semibold text-emerald-700 underline"
+                    className="text-sm font-medium text-[var(--tt-primary)] underline"
                   >
                     Open Skin Tracking
                   </a>
@@ -705,7 +704,7 @@ const SkinAnalysis = () => {
             )}
 
             {saveState === "error" && (
-              <div className="rounded-2xl bg-rose-50 border border-rose-200 px-4 py-3 text-sm font-semibold text-rose-700">
+              <div className="rounded-[var(--tt-radius)] border border-red-200 border-l-4 border-l-[var(--tt-avoid)] bg-red-50 px-3 py-2 text-sm font-medium text-[var(--tt-avoid)]">
                 {saveError}
               </div>
             )}
@@ -716,7 +715,7 @@ const SkinAnalysis = () => {
                 {results.warnings.map((w, i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-2 rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800"
+                    className="flex items-center gap-2 rounded-[var(--tt-radius)] border border-amber-200 border-l-4 border-l-[var(--tt-caution)] bg-amber-50 px-3 py-2 text-sm text-[var(--tt-caution)]"
                   >
                     <AlertTriangle className="h-4 w-4 shrink-0" />
                     {w}
@@ -725,8 +724,8 @@ const SkinAnalysis = () => {
               </div>
             )}
 
-            {/* Main Interactive Facial Visualizer (Cetaphil-Style) */}
-            <div className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm flex flex-col items-center">
+            {/* Main Interactive Facial Visualizer */}
+            <div className="flex flex-col items-center rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-4 sm:p-6">
               {/* Active Metric Overlay Component */}
               <div className="w-full max-w-md mx-auto">
                 {(() => {
@@ -748,13 +747,7 @@ const SkinAnalysis = () => {
                     badgeTitle={`${capitalize(
                       results.predictions.skin_type.label
                     )} Skin`}
-                    badgeBgColor={
-                      results.predictions.skin_type.label === "dry"
-                        ? "bg-blue-500"
-                        : results.predictions.skin_type.label === "normal"
-                        ? "bg-emerald-600"
-                        : "bg-orange-500"
-                    }
+                    badgeBgColor="bg-[var(--tt-primary)]"
                   />
                 )}
 
@@ -770,7 +763,7 @@ const SkinAnalysis = () => {
                     badgeTitle={`${capitalize(
                       results.predictions.skin_tone.label
                     )} Undertone`}
-                    badgeBgColor="bg-amber-600"
+                    badgeBgColor="bg-[var(--tt-primary)]"
                   />
                 )}
 
@@ -807,7 +800,7 @@ const SkinAnalysis = () => {
               </div>
 
               {/* Per-Metric Tab Switcher Bar matching reference images 5 and 14 */}
-              <div className="mt-4 w-full border-t border-slate-100 pt-3">
+              <div className="mt-4 w-full border-t border-[var(--tt-border)] pt-3">
                 <ResultTabs
                   tabs={buildResultTabs()}
                   activeTabKey={activeTabKey}
@@ -817,7 +810,7 @@ const SkinAnalysis = () => {
             </div>
 
             {/* Detail Distribution Cards Grid */}
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2">
               {visibleKeys().map((key) => {
                 const pred = results.predictions?.[key];
                 if (!pred) return null;
@@ -829,31 +822,22 @@ const SkinAnalysis = () => {
                     ? "Skin Tone Distribution"
                     : "Condition Screening Distribution";
 
-                const iconColor =
-                  key === "skin_type"
-                    ? "bg-orange-100 text-orange-700"
-                    : key === "skin_tone"
-                    ? "bg-amber-100 text-amber-700"
-                    : "bg-rose-100 text-rose-700";
-
                 return (
                   <div
                     key={key}
-                    className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between"
+                    className="flex flex-col justify-between rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-4"
                   >
                     <div>
-                      <div className="flex items-center justify-between mb-4">
+                      <div className="mb-4 flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <div
-                            className={`flex h-10 w-10 items-center justify-center rounded-2xl ${iconColor}`}
-                          >
-                            <BarChart3 className="w-5 h-5" />
+                          <div className="flex h-9 w-9 items-center justify-center rounded-[var(--tt-radius)] bg-[var(--tt-primary-muted)] text-[var(--tt-primary)]">
+                            <BarChart3 className="h-4 w-4" />
                           </div>
                           <div>
-                            <h3 className="font-bold text-slate-900">{title}</h3>
-                            <p className="text-xs text-slate-500">
+                            <h3 className="text-sm font-semibold text-[var(--tt-ink)]">{title}</h3>
+                            <p className="text-xs text-[var(--tt-secondary)]">
                               Top prediction:{" "}
-                              <span className="font-bold text-slate-800">
+                              <span className="font-semibold text-[var(--tt-ink)]">
                                 {labelFor(key, pred.label)}
                               </span>{" "}
                               ({Math.round(pred.confidence * 100)}%)
@@ -861,14 +845,12 @@ const SkinAnalysis = () => {
                           </div>
                         </div>
 
-                        {/* Confidence Pill */}
-                        <span className="text-xs font-bold px-3 py-1 bg-slate-100 text-slate-700 rounded-full">
+                        <span className="tt-mono rounded-[var(--tt-radius)] bg-[var(--tt-paper)] px-2 py-1 text-xs font-medium text-[var(--tt-ink)]">
                           {Math.round(pred.confidence * 100)}%
                         </span>
                       </div>
 
-                      {/* Percentage Distribution Bars (Section 9.6) */}
-                      <div className="space-y-3.5 my-4">
+                      <div className="my-4 space-y-3">
                         {pred.distribution &&
                           Object.entries(pred.distribution)
                             .sort(([, a], [, b]) => b - a)
@@ -876,29 +858,29 @@ const SkinAnalysis = () => {
                               const isTop = cls === pred.label;
                               return (
                                 <div key={cls}>
-                                  <div className="flex items-center justify-between mb-1">
+                                  <div className="mb-1 flex items-center justify-between">
                                     <span
                                       className={`text-sm ${
                                         isTop
-                                          ? "font-bold text-slate-900"
-                                          : "text-slate-600"
+                                          ? "font-semibold text-[var(--tt-ink)]"
+                                          : "text-[var(--tt-secondary)]"
                                       }`}
                                     >
                                       {labelFor(key, cls)}
                                       {isTop && (
-                                        <CheckCircle2 className="ml-1.5 inline h-3.5 w-3.5 text-emerald-600" />
+                                        <CheckCircle2 className="ml-1.5 inline h-3.5 w-3.5 text-[var(--tt-safe)]" />
                                       )}
                                     </span>
-                                    <span className="text-xs font-semibold text-slate-400">
+                                    <span className="tt-mono text-xs text-[var(--tt-secondary)]">
                                       {pctBar(prob)}
                                     </span>
                                   </div>
-                                  <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                                  <div className="h-1.5 w-full overflow-hidden rounded-[var(--tt-radius)] bg-[var(--tt-border)]">
                                     <div
-                                      className={`h-2 rounded-full transition-all duration-700 ${
+                                      className={`h-1.5 rounded-[var(--tt-radius)] transition-all duration-700 ${
                                         isTop
-                                          ? "bg-emerald-500"
-                                          : "bg-slate-300"
+                                          ? "bg-[var(--tt-primary)]"
+                                          : "bg-[var(--tt-secondary)]/30"
                                       }`}
                                       style={{ width: pctBar(prob) }}
                                     />
@@ -909,33 +891,32 @@ const SkinAnalysis = () => {
                       </div>
                     </div>
 
-                                        {/* Condition Status Alert */}
                     {key === "skin_disease" && (
                       <div
-                        className={`mt-4 rounded-2xl px-4 py-3 text-sm font-medium ${
+                        className={`mt-4 rounded-[var(--tt-radius)] border px-3 py-2 text-sm font-medium ${
                           pred.disease_detected
-                            ? "bg-rose-50 text-rose-800 border border-rose-200"
+                            ? "border-red-200 border-l-4 border-l-[var(--tt-avoid)] bg-red-50 text-[var(--tt-avoid)]"
                             : pred.is_confident === false
-                            ? "bg-amber-50 text-amber-800 border border-amber-200"
-                            : "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                            ? "border-amber-200 border-l-4 border-l-[var(--tt-caution)] bg-amber-50 text-[var(--tt-caution)]"
+                            : "border-emerald-200 border-l-4 border-l-[var(--tt-safe)] bg-emerald-50 text-[var(--tt-safe)]"
                         }`}
                       >
                         {pred.disease_detected ? (
                           <span className="flex items-center gap-2">
-                            <ShieldAlert className="h-4 w-4 shrink-0 text-rose-600" />
+                            <ShieldAlert className="h-4 w-4 shrink-0" />
                             {labelFor(key, pred.label)} detected. TrueTone is an AI
                             screening aid. Please consult a dermatologist.
                           </span>
                         ) : pred.is_confident === false ? (
                           <span className="flex items-center gap-2">
-                            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+                            <AlertTriangle className="h-4 w-4 shrink-0" />
                             We couldn't match this photo to a condition we screen for.
                             Try a clearer, well-lit photo, or consult a dermatologist
                             if you have concerns.
                           </span>
                         ) : (
                           <span className="flex items-center gap-2">
-                            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                            <CheckCircle2 className="h-4 w-4 shrink-0" />
                             No clinical skin conditions detected in scanned zones.
                           </span>
                         )}
@@ -946,9 +927,8 @@ const SkinAnalysis = () => {
               })}
             </div>
 
-            {/* Latency info */}
             {results.latency_ms && (
-              <p className="text-center text-xs text-slate-400">
+              <p className="tt-mono text-center text-xs text-[var(--tt-secondary)]">
                 Processed in {results.latency_ms.total_ms}ms (inference:{" "}
                 {results.latency_ms.parallel_wall_ms ||
                   results.latency_ms.inference_wall_ms}
@@ -957,7 +937,6 @@ const SkinAnalysis = () => {
             )}
           </div>
         )}
-      </div>
     </div>
   );
 };

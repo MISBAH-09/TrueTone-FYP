@@ -1,7 +1,10 @@
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { Eye, EyeOff, Mail, Lock, User, Leaf, Loader2 } from "lucide-react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { signupUser, loginUser } from "../services/user";
+import TrueToneLogo from "../components/TrueToneLogo";
+import AuthFaceScanPanel from "../components/AuthFaceScanPanel";
+import { Button, Input, InlineAlert } from "../components/ui";
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
@@ -11,7 +14,6 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Form fields
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,7 +27,6 @@ const Auth = () => {
 
     try {
       if (isSignUp) {
-        // ─── SIGNUP ─────────────────────────────────────────
         await signupUser({
           username,
           email,
@@ -34,16 +35,13 @@ const Auth = () => {
           last_name: lastName,
         });
 
-        // Switch to login form — signup alone doesn't grant access
         setIsSignUp(false);
         setError("");
         setPassword("");
         alert("Account created successfully! Please login to continue.");
       } else {
-        // ─── LOGIN ──────────────────────────────────────────
         const data = await loginUser({ username, password });
 
-        // Redirect based on onboarding status
         if (data.data.onboarding_completed) {
           navigate("/dashboard");
         } else {
@@ -59,125 +57,116 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
-      <div className="flex-1 flex items-center justify-center px-6 py-12 bg-white">
+    <div className="flex min-h-screen flex-col bg-[var(--tt-paper)] md:flex-row">
+      <div className="flex flex-1 items-center justify-center px-4 py-10 sm:px-6">
         <div className="w-full max-w-md">
-          <h1 className="text-3xl font-bold mb-2 text-slate-900">
+          <TrueToneLogo className="mb-8" />
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--tt-ink)] sm:text-3xl">
             {isSignUp ? "Create Account" : "Welcome Back"}
           </h1>
-          <p className="text-slate-600 mb-8">
+          <p className="mt-2 text-sm text-[var(--tt-secondary)]">
             {isSignUp
               ? "Start your personalized skincare journey."
               : "Sign in to continue your skincare journey."}
           </p>
 
-          {error && (
-            <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm">
+          {error ? (
+            <InlineAlert tone="error" className="mt-6">
               {error}
-            </div>
-          )}
+            </InlineAlert>
+          ) : null}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full h-12 pl-10 rounded-2xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                required
-              />
-            </div>
+          <form onSubmit={handleSubmit} className="mt-6 space-y-3">
+            <Input
+              type="text"
+              placeholder="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              autoComplete="username"
+            />
 
             {isSignUp && (
               <>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="First Name"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    className="w-full h-12 pl-10 rounded-2xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Last Name"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    className="w-full h-12 pl-10 rounded-2xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    type="email"
-                    placeholder="Email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full h-12 pl-10 rounded-2xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    required
-                  />
-                </div>
+                <Input
+                  type="text"
+                  placeholder="First Name"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  autoComplete="given-name"
+                />
+                <Input
+                  type="text"
+                  placeholder="Last Name"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  autoComplete="family-name"
+                />
+                <Input
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                />
               </>
             )}
 
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
+              <Input
                 type={showPassword ? "text" : "password"}
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full h-12 pl-10 pr-10 rounded-2xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="pr-10"
                 required
+                autoComplete={isSignUp ? "new-password" : "current-password"}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-[var(--tt-radius)] text-[var(--tt-secondary)] hover:bg-[var(--tt-paper)] hover:text-[var(--tt-ink)]"
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
 
             {isSignUp && (
-              <p className="text-xs text-slate-400 pl-1">
+              <p className="text-xs text-[var(--tt-secondary)]">
                 Min 8 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special character
               </p>
             )}
 
             {!isSignUp && (
-              <div className="flex items-center justify-between text-sm text-slate-500">
+              <div className="flex items-center justify-between text-sm text-[var(--tt-secondary)]">
                 <label className="flex items-center gap-2">
-                  <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-[var(--tt-border)] text-[var(--tt-primary)] focus:ring-[var(--tt-primary)]"
+                  />
                   Remember me
                 </label>
-                <button type="button" className="text-emerald-600 hover:underline">
+                <button type="button" className="font-medium text-[var(--tt-primary)] hover:underline">
                   Forgot password?
                 </button>
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full h-12 rounded-2xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {loading && <Loader2 size={18} className="animate-spin" />}
+            <Button type="submit" variant="primary" disabled={loading} className="w-full">
+              {loading && <Loader2 size={16} className="animate-spin" />}
               {loading
-                ? isSignUp ? "Creating Account..." : "Signing In..."
-                : isSignUp ? "Create Account" : "Sign In"}
-            </button>
+                ? isSignUp
+                  ? "Creating Account..."
+                  : "Signing In..."
+                : isSignUp
+                  ? "Create Account"
+                  : "Sign In"}
+            </Button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-slate-500">
+          <p className="mt-6 text-center text-sm text-[var(--tt-secondary)]">
             {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
             <button
               type="button"
@@ -185,25 +174,21 @@ const Auth = () => {
                 setIsSignUp(!isSignUp);
                 setError("");
               }}
-              className="text-emerald-600 font-medium hover:underline"
+              className="font-medium text-[var(--tt-primary)] hover:underline"
             >
               {isSignUp ? "Sign In" : "Sign Up"}
             </button>
           </p>
-        </div>
-      </div>
 
-      <div className="hidden lg:flex flex-1 items-center justify-center bg-emerald-600 px-8 py-12 text-white">
-        <div className="max-w-md text-center">
-          <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-white/15">
-            <Leaf size={40} />
-          </div>
-          <h2 className="text-3xl font-bold mb-4">Smart Skin Analysis</h2>
-          <p className="text-slate-100/90">
-            AI-powered skin assessment and product safety checks for your unique skin needs.
+          <p className="mt-4 text-center text-xs text-[var(--tt-secondary)]">
+            <Link to="/" className="hover:text-[var(--tt-ink)] hover:underline">
+              Back to TrueTone
+            </Link>
           </p>
         </div>
       </div>
+
+      <AuthFaceScanPanel />
     </div>
   );
 };

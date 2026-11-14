@@ -10,6 +10,7 @@ import {
   PackageX,
 } from "lucide-react";
 import { getRecommendations } from "../services/recommendations";
+import { ScoreLabel } from "../components/ui";
 
 // Nicely-cased labels for category keys coming back from the API
 // (products_template.csv's `category` values are lowercase).
@@ -73,30 +74,29 @@ const Recommendations = () => {
     fetchRecommendations();
   }, []);
 
-  // ─── Loading state ──────────────────────────────────────────
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-3">
-        <Loader2 className="animate-spin text-emerald-600" size={32} />
-        <p className="text-sm text-slate-500">Building your personalized recommendations…</p>
+      <div className="flex flex-col items-center justify-center gap-3 py-24 text-[var(--tt-ink)]">
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--tt-primary)]" />
+        <p className="text-sm text-[var(--tt-secondary)]">Building your personalized recommendations…</p>
       </div>
     );
   }
 
-  // ─── Onboarding-incomplete state ────────────────────────────
   if (needsOnboarding) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-4 px-6 text-center">
-        <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center">
-          <ShieldCheck className="text-emerald-600" size={26} />
+      <div className="mx-auto flex max-w-md flex-col items-center gap-4 px-6 py-24 text-center text-[var(--tt-ink)]">
+        <div className="flex h-14 w-14 items-center justify-center rounded-[var(--tt-radius)] bg-[var(--tt-primary-muted)] text-[var(--tt-primary)]">
+          <ShieldCheck size={26} />
         </div>
-        <h1 className="text-2xl font-bold text-slate-900">Complete onboarding first</h1>
-        <p className="text-sm text-slate-500 max-w-sm">
+        <h1 className="text-2xl font-semibold tracking-tight">Complete onboarding first</h1>
+        <p className="text-sm text-[var(--tt-secondary)]">
           We need your skin type, condition, and a couple of safety questions before we can recommend anything responsibly.
         </p>
         <button
+          type="button"
           onClick={() => navigate("/onboarding")}
-          className="mt-2 rounded-full bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200/40 hover:bg-emerald-700 transition"
+          className="mt-2 inline-flex h-[var(--tt-control-h)] items-center rounded-[var(--tt-radius)] bg-[var(--tt-primary)] px-5 text-sm font-medium text-white hover:bg-[var(--tt-primary-hover)]"
         >
           Go to Onboarding
         </button>
@@ -104,12 +104,11 @@ const Recommendations = () => {
     );
   }
 
-  // ─── Error state ────────────────────────────────────────────
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-3 px-6 text-center">
-        <AlertTriangle className="text-red-500" size={28} />
-        <p className="text-sm text-red-600">{error}</p>
+      <div className="mx-auto flex max-w-md flex-col items-center gap-3 px-6 py-24 text-center">
+        <AlertTriangle className="text-[var(--tt-avoid)]" size={28} />
+        <p className="text-sm font-medium text-[var(--tt-avoid)]">{error}</p>
       </div>
     );
   }
@@ -118,248 +117,264 @@ const Recommendations = () => {
   const hasAnyRecommendations = categories.some((c) => recommendations[c]?.length > 0);
 
   return (
-    <div className="min-h-screen bg-slate-50 px-6 py-8 text-slate-900">
-      <div className="mx-auto max-w-5xl space-y-8">
-        {/* Header */}
-        <div>
-          <p className="text-sm text-slate-500">Recommendations</p>
-          <h1 className="text-3xl font-bold">Personalized Product Picks</h1>
-          <p className="mt-2 text-slate-600">Products ranked for your skin profile and safety answers.</p>
-          {notRelevantCount > 0 && (
-            <p className="mt-1 text-xs text-slate-400">
-              {notRelevantCount} other product{notRelevantCount > 1 ? "s" : ""} in the catalog didn't match your profile closely enough to show here.
-            </p>
-          )}
-        </div>
-
-        {/* How scores are calculated - explains the points to users and evaluators */}
-        <details className="rounded-3xl border border-slate-200 bg-white p-5">
-          <summary className="cursor-pointer select-none text-sm font-semibold text-slate-700">
-            How are scores calculated?
-          </summary>
-          <div className="mt-4 space-y-4 text-xs text-slate-600">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-slate-100 text-slate-400">
-                    <th className="py-2 pr-3 font-medium">Rule</th>
-                    <th className="py-2 pr-3 font-medium">Points</th>
-                    <th className="py-2 font-medium">When it applies</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {SCORING_RULES.map((r) => (
-                    <tr key={r.rule} className="border-b border-slate-50 last:border-0">
-                      <td className="py-2 pr-3 font-semibold text-slate-700">{r.rule}</td>
-                      <td className={`py-2 pr-3 font-semibold whitespace-nowrap ${r.negative ? "text-red-500" : "text-emerald-600"}`}>
-                        {r.points}
-                      </td>
-                      <td className="py-2">{r.when}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <ul className="list-disc space-y-1 pl-4 text-slate-500">
-              <li>
-                The best possible score is 10. A rule you have not given us information for (for
-                example, no skin condition on your profile) cannot earn points, so each score is
-                shown out of what is possible for you.
-              </li>
-              <li>
-                Allergies and pregnancy are not scored. A product with an allergen or a
-                pregnancy-unsafe ingredient is removed completely and listed under excluded for
-                your safety.
-              </li>
-              <li>
-                Products scoring 0 or below are not shown. Equal scores are ordered by fewest
-                warnings, then by name.
-              </li>
-              <li>The weights are expert-set heuristics, not clinically validated.</li>
-            </ul>
-          </div>
-        </details>
-
-        {/* Category tabs */}
-        {categories.length > 1 && (
-          <div className="flex flex-wrap gap-2">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                  activeCategory === cat
-                    ? "bg-emerald-600 text-white shadow-sm"
-                    : "bg-white text-slate-600 border border-slate-200 hover:border-emerald-400"
-                }`}
-              >
-                {categoryLabel(cat)} ({recommendations[cat].length})
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Empty state */}
-        {!hasAnyRecommendations && (
-          <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center">
-            <PackageX className="mx-auto text-slate-300 mb-3" size={36} />
-            <p className="text-slate-500 text-sm">
-              No products matched your profile yet — the catalog is still small while we're testing.
-              Check back as more products are added.
-            </p>
-          </div>
-        )}
-
-        {/* Product cards for the active category */}
-        {activeCategory && recommendations[activeCategory]?.length > 0 && (
-          <div className="grid gap-6 md:grid-cols-3">
-            {recommendations[activeCategory].map((item) => (
-              <div
-                key={item.product_id}
-                className="flex flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1"
-              >
-                <div className="mb-4 flex items-center justify-between">
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
-                    <Star className="w-5 h-5" />
-                  </div>
-                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                    {item.max_score ? `${fmtPts(item.score)} / ${item.max_score} pts` : `Score ${item.score.toFixed(1)}`}
-                  </span>
-                </div>
-
-                <h2 className="text-lg font-semibold text-slate-900 leading-snug">{item.name}</h2>
-                {item.brand_name && <p className="text-xs text-slate-400 mt-0.5">{item.brand_name}</p>}
-
-                {/* Safety advisory - always shown prominently, never buried */}
-                {item.safety_advisory && (
-                  <div className="mt-3 flex gap-2 rounded-2xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
-                    <ShieldAlert size={16} className="flex-shrink-0 mt-0.5" />
-                    <span>{item.safety_advisory}</span>
-                  </div>
-                )}
-
-                {/* Why it's recommended */}
-                {item.reasons?.length > 0 && (
-                  <ul className="mt-4 space-y-1.5">
-                    {item.reasons.map((reason, i) => (
-                      <li key={i} className="flex items-start gap-2 text-xs text-slate-600">
-                        <ShieldCheck size={14} className="text-emerald-500 flex-shrink-0 mt-0.5" />
-                        {reason}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-
-                {/* Where this product's points came from */}
-                {item.breakdown?.length > 0 && (
-                  <details open className="mt-4">
-                    <summary className="cursor-pointer select-none text-xs font-semibold text-slate-500 hover:text-emerald-600">
-                      Score breakdown
-                    </summary>
-                    <ul className="mt-2 space-y-1.5">
-                      {item.breakdown.map((row) => (
-                        <li key={row.label} className="flex items-center justify-between text-xs">
-                          <span className="text-slate-600">{row.label}</span>
-                          <span
-                            className={`font-semibold ${
-                              row.points > 0 ? "text-emerald-600" : row.points < 0 ? "text-red-500" : "text-slate-400"
-                            }`}
-                          >
-                            {row.points > 0 ? "+" : ""}
-                            {fmtPts(row.points)}
-                            {row.max > 0 ? ` / ${row.max}` : ""}
-                          </span>
-                        </li>
-                      ))}
-                      <li className="flex items-center justify-between border-t border-slate-100 pt-1.5 text-xs font-semibold text-slate-800">
-                        <span>Total</span>
-                        <span>
-                          {fmtPts(item.score)}
-                          {item.max_score ? ` / ${item.max_score}` : ""}
-                        </span>
-                      </li>
-                    </ul>
-                  </details>
-                )}
-
-                {/* Warnings - e.g. tone caution notes, ingredient concerns */}
-                {item.warnings?.length > 0 && (
-                  <ul className="mt-3 space-y-1.5">
-                    {item.warnings.map((warning, i) => (
-                      <li key={i} className="flex items-start gap-2 text-xs text-amber-600">
-                        <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
-                        {warning}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-
-                {/* Ingredients - collapsed by default, so the card stays scannable */}
-                {item.ingredients?.length > 0 && (
-                  <details className="mt-4 group">
-                    <summary className="cursor-pointer text-xs font-semibold text-slate-500 hover:text-emerald-600 select-none">
-                      Ingredients ({item.ingredients.length})
-                    </summary>
-                    <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                      {item.ingredients.map((ing, i) => (
-                        <span key={i} className={ing.is_common_allergen ? "font-semibold text-amber-600" : ""}>
-                          {ing.inci_name}
-                          {i < item.ingredients.length - 1 ? ", " : ""}
-                        </span>
-                      ))}
-                    </p>
-                  </details>
-                )}
-
-                <div className="mt-auto pt-5 flex items-center justify-between text-sm">
-                  <span className="font-semibold text-slate-800" title="Approximate - actual retailer price may differ">
-                    {item.price_pkr_low
-                      ? `~Rs. ${item.price_pkr_low.toLocaleString()}–${item.price_pkr_high.toLocaleString()}`
-                      : "Price N/A"}
-                  </span>
-                  {item.purchase_link && (
-                    <a
-                      href={item.purchase_link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-emerald-600 font-semibold hover:text-emerald-700"
-                    >
-                      View <ExternalLink size={13} />
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Excluded-for-safety, collapsible - full transparency, never hidden entirely */}
-        {excluded.length > 0 && (
-          <div className="rounded-3xl border border-slate-200 bg-white p-6">
-            <button
-              onClick={() => setShowExcluded((s) => !s)}
-              className="flex w-full items-center justify-between text-left"
-            >
-              <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <ShieldAlert size={16} className="text-slate-400" />
-                {excluded.length} product{excluded.length > 1 ? "s" : ""} excluded for your safety
-              </span>
-              <span className="text-xs text-emerald-600 font-semibold">
-                {showExcluded ? "Hide" : "Show"}
-              </span>
-            </button>
-            {showExcluded && (
-              <ul className="mt-4 space-y-2 border-t border-slate-100 pt-4">
-                {excluded.map((ex) => (
-                  <li key={ex.product_id} className="text-xs text-slate-500">
-                    <span className="font-semibold text-slate-700">{ex.name}</span> — {ex.reason}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+    <div className="mx-auto max-w-5xl space-y-6 text-[var(--tt-ink)]">
+      <div className="border-b border-[var(--tt-border)] pb-4">
+        <p className="tt-mono text-xs font-medium uppercase tracking-[0.14em] text-[var(--tt-primary)]">
+          Recommendations
+        </p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+          Personalized Product Picks
+        </h1>
+        <p className="mt-1.5 text-sm text-[var(--tt-secondary)]">
+          Products ranked for your skin profile and safety answers.
+        </p>
+        {notRelevantCount > 0 && (
+          <p className="mt-1 text-xs text-[var(--tt-secondary)]">
+            {notRelevantCount} other product{notRelevantCount > 1 ? "s" : ""} in the catalog didn&apos;t match your profile closely enough to show here.
+          </p>
         )}
       </div>
+
+      <details className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-4 sm:p-5">
+        <summary className="cursor-pointer select-none text-sm font-semibold text-[var(--tt-ink)]">
+          How are scores calculated?
+        </summary>
+        <div className="mt-4 space-y-4 text-xs text-[var(--tt-secondary)]">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-[var(--tt-border)] text-[var(--tt-secondary)]">
+                  <th className="py-2 pr-3 font-medium">Rule</th>
+                  <th className="py-2 pr-3 font-medium">Points</th>
+                  <th className="py-2 font-medium">When it applies</th>
+                </tr>
+              </thead>
+              <tbody>
+                {SCORING_RULES.map((r) => (
+                  <tr key={r.rule} className="border-b border-[var(--tt-border)] last:border-0">
+                    <td className="py-2 pr-3 font-semibold text-[var(--tt-ink)]">{r.rule}</td>
+                    <td
+                      className={`py-2 pr-3 font-semibold whitespace-nowrap ${
+                        r.negative ? "text-[var(--tt-avoid)]" : "text-[var(--tt-safe)]"
+                      }`}
+                    >
+                      {r.points}
+                    </td>
+                    <td className="py-2">{r.when}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <ul className="list-disc space-y-1 pl-4">
+            <li>
+              The best possible score is 10. A rule you have not given us information for (for
+              example, no skin condition on your profile) cannot earn points, so each score is
+              shown out of what is possible for you.
+            </li>
+            <li>
+              Allergies and pregnancy are not scored. A product with an allergen or a
+              pregnancy-unsafe ingredient is removed completely and listed under excluded for
+              your safety.
+            </li>
+            <li>
+              Products scoring 0 or below are not shown. Equal scores are ordered by fewest
+              warnings, then by name.
+            </li>
+            <li>The weights are expert-set heuristics, not clinically validated.</li>
+          </ul>
+        </div>
+      </details>
+
+      {categories.length > 1 && (
+        <div className="flex flex-wrap gap-2">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => setActiveCategory(cat)}
+              className={`inline-flex h-9 items-center rounded-[var(--tt-radius)] px-3 text-sm font-medium transition-colors ${
+                activeCategory === cat
+                  ? "bg-[var(--tt-primary)] text-white"
+                  : "border border-[var(--tt-border)] bg-[var(--tt-surface)] text-[var(--tt-ink)] hover:bg-[var(--tt-paper)]"
+              }`}
+            >
+              {categoryLabel(cat)} ({recommendations[cat].length})
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!hasAnyRecommendations && (
+        <div className="rounded-[var(--tt-radius)] border border-dashed border-[var(--tt-border)] bg-[var(--tt-surface)] p-10 text-center">
+          <PackageX className="mx-auto mb-3 text-[var(--tt-secondary)]" size={36} />
+          <p className="text-sm text-[var(--tt-secondary)]">
+            No products matched your profile yet — the catalog is still small while we&apos;re testing.
+            Check back as more products are added.
+          </p>
+        </div>
+      )}
+
+      {activeCategory && recommendations[activeCategory]?.length > 0 && (
+        <div className="grid gap-4 md:grid-cols-3">
+          {recommendations[activeCategory].map((item) => (
+            <div
+              key={item.product_id}
+              className="flex flex-col rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-5"
+            >
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div className="inline-flex h-10 w-10 items-center justify-center rounded-[var(--tt-radius)] bg-[var(--tt-primary-muted)] text-[var(--tt-primary)]">
+                  <Star className="h-5 w-5" />
+                </div>
+                <ScoreLabel
+                  value={
+                    item.max_score
+                      ? `${fmtPts(item.score)} / ${item.max_score}`
+                      : item.score.toFixed(1)
+                  }
+                  label="Match"
+                  rangeText={item.max_score ? undefined : "0 to 10"}
+                  size="sm"
+                  className="text-right"
+                />
+              </div>
+
+              <h2 className="text-base font-semibold leading-snug text-[var(--tt-ink)]">{item.name}</h2>
+              {item.brand_name && (
+                <p className="mt-0.5 text-xs text-[var(--tt-secondary)]">{item.brand_name}</p>
+              )}
+
+              {item.safety_advisory && (
+                <div className="mt-3 flex gap-2 rounded-[var(--tt-radius)] border border-red-200 border-l-4 border-l-[var(--tt-avoid)] bg-red-50 p-3 text-xs text-[var(--tt-avoid)]">
+                  <ShieldAlert size={16} className="mt-0.5 shrink-0" />
+                  <span>{item.safety_advisory}</span>
+                </div>
+              )}
+
+              {item.reasons?.length > 0 && (
+                <ul className="mt-4 space-y-1.5">
+                  {item.reasons.map((reason, i) => (
+                    <li key={i} className="flex items-start gap-2 text-xs text-[var(--tt-secondary)]">
+                      <ShieldCheck size={14} className="mt-0.5 shrink-0 text-[var(--tt-safe)]" />
+                      {reason}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {item.breakdown?.length > 0 && (
+                <details open className="mt-4">
+                  <summary className="cursor-pointer select-none text-xs font-semibold text-[var(--tt-secondary)] hover:text-[var(--tt-primary)]">
+                    Score breakdown
+                  </summary>
+                  <ul className="mt-2 space-y-1.5">
+                    {item.breakdown.map((row) => (
+                      <li key={row.label} className="flex items-center justify-between text-xs">
+                        <span className="text-[var(--tt-secondary)]">{row.label}</span>
+                        <span
+                          className={`font-semibold ${
+                            row.points > 0
+                              ? "text-[var(--tt-safe)]"
+                              : row.points < 0
+                                ? "text-[var(--tt-avoid)]"
+                                : "text-[var(--tt-secondary)]"
+                          }`}
+                        >
+                          {row.points > 0 ? "+" : ""}
+                          {fmtPts(row.points)}
+                          {row.max > 0 ? ` / ${row.max}` : ""}
+                        </span>
+                      </li>
+                    ))}
+                    <li className="flex items-center justify-between border-t border-[var(--tt-border)] pt-1.5 text-xs font-semibold text-[var(--tt-ink)]">
+                      <span>Total</span>
+                      <span>
+                        {fmtPts(item.score)}
+                        {item.max_score ? ` / ${item.max_score}` : ""}
+                      </span>
+                    </li>
+                  </ul>
+                </details>
+              )}
+
+              {item.warnings?.length > 0 && (
+                <ul className="mt-3 space-y-1.5">
+                  {item.warnings.map((warning, i) => (
+                    <li key={i} className="flex items-start gap-2 text-xs text-[var(--tt-caution)]">
+                      <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                      {warning}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {item.ingredients?.length > 0 && (
+                <details className="mt-4">
+                  <summary className="cursor-pointer select-none text-xs font-semibold text-[var(--tt-secondary)] hover:text-[var(--tt-primary)]">
+                    Ingredients ({item.ingredients.length})
+                  </summary>
+                  <p className="mt-2 text-xs leading-relaxed text-[var(--tt-secondary)]">
+                    {item.ingredients.map((ing, i) => (
+                      <span
+                        key={i}
+                        className={ing.is_common_allergen ? "font-semibold text-[var(--tt-caution)]" : ""}
+                      >
+                        {ing.inci_name}
+                        {i < item.ingredients.length - 1 ? ", " : ""}
+                      </span>
+                    ))}
+                  </p>
+                </details>
+              )}
+
+              <div className="mt-auto flex items-center justify-between pt-5 text-sm">
+                <span className="font-semibold text-[var(--tt-ink)]" title="Approximate - actual retailer price may differ">
+                  {item.price_pkr_low
+                    ? `~Rs. ${item.price_pkr_low.toLocaleString()}–${item.price_pkr_high.toLocaleString()}`
+                    : "Price N/A"}
+                </span>
+                {item.purchase_link && (
+                  <a
+                    href={item.purchase_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-medium text-[var(--tt-primary)] hover:underline"
+                  >
+                    View <ExternalLink size={13} />
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {excluded.length > 0 && (
+        <div className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-5">
+          <button
+            type="button"
+            onClick={() => setShowExcluded((s) => !s)}
+            className="flex w-full items-center justify-between text-left"
+          >
+            <span className="flex items-center gap-2 text-sm font-semibold text-[var(--tt-ink)]">
+              <ShieldAlert size={16} className="text-[var(--tt-avoid)]" />
+              {excluded.length} product{excluded.length > 1 ? "s" : ""} excluded for your safety
+            </span>
+            <span className="text-xs font-medium text-[var(--tt-primary)]">
+              {showExcluded ? "Hide" : "Show"}
+            </span>
+          </button>
+          {showExcluded && (
+            <ul className="mt-4 space-y-2 border-t border-[var(--tt-border)] pt-4">
+              {excluded.map((ex) => (
+                <li key={ex.product_id} className="text-xs text-[var(--tt-secondary)]">
+                  <span className="font-semibold text-[var(--tt-ink)]">{ex.name}</span> — {ex.reason}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 };
