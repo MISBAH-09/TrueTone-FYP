@@ -133,7 +133,8 @@ class ScanProductAPI(APIView):
             engine = get_engine()
             scored = engine.score_scanned_ingredients(ingredients, _profile_for(user))
 
-            image_file.seek(0)
+            # Always persist ingredients + score so Saved scans / dashboard can reopen them.
+            # Image is best-effort — a missing photo must not drop the scan record.
             scan = ProductScan.objects.create(
                 user=user,
                 ingredients=ingredients,
@@ -143,8 +144,16 @@ class ScanProductAPI(APIView):
                 warnings=scored["warnings"],
                 flags=scored["flags"],
                 matched_ingredients=scored["matched_ingredients"],
-                image=image_file,
             )
+            try:
+                image_file.seek(0)
+                scan.image.save(
+                    getattr(image_file, "name", None) or f"product_scan_{user.id}.jpg",
+                    image_file,
+                    save=True,
+                )
+            except Exception as img_err:
+                logger.warning(f"Product scan image not saved for {user.username}: {img_err}")
 
             data = _scan_payload(scan, request)
             data["unmatched_ingredients"] = scored["unmatched_ingredients"]
@@ -156,10 +165,15 @@ class ScanProductAPI(APIView):
             
         except json.JSONDecodeError:
             logger.error(f"Failed to parse ingredient list as JSON: {response_text}")
-            return Response({'success': False, 'message': 'Failed to extract ingredients clearly from the image.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {'success': False, 'message': 'Failed to extract ingredients clearly from the image. Try a clearer label photo.'},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
         except Exception as e:
             logger.error(f"Scanner API error: {e}")
-            return Response({'success': False, 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            msg = str(e)
+            status_code = status.HTTP_503_SERVICE_UNAVAILABLE if "Groq" in msg else status.HTTP_500_INTERNAL_SERVER_ERROR
+            return Response({'success': False, 'message': msg}, status=status_code)
 
 
 class ScanHistoryAPI(APIView):

@@ -424,7 +424,13 @@ const Dashboard = () => {
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="font-bold text-base text-ink">Last product scan</h3>
                     <button
-                      onClick={() => navigate("/product-scanner")}
+                      onClick={() =>
+                        navigate("/product-scanner", {
+                          state: latestProductScan
+                            ? { openScan: latestProductScan }
+                            : undefined,
+                        })
+                      }
                       className="text-xs font-semibold text-cocoa hover:text-apricot transition-colors"
                     >
                       Open
@@ -433,7 +439,7 @@ const Dashboard = () => {
                   <p className="text-xs text-ink/60 mb-4">
                     {latestProductScan
                       ? `${formatDate(latestProductScan.created_at)} · ${latestProductScan.ingredients?.length || 0} ingredients · score ${latestProductScan.score ?? 0}`
-                      : "Nov 11, 2026 · 24 ingredients · score 0"}
+                      : "No product scans yet — scan a label to see results here."}
                   </p>
 
                   {/* Progress Bar */}

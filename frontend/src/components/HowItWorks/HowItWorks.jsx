@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { ChevronDown, Check, RotateCcw, ImageOff } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, ImageOff } from "lucide-react";
 import { STEPS, INGREDIENT_CHIPS } from "./stepsConfig";
 
 /* ─── helpers ─── */
@@ -125,9 +125,27 @@ function StepListItem({ index, title, state, onClick }) {
   );
 }
 
+function SlideNavigationButton({ direction, onClick, disabled }) {
+  const isPrevious = direction === "previous";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={isPrevious ? "Previous screenshot" : "Next screenshot"}
+      className="z-10 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-tint-border bg-white/95 text-cocoa shadow-sm transition-colors hover:border-cocoa/40 hover:bg-paper-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-apricot disabled:cursor-not-allowed disabled:opacity-40 sm:h-10 sm:w-10"
+    >
+      {isPrevious ? (
+        <ChevronLeft aria-hidden="true" className="h-5 w-5" />
+      ) : (
+        <ChevronRight aria-hidden="true" className="h-5 w-5" />
+      )}
+    </button>
+  );
+}
+
 /* ─── main component ─── */
 export default function HowItWorks() {
-  const sectionRef = useRef(null);
   const prefersReduced = useReducedMotion();
   const isDesktop = useIsDesktop();
 
@@ -135,7 +153,7 @@ export default function HowItWorks() {
   const starts = useMemo(() => stepStartSlide(STEPS), []);
   const totalSlides = allSlides.length;
 
-  // Scroll-driven state (desktop)
+  // Desktop steps are selected directly so the section stays within one viewport.
   const [globalSlideIndex, setGlobalSlideIndex] = useState(0);
 
   // Mobile auto-advance state
@@ -146,29 +164,6 @@ export default function HowItWorks() {
   const currentSlide = allSlides[currentIndex] || allSlides[0];
   const currentStepIndex = currentSlide.stepIndex;
   const currentStep = STEPS[currentStepIndex];
-
-  /* ─── scroll handler (desktop) ─── */
-  useEffect(() => {
-    if (!isDesktop) return;
-    const el = sectionRef.current;
-    if (!el) return;
-
-    const onScroll = () => {
-      const rect = el.getBoundingClientRect();
-      const sectionH = el.offsetHeight;
-      const vh = window.innerHeight;
-      const scrolled = -rect.top;
-      const scrollable = sectionH - vh;
-      if (scrollable <= 0) return;
-      const progress = Math.max(0, Math.min(1, scrolled / scrollable));
-      const idx = Math.min(totalSlides - 1, Math.floor(progress * totalSlides));
-      setGlobalSlideIndex(idx);
-    };
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [isDesktop, totalSlides]);
 
   /* ─── mobile auto-advance ─── */
   useEffect(() => {
@@ -199,15 +194,8 @@ export default function HowItWorks() {
       setMobileSlideIndex(idx);
       return;
     }
-    const el = sectionRef.current;
-    if (!el) return;
-    const sectionTop = el.offsetTop;
-    const sectionH = el.offsetHeight;
-    const vh = window.innerHeight;
-    const scrollable = sectionH - vh;
-    const targetScroll = sectionTop + (idx / totalSlides) * scrollable;
-    window.scrollTo({ top: targetScroll, behavior: prefersReduced ? "auto" : "smooth" });
-  }, [isDesktop, prefersReduced, totalSlides]);
+    setGlobalSlideIndex(idx);
+  }, [isDesktop]);
 
   const scrollToStep = useCallback((stepIdx) => {
     scrollToSlide(starts[stepIdx]);
@@ -250,14 +238,12 @@ export default function HowItWorks() {
   if (isDesktop) {
     return (
       <section
-        ref={sectionRef}
         id="how-it-works"
-        className="relative bg-paper"
-        style={{ height: `${totalSlides * 50}vh` }}
+        className="relative min-h-screen border-b border-tint-border/70 bg-paper"
         role="region"
         aria-label="How TrueTone works"
       >
-        <div className="sticky top-0 flex h-screen flex-col justify-between px-8 py-8 lg:px-12 lg:py-10 overflow-hidden">
+        <div className="flex min-h-screen flex-col justify-between px-5 py-5 lg:px-12 lg:py-6">
           {/* ── TOP: label + progress ── */}
           <header>
             <div className="mb-3 flex items-center justify-between text-xs font-medium uppercase tracking-wider">
@@ -278,7 +264,7 @@ export default function HowItWorks() {
           </header>
 
           {/* ── MAIN: 12-col grid ── */}
-          <main className="my-auto grid flex-1 grid-cols-12 items-center gap-8 lg:gap-12">
+          <main className="my-auto grid flex-1 grid-cols-12 items-center gap-4 lg:gap-8">
             {/* LEFT — 4 cols */}
             <div className="col-span-4 flex flex-col justify-between pr-4">
               {/* Step pill + title + subtitle */}
@@ -320,7 +306,7 @@ export default function HowItWorks() {
             </div>
 
             {/* RIGHT — 8 cols */}
-            <div className="col-span-8 flex flex-col items-center">
+            <div className="col-span-8 flex min-w-0 flex-col items-center">
               {/* Caption pill above browser */}
               <div className="mb-3 w-full px-1">
                 <AnimatePresence mode="wait">
@@ -335,83 +321,90 @@ export default function HowItWorks() {
               </div>
 
               {/* Browser frame with screenshot */}
-              <div className="relative w-full">
-                <BrowserFrame caption={currentSlide.caption}>
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={currentIndex}
-                      {...fadeSlideUp}
-                      className="absolute inset-0"
-                    >
-                      <SlideImage
-                        src={currentSlide.src}
-                        alt={currentSlide.caption}
-                        className="h-full w-full object-contain object-center"
-                      />
-                    </motion.div>
-                  </AnimatePresence>
-                </BrowserFrame>
-
-                {/* Step 6 ingredient chips */}
-                {currentStepIndex === 5 && (
-                  <div className="absolute -right-4 top-12 hidden xl:flex flex-col gap-4 z-20">
-                    {INGREDIENT_CHIPS.map((chip, i) => (
+              <div className="flex w-full min-w-0 items-center gap-2 sm:gap-3">
+                <SlideNavigationButton
+                  direction="previous"
+                  onClick={() => scrollToSlide(Math.max(0, currentIndex - 1))}
+                  disabled={currentIndex === 0}
+                />
+                <div className="relative min-w-0 flex-1">
+                  <BrowserFrame caption={currentSlide.caption}>
+                    <AnimatePresence mode="wait">
                       <motion.div
-                        key={chip.name}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.4, delay: i * 0.15, ease: "easeOut" }}
-                        className="flex items-center gap-2.5 rounded-xl border bg-white px-3.5 py-2 shadow-chip"
-                        style={{ borderColor: `${chip.dotColor}30` }}
+                        key={currentIndex}
+                        {...fadeSlideUp}
+                        className="absolute inset-0"
                       >
-                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: chip.dotColor }} />
-                        <div className="flex flex-col">
-                          <span className="text-xs font-semibold text-ink">{chip.name}</span>
-                          <span className={`tt-mono text-[10px] font-semibold uppercase tracking-wider ${chip.textColor}`}>
-                            {chip.label}
-                          </span>
-                        </div>
+                        <SlideImage
+                          src={currentSlide.src}
+                          alt={currentSlide.caption}
+                          className="h-full w-full object-contain object-center"
+                        />
                       </motion.div>
-                    ))}
-                  </div>
-                )}
+                    </AnimatePresence>
+                  </BrowserFrame>
+
+                  {currentStepIndex === 5 && (
+                    <div className="absolute -right-4 top-12 z-20 hidden flex-col gap-4 xl:flex">
+                      {INGREDIENT_CHIPS.map((chip, i) => (
+                        <motion.div
+                          key={chip.name}
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.4, delay: i * 0.15, ease: "easeOut" }}
+                          className="flex items-center gap-2.5 rounded-xl border bg-white px-3.5 py-2 shadow-chip"
+                          style={{ borderColor: `${chip.dotColor}30` }}
+                        >
+                          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: chip.dotColor }} />
+                          <div className="flex flex-col">
+                            <span className="text-xs font-semibold text-ink">{chip.name}</span>
+                            <span className={`tt-mono text-[10px] font-semibold uppercase tracking-wider ${chip.textColor}`}>
+                              {chip.label}
+                            </span>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <SlideNavigationButton
+                  direction="next"
+                  onClick={() => scrollToSlide(Math.min(totalSlides - 1, currentIndex + 1))}
+                  disabled={isLastSlide}
+                />
               </div>
 
-              {/* Filmstrip */}
-              <div className="mt-5 flex w-full items-center gap-3">
-                <span className="mr-1 tt-mono text-[11px] uppercase tracking-wider text-cocoa-light/70">
-                  Views:
-                </span>
-                {currentStep.slides.map((slide, i) => {
-                  const isActiveThumb = currentSlide.slideInStep === i;
+              {/* One thumbnail for each step */}
+              <div className="mt-3 grid w-full grid-cols-6 gap-2 sm:gap-3">
+                {STEPS.map((step, i) => {
+                  const slide = step.slides[0];
+                  const isActive = currentStepIndex === i;
                   return (
                     <button
-                      key={slide.src}
-                      onClick={() => scrollToSlide(starts[currentStepIndex] + i)}
-                      className={`relative overflow-hidden rounded-md bg-white p-0.5 transition cursor-pointer
-                        ${isActiveThumb
+                      key={step.shortName}
+                      type="button"
+                      onClick={() => scrollToStep(i)}
+                      aria-label={`Go to step ${i + 1}: ${step.title}`}
+                      aria-current={isActive ? "step" : undefined}
+                      className={`min-w-0 overflow-hidden rounded-md bg-white p-0.5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-apricot ${
+                        isActive
                           ? "ring-2 ring-apricot shadow-sm"
-                          : "border border-tint-border opacity-70 hover:opacity-100 hover:border-badge"
-                        }`}
-                      aria-label={`View: ${slide.caption}`}
+                          : "border border-tint-border opacity-75 hover:opacity-100"
+                      }`}
                     >
-                      <div className="w-24" style={{ aspectRatio: "16 / 10" }}>
+                      <div className="w-full overflow-hidden rounded" style={{ aspectRatio: "16 / 10" }}>
                         <SlideImage
                           src={slide.src}
-                          alt={slide.caption}
-                          className="h-full w-full rounded object-contain object-center bg-[#FAF5F1]"
+                          alt=""
+                          className="h-full w-full object-contain object-center bg-[#FAF5F1]"
                         />
                       </div>
+                      <span className="mt-1 block truncate px-0.5 text-left text-[9px] leading-tight text-cocoa-light sm:text-[10px]">
+                        {step.shortName}
+                      </span>
                     </button>
                   );
                 })}
-                {/* Step 6 "Rescan any time" pill */}
-                {currentStepIndex === 5 && (
-                  <div className="ml-auto flex items-center gap-2 rounded-full border border-tint-border bg-badge/40 px-3 py-1 text-xs font-medium text-cocoa-light">
-                    <RotateCcw className="h-3.5 w-3.5 text-cocoa" />
-                    <span>Rescan any time</span>
-                  </div>
-                )}
               </div>
             </div>
           </main>
@@ -430,7 +423,9 @@ export default function HowItWorks() {
                 return (
                   <button
                     key={i}
+                    type="button"
                     onClick={() => scrollToStep(i)}
+                    aria-current={isCurrent ? "step" : undefined}
                     className={`rounded-full transition-all duration-300 cursor-pointer
                       ${isCurrent
                         ? "h-2.5 w-2.5 bg-cocoa ring-2 ring-cocoa/20"
@@ -452,8 +447,8 @@ export default function HowItWorks() {
                 </>
               ) : (
                 <>
-                  <span>Scroll to advance</span>
-                  <ChevronDown className="h-3.5 w-3.5 text-cocoa" />
+                  <span>Select a step or use arrows</span>
+                  <ChevronRight className="h-3.5 w-3.5 text-cocoa" />
                 </>
               )}
             </div>
@@ -467,7 +462,7 @@ export default function HowItWorks() {
   return (
     <section
       id="how-it-works"
-      className="bg-paper px-4 py-12 sm:px-6 sm:py-16"
+      className="border-b border-tint-border/70 bg-paper px-4 py-12 sm:px-6 sm:py-16"
       role="region"
       aria-label="How TrueTone works"
       onTouchStart={onTouchStart}
@@ -500,46 +495,64 @@ export default function HowItWorks() {
         </p>
 
         {/* Browser frame */}
-        <div className="mt-6">
-          <BrowserFrame caption={currentSlide.caption}>
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentIndex}
-                {...(prefersReduced ? {} : fadeSlideUp)}
-                className="absolute inset-0"
-              >
-                <SlideImage
-                  src={currentSlide.src}
-                  alt={currentSlide.caption}
-                  className="h-full w-full object-contain object-center"
-                />
-              </motion.div>
-            </AnimatePresence>
-          </BrowserFrame>
+        <div className="mt-6 flex items-center gap-2">
+          <SlideNavigationButton
+            direction="previous"
+            onClick={() => scrollToSlide(Math.max(0, currentIndex - 1))}
+            disabled={currentIndex === 0}
+          />
+          <div className="min-w-0 flex-1">
+            <BrowserFrame caption={currentSlide.caption}>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentIndex}
+                  {...(prefersReduced ? {} : fadeSlideUp)}
+                  className="absolute inset-0"
+                >
+                  <SlideImage
+                    src={currentSlide.src}
+                    alt={currentSlide.caption}
+                    className="h-full w-full object-contain object-center"
+                  />
+                </motion.div>
+              </AnimatePresence>
+            </BrowserFrame>
+          </div>
+          <SlideNavigationButton
+            direction="next"
+            onClick={() => scrollToSlide(Math.min(totalSlides - 1, currentIndex + 1))}
+            disabled={isLastSlide}
+          />
         </div>
 
-        {/* Filmstrip */}
-        <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-2">
-          {currentStep.slides.map((slide, i) => {
-            const isActiveThumb = currentSlide.slideInStep === i;
+        {/* One thumbnail for each step */}
+        <div className="mt-4 grid grid-cols-6 gap-1.5 sm:gap-2">
+          {STEPS.map((step, i) => {
+            const slide = step.slides[0];
+            const isActive = currentStepIndex === i;
             return (
               <button
-                key={slide.src}
-                onClick={() => setMobileSlideIndex(starts[currentStepIndex] + i)}
-                className={`relative shrink-0 overflow-hidden rounded-md bg-white p-0.5 transition cursor-pointer
-                  ${isActiveThumb
+                key={step.shortName}
+                type="button"
+                onClick={() => setMobileSlideIndex(starts[i])}
+                aria-label={`Go to step ${i + 1}: ${step.title}`}
+                aria-current={isActive ? "step" : undefined}
+                className={`min-w-0 overflow-hidden rounded-md bg-white p-0.5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-apricot
+                  ${isActive
                     ? "ring-2 ring-apricot shadow-sm"
-                    : "border border-tint-border opacity-70"
+                    : "border border-tint-border opacity-75"
                   }`}
-                aria-label={`View: ${slide.caption}`}
               >
-                <div className="w-20" style={{ aspectRatio: "16 / 10" }}>
+                <div className="w-full overflow-hidden rounded" style={{ aspectRatio: "16 / 10" }}>
                   <SlideImage
                     src={slide.src}
-                    alt={slide.caption}
-                    className="h-full w-full rounded object-contain object-center bg-[#FAF5F1]"
+                    alt=""
+                    className="h-full w-full object-contain object-center bg-[#FAF5F1]"
                   />
                 </div>
+                <span className="mt-1 block truncate px-0.5 text-left text-[8px] leading-tight text-cocoa-light sm:text-[10px]">
+                  {step.shortName}
+                </span>
               </button>
             );
           })}

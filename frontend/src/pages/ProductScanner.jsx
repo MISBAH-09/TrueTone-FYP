@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Upload, Camera, CheckCircle2, AlertTriangle, Loader2, History, X } from "lucide-react";
 import { scanProductImage, getScanHistory } from "../services/scanner";
 import { ManualCropScreen } from "../components/Upload/ManualCropScreen";
@@ -8,6 +9,8 @@ const formatWhen = (iso) =>
   new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
 const ProductScanner = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState("");
   const [loading, setLoading] = useState(false);
@@ -20,17 +23,46 @@ const ProductScanner = () => {
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
 
+  const openSaved = (scan) => {
+    if (!scan) return;
+    setResult(scan);
+    setPreview(scan.image || "");
+    setImage(null);
+    setError("");
+    setHistoryOpen(true);
+  };
+
   const loadHistory = async () => {
     try {
       const data = await getScanHistory();
-      setHistory(data.data || []);
+      const rows = data.data || [];
+      setHistory(rows);
+      return rows;
     } catch (err) {
       console.error("Could not load scan history", err);
+      return [];
     }
   };
 
   useEffect(() => {
-    loadHistory();
+    let cancelled = false;
+    (async () => {
+      const rows = await loadHistory();
+      if (cancelled) return;
+
+      // Dashboard "Open" (or deep-link) should show that scan's full ingredient list.
+      const fromDash = location.state?.openScan;
+      if (fromDash) {
+        const match =
+          (fromDash.id && rows.find((s) => s.id === fromDash.id)) || fromDash;
+        openSaved(match);
+        navigate(location.pathname, { replace: true, state: {} });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleFileSelect = (e) => {
@@ -81,14 +113,6 @@ const ProductScanner = () => {
     setResult(null);
     setError("");
     if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const openSaved = (scan) => {
-    setResult(scan);
-    setPreview(scan.image || "");
-    setImage(null);
-    setError("");
-    setHistoryOpen(false);
   };
 
   return (
@@ -289,15 +313,29 @@ const ProductScanner = () => {
                   Extracted Ingredients ({result.ingredients?.length || 0})
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  {(result.ingredients || []).map((ing, idx) => (
-                    <span
-                      key={idx}
-                      className="inline-flex items-center rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-paper)] px-2.5 py-1 text-xs font-medium text-[var(--tt-ink)]"
-                    >
-                      {ing}
-                    </span>
-                  ))}
+                  {(result.ingredients || []).map((ing, idx) => {
+                    const matched = (result.matched_ingredients || []).some(
+                      (m) => String(m).toLowerCase() === String(ing).toLowerCase()
+                    );
+                    return (
+                      <span
+                        key={idx}
+                        className={`inline-flex items-center rounded-[var(--tt-radius)] border px-2.5 py-1 text-xs font-medium ${
+                          matched
+                            ? "border-[var(--tt-primary)] bg-[var(--tt-primary-muted)] text-[var(--tt-ink)]"
+                            : "border-[var(--tt-border)] bg-[var(--tt-paper)] text-[var(--tt-ink)]"
+                        }`}
+                      >
+                        {ing}
+                      </span>
+                    );
+                  })}
                 </div>
+                {result.matched_ingredients?.length > 0 ? (
+                  <p className="mt-3 text-xs text-[var(--tt-secondary)]">
+                    Highlighted ingredients are matched in the TrueTone catalog.
+                  </p>
+                ) : null}
               </div>
             </div>
           )}

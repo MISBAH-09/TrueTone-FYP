@@ -191,13 +191,15 @@ body {
   box-sizing: border-box;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-/* Reset Vite default button chrome that crushed icon buttons */
+/* Reset Vite default button chrome that crushed icon buttons.
+   Keep `a { color: inherit }` inside @layer base so Tailwind utilities
+   like text-white still win on solid primary Link buttons. */
 @layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
   button {
     font-family: inherit;
     cursor: pointer;

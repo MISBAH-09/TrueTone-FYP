@@ -32,8 +32,17 @@ const navItems = [
 const examinerItems = [
   { title: "Pipeline Inspector", path: "/inspector", icon: Layers },
   { title: "Evaluation Lab", path: "/evaluation", icon: BarChart3 },
-  { title: "Model Report", path: "/report", icon: FileText },
 ];
+
+// Model Report dropdown — same pattern as Reports (routes already exist).
+const modelReportItems = [
+  { title: "Overview", path: "/report" },
+  { title: "Skin Type", path: "/report/type" },
+  { title: "Skin Tone", path: "/report/tone" },
+  { title: "Skin Condition", path: "/report/condition" },
+];
+
+const MODEL_REPORT_PATHS = new Set(modelReportItems.map((item) => item.path));
 
 // The Reports dropdown: reports about parts of the system that are not one model.
 // Database Schema has no page yet, so it has no path and is shown as "Soon".
@@ -61,20 +70,27 @@ const AppSidebar = () => {
     navigate("/");
   };
 
-  // A link is "on" for its own page and for pages below it (the Model Report has /report/tone, /report/type, /report/condition)
   const isOn = (path) => location.pathname === path || location.pathname.startsWith(path + "/");
 
-  // RAG and the Recommendation Engine also live under /report/..., but they belong to the Reports dropdown, not to Model Report
-  const onSystemReport = reportItems.some((r) => r.path && isOn(r.path));
-  const isActivePath = (path) => (path === "/report" ? isOn(path) && !onSystemReport : isOn(path));
+  // Exact match for Model Report pages so /report does not light up RAG / Recommendation.
+  const isModelReportLink = (path) => location.pathname === path;
+  const onModelReport = MODEL_REPORT_PATHS.has(location.pathname);
 
+  const onSystemReport = reportItems.some((r) => r.path && isOn(r.path));
+
+  const [modelReportOpen, setModelReportOpen] = useState(onModelReport);
   const [reportsOpen, setReportsOpen] = useState(onSystemReport);
+
+  useEffect(() => {
+    if (onModelReport) setModelReportOpen(true);
+  }, [onModelReport]);
+
   useEffect(() => {
     if (onSystemReport) setReportsOpen(true);
   }, [onSystemReport]);
 
   const linkClass = (path) => {
-    const isActive = isActivePath(path);
+    const isActive = isOn(path);
     return [
       "flex items-center gap-3 rounded-[var(--tt-radius)] px-3 py-2 text-sm font-medium transition-colors",
       isActive
@@ -83,13 +99,52 @@ const AppSidebar = () => {
     ].join(" ");
   };
 
-  const reportLinkClass = (path) =>
-    [
+  const subLinkClass = (path, exact = false) => {
+    const active = exact ? isModelReportLink(path) : isOn(path);
+    return [
       "flex items-center gap-2 rounded-[var(--tt-radius)] py-1.5 pl-[9px] pr-2 text-[13px] font-medium transition-colors",
-      isOn(path)
+      active
         ? "border-l-[3px] border-[var(--tt-primary)] bg-[var(--tt-primary-muted)] text-[var(--tt-ink)]"
         : "border-l-[3px] border-transparent text-[var(--tt-secondary)] hover:bg-[var(--tt-paper)] hover:text-[var(--tt-ink)]",
     ].join(" ");
+  };
+
+  const renderModelReportGroup = (onNavigate) => (
+    <div>
+      <button
+        type="button"
+        onClick={() => setModelReportOpen((open) => !open)}
+        aria-expanded={modelReportOpen}
+        aria-controls={modelReportOpen ? "sidebar-model-report" : undefined}
+        className={`flex w-full items-center gap-3 rounded-[var(--tt-radius)] border-l-[3px] border-transparent px-3 py-2 text-sm font-medium transition-colors ${
+          onModelReport
+            ? "text-[var(--tt-ink)]"
+            : "text-[var(--tt-secondary)] hover:bg-[var(--tt-paper)] hover:text-[var(--tt-ink)]"
+        }`}
+      >
+        <FileText className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+        <span className="flex-1 text-left">Model Report</span>
+        <ChevronDown
+          className={`h-4 w-4 shrink-0 transition-transform ${modelReportOpen ? "rotate-180" : ""}`}
+          strokeWidth={1.75}
+        />
+      </button>
+      {modelReportOpen && (
+        <div id="sidebar-model-report" className="ml-4 mt-0.5 space-y-0.5 border-l border-[var(--tt-border)] pl-2">
+          {modelReportItems.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              onClick={onNavigate}
+              className={subLinkClass(item.path, true)}
+            >
+              <span>{item.title}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   const renderReportsGroup = (onNavigate) => (
     <div>
@@ -112,7 +167,7 @@ const AppSidebar = () => {
         <div id="sidebar-reports" className="ml-4 mt-0.5 space-y-0.5 border-l border-[var(--tt-border)] pl-2">
           {reportItems.map((item) =>
             item.path ? (
-              <Link key={item.title} to={item.path} onClick={onNavigate} className={reportLinkClass(item.path)}>
+              <Link key={item.title} to={item.path} onClick={onNavigate} className={subLinkClass(item.path)}>
                 <span>{item.title}</span>
               </Link>
             ) : (
@@ -142,8 +197,9 @@ const AppSidebar = () => {
   };
 
   const moreActive =
-    [...navItems.slice(4), ...examinerItems, ...reportItems.filter((r) => r.path)].some((item) => isOn(item.path)) ||
-    moreOpen;
+    [...navItems.slice(4), ...examinerItems, ...modelReportItems, ...reportItems.filter((r) => r.path)].some(
+      (item) => (MODEL_REPORT_PATHS.has(item.path) ? isModelReportLink(item.path) : isOn(item.path))
+    ) || moreOpen;
 
   return (
     <>
@@ -159,6 +215,7 @@ const AppSidebar = () => {
           <div className="mt-3 space-y-0.5 border-t border-[var(--tt-border)] pt-3">
             <p className="px-3 pb-1 text-xs font-medium text-[var(--tt-secondary)]">Evaluation Metrics</p>
             {examinerItems.map(renderDesktopLink)}
+            {renderModelReportGroup()}
             {renderReportsGroup()}
           </div>
         </nav>
@@ -257,6 +314,7 @@ const AppSidebar = () => {
                   </Link>
                 );
               })}
+              {renderModelReportGroup(() => setMoreOpen(false))}
               {renderReportsGroup(() => setMoreOpen(false))}
             </div>
             <div className="mt-3 border-t border-[var(--tt-border)] pt-3">

@@ -703,31 +703,23 @@ const SYSTEM_REPORTS = {
 };
 
 function ModelSwitch({ current }) {
-  const items = [
-    ["overview", "/report", "Overview", "architecture, safety, coverage"],
-    ["tone", "/report/tone", "Skin tone", "EfficientNet-B2, 3 classes"],
-    ["type", "/report/type", "Skin type", "EfficientNet-B0, 4 classes"],
-    ["condition", "/report/condition", "Skin condition", "EfficientNet-B3, 7 outputs"],
-  ];
+  // Navigation lives in the sidebar Model Report dropdown; this only labels the open page.
+  const items = {
+    overview: ["Overview", "architecture, safety, coverage"],
+    tone: ["Skin tone", "EfficientNet-B2, 3 classes"],
+    type: ["Skin type", "EfficientNet-B0, 4 classes"],
+    condition: ["Skin condition", "EfficientNet-B3, 7 outputs"],
+  };
+  const [name, sub] = items[current] || items.overview;
   return (
-    <nav aria-label="Report pages" className="sticky top-2 z-20 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur print:hidden">
-      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Switch to another page</p>
-      <div className="flex flex-wrap gap-2">
-        {items.map(([key, to, name, sub]) => (
-          <Link
-            key={key}
-            to={to}
-            aria-current={current === key ? "page" : undefined}
-            className={`rounded-xl px-4 py-2 text-left transition ${
-              current === key ? "bg-cocoa text-white shadow" : "border border-slate-200 bg-white text-slate-700 hover:border-cocoa"
-            }`}
-          >
-            <span className="block text-xs font-bold">{name}</span>
-            <span className={`block text-[10px] ${current === key ? "text-white/75" : "text-slate-400"}`}>{sub}</span>
-          </Link>
-        ))}
-      </div>
-    </nav>
+    <div
+      aria-label={`Current report: ${name}`}
+      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm print:hidden"
+    >
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Now viewing</p>
+      <p className="mt-1 text-sm font-bold text-cocoa">{name}</p>
+      <p className="text-xs text-slate-500">{sub}</p>
+    </div>
   );
 }
 

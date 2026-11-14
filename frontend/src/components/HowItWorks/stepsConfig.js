@@ -7,7 +7,7 @@
  * - Add a slide → add { src: "/steps/X.png", caption: "..." } to the slides array.
  * - Change step text → edit title / subtitle / shortName.
  * - Reorder steps → move the object in the array.
- * - Scroll height auto-adjusts (totalSlides × 50vh).
+ * - Desktop step controls switch slides within a single viewport-height section.
  */
 
 export const STEPS = [
@@ -91,4 +91,3 @@ export const INGREDIENT_CHIPS = [
     textColor: "text-status-safe",
   },
 ];
-
