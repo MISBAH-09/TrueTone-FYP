@@ -254,6 +254,56 @@ const AboutUs = () => {
   );
 };
 
+function TypewriterWord({ word, prefersReducedMotion }) {
+  const [visibleCharacters, setVisibleCharacters] = useState(
+    prefersReducedMotion ? word.length : 0,
+  );
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      setVisibleCharacters(word.length);
+      return undefined;
+    }
+
+    let timeoutId;
+    let characterIndex = 0;
+
+    const typeNextCharacter = () => {
+      characterIndex += 1;
+      setVisibleCharacters(characterIndex);
+
+      if (characterIndex === word.length) {
+        timeoutId = window.setTimeout(() => {
+          characterIndex = 0;
+          setVisibleCharacters(0);
+          timeoutId = window.setTimeout(typeNextCharacter, 70);
+        }, 2000);
+        return;
+      }
+
+      timeoutId = window.setTimeout(typeNextCharacter, 70);
+    };
+
+    setVisibleCharacters(0);
+    timeoutId = window.setTimeout(typeNextCharacter, 70);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [prefersReducedMotion, word]);
+
+  return (
+    <span className="relative inline-grid">
+      <span aria-hidden="true" className="invisible col-start-1 row-start-1">
+        {word}.
+      </span>
+      <span aria-hidden="true" className="col-start-1 row-start-1">
+        {word.slice(0, visibleCharacters)}
+        {visibleCharacters === word.length ? "." : ""}
+      </span>
+      <span className="sr-only">{word}.</span>
+    </span>
+  );
+}
+
 const Landing = () => {
   const [activeSection, setActiveSection] = useState("");
   const prefersReducedMotion = useReducedMotion();
@@ -362,7 +412,10 @@ const Landing = () => {
           <h1 className="max-w-2xl text-4xl font-semibold leading-[1.08] tracking-tight text-ink sm:text-5xl lg:text-[3.5rem]">
             Skincare starts with{" "}
             <span className="relative inline-block text-cocoa">
-              understanding.
+              <TypewriterWord
+                word="understanding"
+                prefersReducedMotion={prefersReducedMotion}
+              />
               <span
                 aria-hidden="true"
                 className="absolute -bottom-1 left-0 -z-10 h-3 w-full rounded-full bg-apricot-light/70 sm:-bottom-0.5 sm:h-4"
@@ -424,19 +477,19 @@ const Landing = () => {
                   whileHover={prefersReducedMotion ? undefined : { y: -2 }}
                 >
                   <Motion.span
-                    className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 transition-shadow duration-200 hover:shadow-[0_0_12px_rgba(224,146,95,0.4)]"
+                    className="flex h-7 w-7 items-center justify-center text-emerald-700 transition-shadow duration-200 hover:drop-shadow-[0_0_6px_rgba(224,146,95,0.55)]"
                     initial={prefersReducedMotion ? false : { scale: 0.6 }}
                     animate={prefersReducedMotion ? undefined : { scale: [0.6, 1.1, 1] }}
                     transition={{ duration: 0.35, delay: index * 0.15, ease: "easeOut" }}
                   >
                     {prefersReducedMotion ? (
-                      <Check aria-hidden="true" className="h-4 w-4" strokeWidth={2.5} />
+                      <Check aria-hidden="true" className="h-6 w-6" strokeWidth={3} />
                     ) : (
-                      <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 12 12" fill="none">
+                      <svg aria-hidden="true" className="h-6 w-6" viewBox="0 0 24 24" fill="none">
                         <Motion.path
-                          d="m2 6 2.5 2.5L10 3"
+                          d="m4 12 5 5L20 6"
                           stroke="currentColor"
-                          strokeWidth="1.8"
+                          strokeWidth="3"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           initial={{ pathLength: 0 }}
