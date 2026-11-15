@@ -100,6 +100,7 @@ Thumbs.db
 *.7z
 Next phase/
 plans/
+docs/
 Test/
 backend/test_images/
 run.txt

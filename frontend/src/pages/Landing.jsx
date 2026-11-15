@@ -207,10 +207,10 @@ const AboutUs = () => {
   return (
     <section
       id="about-us"
-      className="relative isolate scroll-mt-20 overflow-hidden bg-paper px-4 py-14 sm:px-6 sm:py-18 lg:px-8 lg:py-20"
+      className="relative isolate scroll-mt-20 overflow-hidden bg-paper"
       aria-labelledby="about-us-title"
     >
-      <div className="relative z-10 mx-auto max-w-7xl">
+      <div className="page-container relative z-10 py-14 sm:py-18 lg:py-20">
         <div className="border-b border-tint-border/70 pb-3">
           <p className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.16em] text-cocoa">
             <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-apricot" />
@@ -218,15 +218,16 @@ const AboutUs = () => {
           </p>
         </div>
 
-        <div className="mt-8 grid items-center gap-8 lg:grid-cols-[2fr_3fr] lg:gap-10">
+        <div className="mt-8 grid items-center gap-8 2xl:grid-cols-[2fr_3fr] 2xl:gap-10">
           <Reveal direction="left" className="max-w-2xl">
             <h2
               id="about-us-title"
-              className="text-3xl font-semibold leading-tight tracking-tight text-ink sm:text-4xl lg:text-[2.75rem]"
+              className="font-display text-3xl font-medium leading-[1.1] tracking-[-0.01em] text-ink sm:text-4xl lg:text-[3.25rem]"
             >
-              Skin insights that lead to more personal choices
+              Skin insights that lead to{" "}
+              <span className="italic text-apricot">more personal choices</span>
             </h2>
-            <p className="mt-5 text-base leading-7 text-secondary sm:text-lg sm:leading-[1.7]">
+            <p className="mt-5 text-[17px] leading-[1.7] text-secondary sm:text-lg">
               TrueTone turns a single photo into a personal skin profile. When
               you upload an image, our system checks the photo, finds your face,
               and runs three AI models in parallel to read your skin type, tone,
@@ -335,7 +336,7 @@ const Landing = () => {
   }, []);
 
   const navClass = (sectionId) =>
-    `relative inline-flex -translate-y-0 items-center py-1 text-base font-medium transition-[color,transform] duration-200 hover:-translate-y-px hover:text-apricot motion-reduce:transform-none motion-reduce:transition-none after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:origin-left after:scale-x-0 after:bg-apricot after:transition-transform after:duration-250 hover:after:scale-x-100 motion-reduce:after:transition-none ${
+    `relative inline-flex -translate-y-0 items-center py-1 font-body text-base font-medium transition-[color,transform] duration-200 hover:-translate-y-px hover:text-apricot motion-reduce:transform-none motion-reduce:transition-none after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:origin-left after:scale-x-0 after:bg-apricot after:transition-transform after:duration-250 hover:after:scale-x-100 motion-reduce:after:transition-none ${
       activeSection === sectionId
         ? "text-cocoa after:scale-x-100"
         : "text-cocoa-light"
@@ -347,7 +348,7 @@ const Landing = () => {
     <header className="sticky top-0 z-50 border-b border-cocoa/20 bg-paper/95 backdrop-blur-md">
       <nav
         aria-label="Main navigation"
-        className="mx-auto flex h-[64px] max-w-[1440px] items-center justify-between px-4 sm:px-6 lg:px-6"
+        className="page-container flex h-[64px] items-center justify-between"
       >
         <TrueToneLogo />
 
@@ -396,7 +397,7 @@ const Landing = () => {
 
     <main>
       {/* Hero Section */}
-      <section className="relative mx-auto grid min-h-[min(650px,calc(100svh-170px))] max-w-[1440px] items-center gap-2 px-4 py-6 sm:px-6 sm:py-8 lg:grid-cols-2 lg:gap-6 lg:px-6 lg:py-3">
+      <section className="page-container relative grid min-h-[min(650px,calc(100svh-170px))] items-center gap-2 py-6 sm:py-8 lg:grid-cols-2 lg:gap-6 lg:py-3">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute -left-48 top-8 h-96 w-96 rounded-full bg-tint-soft/45 blur-3xl"
@@ -409,9 +410,9 @@ const Landing = () => {
             A more personal way to care for your skin
           </div>
 
-          <h1 className="max-w-2xl text-4xl font-semibold leading-[1.08] tracking-tight text-ink sm:text-5xl lg:text-[3.5rem]">
+          <h1 className="font-display max-w-2xl text-4xl font-medium leading-[1.1] tracking-[-0.01em] text-ink sm:text-5xl lg:text-[3.5rem]">
             Skincare starts with{" "}
-            <span className="relative inline-block text-cocoa">
+            <span className="relative inline-block text-cocoa italic">
               <TypewriterWord
                 word="understanding"
                 prefersReducedMotion={prefersReducedMotion}
@@ -423,7 +424,7 @@ const Landing = () => {
             </span>
           </h1>
 
-          <p className="mt-4 max-w-xl text-base leading-7 text-secondary sm:text-lg sm:leading-8">
+          <p className="mt-4 max-w-xl text-[17px] leading-[1.7] text-secondary sm:text-lg">
             Discover your skin profile, check product ingredients, and find
             recommendations that consider what matters to you.
           </p>
@@ -556,11 +557,11 @@ const Landing = () => {
               Thoughtful tools, one place
             </p>
 
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
+            <h2 className="font-display mt-3 text-3xl font-medium leading-[1.1] tracking-[-0.01em] text-ink sm:text-4xl">
               A clearer picture of your skincare
             </h2>
 
-            <p className="mt-4 text-base leading-7 text-secondary">
+            <p className="mt-4 text-[17px] leading-[1.65] text-secondary">
               From your first skin scan to the products you choose, make each
               step feel more informed.
             </p>
@@ -585,11 +586,11 @@ const Landing = () => {
                       0{index + 1}
                     </p>
 
-                    <h3 className="mt-2 text-lg font-semibold text-ink">
+                    <h3 className="font-body mt-2 text-lg font-semibold text-ink">
                       {title}
                     </h3>
 
-                    <p className="mt-2 text-sm leading-6 text-secondary">
+                    <p className="font-body mt-2 text-[15px] leading-6 text-secondary">
                       {description}
                     </p>
                   </article>
@@ -658,11 +659,11 @@ const Landing = () => {
                 Your skin, your routine
               </p>
 
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+              <h2 className="font-display mt-3 text-3xl font-medium leading-[1.1] tracking-[-0.01em] sm:text-4xl">
                 Make your next skincare choice with more confidence.
               </h2>
 
-              <p className="mt-4 max-w-xl text-sm leading-6 text-white/75 sm:text-base">
+              <p className="font-body mt-4 max-w-xl text-[17px] leading-[1.65] text-white/75 sm:text-lg">
                 Create your profile to explore skin analysis, product safety
                 checks, and recommendations in one place.
               </p>

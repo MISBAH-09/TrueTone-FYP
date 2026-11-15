@@ -96,13 +96,13 @@ function StepListItem({ index, title, state, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-3 relative text-left w-full group cursor-pointer ${isMuted ? "opacity-50" : ""}`}
+      className={`flex items-center gap-3 relative text-left w-full pl-6 group cursor-pointer ${isMuted ? "opacity-50" : ""}`}
       aria-label={`Go to step ${index + 1}: ${title}`}
       aria-current={isActive ? "step" : undefined}
     >
       {/* dot */}
       <span
-        className={`absolute -left-[23px] rounded-full transition-all duration-300
+        className={`absolute left-0 rounded-full transition-all duration-300
           ${isActive
             ? "w-3 h-3 bg-cocoa ring-4 ring-paper border border-cocoa"
             : isCompleted
@@ -110,14 +110,14 @@ function StepListItem({ index, title, state, onClick }) {
               : "w-1.5 h-1.5 bg-tint-border ring-2 ring-paper"
           }`}
       />
-      <span className={`tt-mono text-xs ${isActive ? "text-cocoa font-semibold" : "text-cocoa-light"}`}>
+      <span className={`tt-mono text-[13px] ${isActive ? "text-cocoa font-semibold" : "text-cocoa-light"}`}>
         {pad(index + 1)}
       </span>
-      <span className={`text-sm ${isActive ? "font-medium text-ink" : "text-cocoa-light"}`}>
+      <span className={`text-base ${isActive ? "font-medium text-ink" : "text-cocoa-light"}`}>
         {title}
       </span>
       {isActive && (
-        <span className="ml-auto text-[10px] uppercase tt-mono px-2 py-0.5 rounded bg-badge text-cocoa font-medium">
+        <span className="ml-auto text-xs uppercase tt-mono px-2 py-0.5 rounded bg-badge text-cocoa font-medium">
           Active
         </span>
       )}
@@ -243,7 +243,7 @@ export default function HowItWorks() {
         role="region"
         aria-label="How TrueTone works"
       >
-        <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col justify-between px-6 py-5 lg:px-8 lg:py-6">
+        <div className="page-container flex min-h-screen flex-col justify-between py-5 lg:py-6">
           {/* ── TOP: label + progress ── */}
           <header>
             <div className="mb-3 flex items-center justify-between border-b border-tint-border/70 pb-3">
@@ -270,20 +270,20 @@ export default function HowItWorks() {
               {/* Step pill + title + subtitle */}
               <AnimatePresence mode="wait">
                 <Motion.div key={currentStepIndex} {...fadeOnly}>
-                  <div className="mb-4 inline-flex items-center gap-2 rounded border border-tint-border bg-badge/40 px-2.5 py-1 tt-mono text-sm font-semibold tracking-widest text-cocoa">
+                  <div className="mb-4 inline-flex items-center gap-2 rounded border border-tint-border bg-badge/40 px-2.5 py-1 tt-mono text-xs font-semibold tracking-widest text-cocoa">
                     STEP {pad(currentStepIndex + 1)}
                   </div>
-                  <h2 className="tt-serif text-5xl font-normal leading-[1.1] tracking-tight text-ink">
+                  <h2 className="font-display text-5xl font-medium leading-[1.1] tracking-[-0.01em] text-ink">
                     {currentStep.title}
                   </h2>
-                  <p className="mt-4 text-base leading-relaxed text-cocoa-light">
+                  <p className="mt-4 text-lg leading-[1.7] text-cocoa-light">
                     {currentStep.subtitle}
                   </p>
                 </Motion.div>
               </AnimatePresence>
 
               {/* Step list with vertical line */}
-              <nav className="relative mt-10 pl-6 py-2" aria-label="Steps">
+              <nav className="relative mt-10 py-2" aria-label="Steps">
                 {/* background line */}
                 <div className="absolute left-[7px] top-3 bottom-3 w-[1.5px] bg-tint-border" />
                 {/* active fill line */}
@@ -291,7 +291,7 @@ export default function HowItWorks() {
                   className="absolute left-[7px] top-3 w-[1.5px] bg-apricot transition-all duration-500 ease-out"
                   style={{ height: `${verticalLineProgress * 100}%` }}
                 />
-                <div className="space-y-5 text-sm">
+                <div className="space-y-[34px]">
                   {STEPS.map((step, i) => (
                     <StepListItem
                       key={i}
@@ -374,40 +374,41 @@ export default function HowItWorks() {
                 />
               </div>
 
-              {/* One thumbnail for each step */}
-              <div className="mt-3 grid w-full grid-cols-6 gap-2 sm:gap-3">
-                {STEPS.map((step, i) => {
-                  const slide = step.slides[0];
-                  const isActive = currentStepIndex === i;
-                  return (
-                    <button
-                      key={step.shortName}
-                      type="button"
-                      onClick={() => scrollToStep(i)}
-                      aria-label={`Go to step ${i + 1}: ${step.title}`}
-                      aria-current={isActive ? "step" : undefined}
-                      className={`min-w-0 overflow-hidden rounded-md bg-white p-0.5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-apricot ${
-                        isActive
-                          ? "ring-2 ring-apricot shadow-sm"
-                          : "border border-tint-border opacity-75 hover:opacity-100"
-                      }`}
-                    >
-                      <div className="w-full overflow-hidden rounded" style={{ aspectRatio: "16 / 10" }}>
-                        <SlideImage
-                          src={slide.src}
-                          alt=""
-                          className="h-full w-full object-contain object-center bg-[#FAF5F1]"
-                        />
-                      </div>
-                      <span className="mt-1 block truncate px-0.5 text-left text-[9px] leading-tight text-cocoa-light sm:text-[10px]">
-                        {step.shortName}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
             </div>
           </main>
+
+          {/* One thumbnail for each step */}
+          <div className="mt-3 grid w-full grid-cols-6 gap-2 sm:gap-3">
+            {STEPS.map((step, i) => {
+              const slide = step.slides[0];
+              const isActive = currentStepIndex === i;
+              return (
+                <button
+                  key={step.shortName}
+                  type="button"
+                  onClick={() => scrollToStep(i)}
+                  aria-label={`Go to step ${i + 1}: ${step.title}`}
+                  aria-current={isActive ? "step" : undefined}
+                  className={`min-w-0 overflow-hidden rounded-md bg-white p-0.5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-apricot ${
+                    isActive
+                      ? "ring-2 ring-apricot shadow-sm"
+                      : "border border-tint-border opacity-75 hover:opacity-100"
+                  }`}
+                >
+                  <div className="w-full overflow-hidden rounded" style={{ aspectRatio: "16 / 10" }}>
+                    <SlideImage
+                      src={slide.src}
+                      alt=""
+                      className="h-full w-full object-contain object-center bg-[#FAF5F1]"
+                    />
+                  </div>
+                  <span className="mt-1 block truncate px-0.5 text-left text-xs leading-tight text-cocoa-light">
+                    {step.shortName}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
 
           {/* ── BOTTOM: divider + dots ── */}
           <footer className="flex items-center justify-between border-t border-tint-border pt-5">
@@ -462,13 +463,13 @@ export default function HowItWorks() {
   return (
     <section
       id="how-it-works"
-      className="border-b border-tint-border/70 bg-paper px-6 py-12 sm:py-16 lg:px-8"
+      className="border-b border-tint-border/70 bg-paper py-12 sm:py-16"
       role="region"
       aria-label="How TrueTone works"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      <div className="mx-auto max-w-7xl">
+      <div className="page-container">
         {/* Label */}
         <div className="mb-6 flex items-center gap-2 border-b border-tint-border/70 pb-3 tt-mono text-[15px] font-semibold uppercase tracking-[0.16em] text-cocoa-light">
           <span className="h-1.5 w-1.5 rounded-full bg-apricot" />
@@ -485,13 +486,13 @@ export default function HowItWorks() {
         </div>
 
         {/* Step pill + title */}
-        <div className="mb-2 inline-flex items-center gap-2 rounded border border-tint-border bg-badge/40 px-2.5 py-1 tt-mono text-sm font-semibold tracking-widest text-apricot">
+        <div className="mb-2 inline-flex items-center gap-2 rounded border border-tint-border bg-badge/40 px-2.5 py-1 tt-mono text-[11px] font-semibold tracking-widest text-apricot sm:text-xs">
           STEP {pad(currentStepIndex + 1)}
         </div>
-        <h2 className="tt-serif text-3xl font-normal leading-tight tracking-tight text-ink sm:text-4xl">
+        <h2 className="font-display text-3xl font-medium leading-[1.1] tracking-[-0.01em] text-ink sm:text-4xl">
           {currentStep.title}
         </h2>
-        <p className="mt-2 text-sm leading-relaxed text-cocoa-light">
+        <p className="mt-2 text-base leading-[1.65] text-cocoa-light sm:text-lg sm:leading-[1.7]">
           {currentStep.subtitle}
         </p>
 
@@ -551,7 +552,7 @@ export default function HowItWorks() {
                     className="h-full w-full object-contain object-center bg-[#FAF5F1]"
                   />
                 </div>
-                <span className="mt-1 block truncate px-0.5 text-left text-[8px] leading-tight text-cocoa-light sm:text-[10px]">
+                <span className="mt-1 block truncate px-0.5 text-left text-[10px] leading-tight text-cocoa-light sm:text-xs">
                   {step.shortName}
                 </span>
               </button>

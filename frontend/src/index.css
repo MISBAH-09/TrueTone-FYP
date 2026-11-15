@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 @theme {
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: "DM Sans", system-ui, sans-serif;
   --color-slate-50: #FBF8F5;
   --color-slate-100: #F4ECE4;
   --color-slate-200: #EDE1D6;
@@ -35,6 +37,19 @@
   --radius-3xl: 1.25rem;
   --shadow-browser: 0 24px 48px -12px rgba(62,39,31,0.08), 0 4px 16px -2px rgba(62,39,31,0.04);
   --shadow-chip: 0 8px 20px -4px rgba(62,39,31,0.12), 0 2px 6px -1px rgba(62,39,31,0.06);
+}
+
+.page-container {
+  width: 100%;
+  max-width: 1440px;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+@media (min-width: 640px) {
+  .page-container {
+    padding-inline: 1.5rem;
+  }
 }
 
 /* Custom scrollbars */
@@ -158,9 +173,9 @@
   --tt-safe: #5A3A2E;
   --tt-radius: 12px;
   --tt-control-h: 38px;
-  --tt-font: "DM Sans", "Inter", "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --tt-font: var(--font-body);
   --tt-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
-  --tt-serif: "Fraunces", Georgia, serif;
+  --tt-serif: var(--font-display);
   --tt-badge: #EAD7C8;
   --tt-paper-alt: #F4ECE4;
   --tt-bp-mobile: 768px;
