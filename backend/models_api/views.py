@@ -85,12 +85,18 @@ def _handle_upload(request, pipeline_method_name):
         result = method(image_bytes, filename, skip_face_check=skip_face_check)
     except Exception as e:
         logger.error(f"Unhandled error in {pipeline_method_name}: {e}", exc_info=True)
-        return {
+        from django.conf import settings as dj_settings
+        payload = {
             "success": False,
             "message": "An unexpected error occurred. Please try again.",
             "error_code": "INTERNAL_ERROR",
-            "data": None
-        }, status.HTTP_500_INTERNAL_SERVER_ERROR
+            "data": None,
+        }
+        # Local-only diagnostic so we can see the real failure without guessing.
+        if dj_settings.DEBUG:
+            payload["debug_error"] = f"{type(e).__name__}: {e}"
+            payload["debug_trace"] = traceback.format_exc().splitlines()[-12:]
+        return payload, status.HTTP_500_INTERNAL_SERVER_ERROR
 
     if result.get("status") == "error":
         return {

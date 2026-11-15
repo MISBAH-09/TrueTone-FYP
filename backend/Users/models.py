@@ -42,8 +42,10 @@ class User(models.Model):
     email = models.EmailField(max_length=254, unique=True, db_index=True)
     password = models.CharField(max_length=256)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='end_user')
-    recovery_question = models.CharField(max_length=32, blank=True, default='')
-    recovery_answer_hash = models.CharField(max_length=256, blank=True, default='')
+    # Nullable so legacy accounts created before recovery existed remain valid.
+    # New signups require these in SignupSerializer only (not at DB level).
+    recovery_question = models.CharField(max_length=32, null=True, blank=True)
+    recovery_answer_hash = models.CharField(max_length=256, null=True, blank=True)
     password_reset_failed_attempts = models.PositiveSmallIntegerField(default=0)
     password_reset_locked_until = models.DateTimeField(blank=True, null=True)
     first_name = models.CharField(max_length=100, blank=True, default='')

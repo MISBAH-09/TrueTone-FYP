@@ -3,18 +3,13 @@ User authentication views — Signup, Login, Profile, Update, FetchAll.
 Uses DRF APIView with Swagger documentation.
 """
 import hashlib
-import re
 import logging
 import base64
-import unicodedata
-from datetime import date, timedelta
-from django.core.cache import cache
+from datetime import date
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from django.core.validators import validate_email
-from django.core.exceptions import ValidationError
-from django.db import IntegrityError, transaction
+from django.db import transaction
 from django.contrib.auth.hashers import check_password, make_password
 from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
@@ -22,72 +17,23 @@ from drf_yasg import openapi
 
 from .models import User, SkinScanHistory, EvaluatorAccessCode
 from .middleware import require_token
+from .serializers import SignupSerializer, ProfileUpdateSerializer, RecoverySetupSerializer
+from .throttles import PasswordRecoveryThrottle, PasswordRecoverySetupThrottle
+from .views_helpers import (
+    RESET_ATTEMPT_LIMIT,
+    RESET_LOCKOUT_DURATION,
+    Validations,
+    normalize_recovery_answer,
+    is_reset_rate_limited,
+    user_has_recovery_question,
+    public_user_payload,
+    NEUTRAL_RECOVERY_MESSAGE,
+)
+
+# Re-export for existing tests/imports
+__all__ = ['normalize_recovery_answer']
 
 logger = logging.getLogger('Users')
-
-RECOVERY_QUESTIONS = {
-    'first_school': "What was your first school's name?",
-    'childhood_nickname': 'What was your childhood nickname?',
-    'first_pet': 'What was the name of your first pet?',
-}
-RESET_ATTEMPT_LIMIT = 5
-RESET_LOCKOUT_DURATION = timedelta(minutes=15)
-RESET_RATE_LIMIT_WINDOW = 900
-
-
-def normalize_recovery_answer(answer):
-    if not isinstance(answer, str) or len(answer) > 120:
-        return ''
-    normalized = unicodedata.normalize('NFKC', answer).strip().casefold()
-    return re.sub(r'\s+', ' ', normalized)
-
-
-def is_reset_rate_limited(request, action, limit=RESET_ATTEMPT_LIMIT):
-    remote_address = request.META.get('REMOTE_ADDR', 'unknown')
-    address_hash = hashlib.sha256(remote_address.encode('utf-8')).hexdigest()
-    key = f'password-recovery:{action}:{address_hash}'
-    if cache.add(key, 1, timeout=RESET_RATE_LIMIT_WINDOW):
-        attempts = 1
-    else:
-        try:
-            attempts = cache.incr(key)
-        except ValueError:
-            cache.set(key, 1, timeout=RESET_RATE_LIMIT_WINDOW)
-            attempts = 1
-    return attempts > limit
-
-
-# ─── Validation Helpers ──────────────────────────────────────────────────────
-
-class Validations:
-    def isValidUsername(self, username):
-        if not username[0].isalpha():
-            return (False, "Username must start with a letter not with '" + username[0] + "'")
-        if not re.fullmatch(r'[A-Za-z0-9._]+', username):
-            return (False, "Username can only contain letters, numbers, '.' and '_'")
-        if "@" in username:
-            return (False, "Username cannot contain '@'")
-        return (True, "Valid username")
-
-    def isValidName(self, name):
-        if not name[0].isalpha():
-            return (False, "Name must start with a letter")
-        if not re.fullmatch(r"[A-Za-z' -]+", name):
-            return (False, "Name can only contain letters, spaces, hyphens (-), and apostrophes (')")
-        return (True, "Valid name")
-
-    def isValidPassword(self, password):
-        if len(password) < 8:
-            return (False, "Password must be at least 8 characters long")
-        if not re.search(r'[A-Z]', password):
-            return (False, "Password must contain at least one uppercase letter")
-        if not re.search(r'[a-z]', password):
-            return (False, "Password must contain at least one lowercase letter")
-        if not re.search(r'[0-9]', password):
-            return (False, "Password must contain at least one digit")
-        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
-            return (False, "Password must contain at least one special character")
-        return (True, "Valid password")
 
 
 # ─── Signup API ──────────────────────────────────────────────────────────────
@@ -97,16 +43,18 @@ class SignupAPI(APIView):
     @swagger_auto_schema(
         tags=["Authentication"],
         operation_summary="User Signup",
-        operation_description="Register a new user with username, email and password",
+        operation_description="Register a new user with username, email, password and security question",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=['username', 'email', 'password'],
+            required=['username', 'email', 'password', 'recovery_question', 'recovery_answer'],
             properties={
                 'username': openapi.Schema(type=openapi.TYPE_STRING, example="misbah123"),
                 'email': openapi.Schema(type=openapi.TYPE_STRING, example="misbah@gmail.com"),
                 'first_name': openapi.Schema(type=openapi.TYPE_STRING, example="Misbah"),
                 'last_name': openapi.Schema(type=openapi.TYPE_STRING, example="Sehar"),
                 'password': openapi.Schema(type=openapi.TYPE_STRING, example="Password@123"),
+                'recovery_question': openapi.Schema(type=openapi.TYPE_STRING, example="first_pet"),
+                'recovery_answer': openapi.Schema(type=openapi.TYPE_STRING, example="Milo"),
                 'profile': openapi.Schema(
                     type=openapi.TYPE_STRING,
                     description="Base64 encoded image"
@@ -119,116 +67,28 @@ class SignupAPI(APIView):
         }
     )
     def post(self, request):
-        response_data = {
-            'success': False,
-            'message': '',
-            'data': None
-        }
-        http_status = status.HTTP_400_BAD_REQUEST
-
-        try:
-            username = request.data.get('username')
-            email = request.data.get('email')
-            first_name = request.data.get('first_name', '')
-            last_name = request.data.get('last_name', '')
-            password = request.data.get('password')
-            recovery_question = request.data.get('recovery_question')
-            recovery_answer_value = request.data.get('recovery_answer')
-            recovery_answer = normalize_recovery_answer(recovery_answer_value)
-            profile = request.data.get('profile')
-
-            errors = []
-
-            # Username validation
-            if not username:
-                errors.append('username is required')
-            else:
-                valid_username, message = Validations().isValidUsername(username)
-                if not valid_username:
-                    errors.append(message)
-
-            # Password validation
-            if not password:
-                errors.append('password is required')
-            else:
-                valid_password, message = Validations().isValidPassword(password)
-                if not valid_password:
-                    errors.append(message)
-
-            # Email validation
-            if not email:
-                errors.append('email is required')
-            else:
-                try:
-                    validate_email(email)
-                except ValidationError:
-                    errors.append('Invalid email format')
-
-            if not isinstance(recovery_question, str) or recovery_question not in RECOVERY_QUESTIONS:
-                errors.append('Choose a valid password recovery question')
-            if len(recovery_answer) < 3 or len(recovery_answer) > 120:
-                errors.append('Recovery answer must be between 3 and 120 characters')
-
-            if errors:
-                response_data['message'] = ', '.join(errors)
-                return Response(response_data, status=http_status)
-
-            # First name and last name validation
-            if first_name:
-                valid_firstname, message = Validations().isValidName(first_name)
-                if not valid_firstname:
-                    response_data['message'] = 'Invalid first name: ' + message
-                    return Response(response_data, status=http_status)
-            if last_name:
-                valid_lastname, message = Validations().isValidName(last_name)
-                if not valid_lastname:
-                    response_data['message'] = 'Invalid last name: ' + message
-                    return Response(response_data, status=http_status)
-
-            try:
-                user = User.objects.create(
-                    username=username,
-                    email=email,
-                    recovery_question=recovery_question,
-                    recovery_answer_hash=make_password(recovery_answer),
-                    first_name=first_name,
-                    last_name=last_name,
-                    password=make_password(password),
-                    profile=profile
-                )
-                logger.info(f"New user registered: {username} ({email})")
-            except IntegrityError as e:
-                if '1062' in str(e):
-                    if 'username' in str(e):
-                        response_data['message'] = 'Username already exists'
-                    elif 'email' in str(e):
-                        response_data['message'] = 'Email already exists'
-                    else:
-                        response_data['message'] = 'Duplicate entry detected'
-                    return Response(response_data, status=http_status)
-                else:
-                    response_data['message'] = str(e)
-                    return Response(response_data, status=http_status)
-
-            response_data['success'] = True
-            response_data['message'] = 'User registered successfully'
-            response_data['data'] = {
-                'id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'role': user.role or 'end_user',
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'created_at': user.created_at.isoformat(),
-                'updated_at': user.updated_at.isoformat()
-            }
-            http_status = status.HTTP_201_CREATED
-
-        except Exception as e:
-            response_data['message'] = str(e)
-            http_status = status.HTTP_400_BAD_REQUEST
-
-        return Response(response_data, status=http_status)
+        serializer = SignupSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        logger.info("New user registered: %s", user.username)
+        return Response(
+            {
+                'success': True,
+                'message': 'User registered successfully',
+                'data': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'role': user.role or 'end_user',
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'has_recovery_question': True,
+                    'created_at': user.created_at.isoformat(),
+                    'updated_at': user.updated_at.isoformat(),
+                },
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 # ─── Login API ───────────────────────────────────────────────────────────────
@@ -321,6 +181,9 @@ class LoginAPI(APIView):
                         'id': user.id,
                         'token': token,
                         'role': role,
+                        'first_name': user.first_name or '',
+                        'last_name': user.last_name or '',
+                        'has_recovery_question': user_has_recovery_question(user),
                         'onboarding_completed': user.onboarding_completed,
                     }
                     http_status = status.HTTP_200_OK
@@ -331,9 +194,11 @@ class LoginAPI(APIView):
                 response_data['message'] = 'Token generation failed'
                 http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
 
-        except Exception as e:
-            response_data['message'] = str(e)
-            http_status = status.HTTP_400_BAD_REQUEST
+        except Exception:
+            logger.exception('Login failed unexpectedly')
+            response_data['message'] = 'Something went wrong on our side. Please try again in a moment.'
+            response_data['detail'] = response_data['message']
+            http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
 
         return Response(response_data, status=http_status)
 
@@ -350,6 +215,8 @@ class LoginAPI(APIView):
 # ─── Password Recovery ──────────────────────────────────────────────────────
 
 class PasswordRecoveryQuestionAPI(APIView):
+    throttle_classes = [PasswordRecoveryThrottle]
+
     def post(self, request):
         if is_reset_rate_limited(request, 'question', limit=10):
             return Response(
@@ -370,21 +237,21 @@ class PasswordRecoveryQuestionAPI(APIView):
                 username=username.strip(),
                 email__iexact=email.strip(),
             ).only('recovery_question', 'recovery_answer_hash').first()
-            if (
-                user
-                and user.recovery_question in RECOVERY_QUESTIONS
-                and user.recovery_answer_hash
-            ):
+            if user_has_recovery_question(user):
                 question = user.recovery_question
 
+        # Always return the same shape; never reveal whether the email/username exists
+        # or whether recovery is unset (legacy accounts).
         return Response({
             'success': True,
-            'message': 'If the details match an account with recovery set up, its question is shown.',
+            'message': NEUTRAL_RECOVERY_MESSAGE if question is None else 'Continue with your security question.',
             'data': {'question': question},
         }, status=status.HTTP_200_OK)
 
 
 class PasswordResetAPI(APIView):
+    throttle_classes = [PasswordRecoveryThrottle]
+
     def post(self, request):
         if is_reset_rate_limited(request, 'reset'):
             return Response(
@@ -399,11 +266,13 @@ class PasswordResetAPI(APIView):
         answer = normalize_recovery_answer(answer_value)
         new_password = request.data.get('password')
 
+        invalid_details = Response(
+            {'success': False, 'message': NEUTRAL_RECOVERY_MESSAGE, 'detail': NEUTRAL_RECOVERY_MESSAGE, 'data': None},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
         if not isinstance(username, str) or not isinstance(email, str):
-            return Response(
-                {'success': False, 'message': 'Unable to verify recovery details.', 'data': None},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return invalid_details
         if not isinstance(new_password, str):
             return Response(
                 {'success': False, 'message': 'A new password is required.', 'data': None},
@@ -413,24 +282,17 @@ class PasswordResetAPI(APIView):
         valid_password, password_message = Validations().isValidPassword(new_password)
         if not valid_password:
             return Response(
-                {'success': False, 'message': password_message, 'data': None},
+                {'success': False, 'message': password_message, 'errors': {'password': [password_message]}, 'data': None},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        invalid_details = Response(
-            {'success': False, 'message': 'Unable to verify recovery details.', 'data': None},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
         with transaction.atomic():
             user = User.objects.select_for_update().filter(
                 username=username.strip(),
                 email__iexact=email.strip(),
             ).first()
-            if (
-                not user
-                or user.recovery_question not in RECOVERY_QUESTIONS
-                or not user.recovery_answer_hash
-            ):
+            # Missing user OR no recovery question set → same neutral response (no crash, no leak)
+            if not user_has_recovery_question(user):
                 return invalid_details
 
             now = timezone.now()
@@ -474,43 +336,25 @@ class PasswordResetAPI(APIView):
 
 
 class PasswordRecoverySetupAPI(APIView):
+    throttle_classes = [PasswordRecoverySetupThrottle]
+
     @require_token
     def post(self, request):
-        user = request.auth_user
-        current_password = request.data.get('current_password')
-        question = request.data.get('recovery_question')
-        answer_value = request.data.get('recovery_answer')
-        answer = normalize_recovery_answer(answer_value)
-
-        if not isinstance(current_password, str) or not check_password(current_password, user.password):
-            return Response(
-                {'success': False, 'message': 'Current password is incorrect.', 'data': None},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if not isinstance(question, str) or question not in RECOVERY_QUESTIONS:
-            return Response(
-                {'success': False, 'message': 'Choose a valid password recovery question.', 'data': None},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if len(answer) < 3 or len(answer) > 120:
-            return Response(
-                {'success': False, 'message': 'Recovery answer must be between 3 and 120 characters.', 'data': None},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        user.recovery_question = question
-        user.recovery_answer_hash = make_password(answer)
-        user.password_reset_failed_attempts = 0
-        user.password_reset_locked_until = None
-        user.save(update_fields=[
-            'recovery_question',
-            'recovery_answer_hash',
-            'password_reset_failed_attempts',
-            'password_reset_locked_until',
-            'updated_at',
-        ])
+        serializer = RecoverySetupSerializer(
+            data=request.data,
+            context={'user': request.auth_user},
+        )
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
         return Response(
-            {'success': True, 'message': 'Password recovery question updated.', 'data': {'recovery_question': question}},
+            {
+                'success': True,
+                'message': 'Password recovery question updated.',
+                'data': {
+                    'recovery_question': user.recovery_question,
+                    'has_recovery_question': True,
+                },
+            },
             status=status.HTTP_200_OK,
         )
 
@@ -536,45 +380,15 @@ class GetByIdAPI(APIView):
     )
     @require_token
     def get(self, request, id=None):
-        response_data = {
-            'success': True,
-            'message': '',
-            'data': None
-        }
-
-        try:
-            user = request.auth_user
-
-            response_data['success'] = True
-            response_data['message'] = 'User fetched successfully'
-            response_data['data'] = {
-                'id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'role': user.role or 'end_user',
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'profile': user.profile,
-                'token': user.token,
-                'recovery_question': user.recovery_question,
-                'age_bracket': user.age_bracket,
-                'gender': user.gender,
-                'skin_tone': user.skin_tone,
-                'skin_type': user.skin_type,
-                'skin_disease': user.skin_disease,
-                'allergies': user.allergies,
-                'is_pregnant_or_breastfeeding': user.is_pregnant_or_breastfeeding,
-                'current_products': user.current_products,
-                'onboarding_completed': user.onboarding_completed,
-                'created_at': user.created_at.isoformat() if user.created_at else None,
-                'updated_at': user.updated_at.isoformat() if user.updated_at else None
-            }
-            return Response(response_data, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response(
-                {'success': False, 'error': str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        user = request.auth_user
+        return Response(
+            {
+                'success': True,
+                'message': 'User fetched successfully',
+                'data': public_user_payload(user, include_token=True),
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 # ─── Update User (Protected) ────────────────────────────────────────────────
@@ -614,151 +428,51 @@ class UpdateAPI(APIView):
             401: "Unauthorized"
         }
     )
-    @require_token
-    def put(self, request):
-        response_data = {
-            'success': False,
-            'message': '',
-            'data': None
-        }
+    def _apply_update(self, request):
         user = getattr(request, 'auth_user', None)
         if not user:
             return Response(
-                {'success': False, 'message': 'Unauthorized'},
-                status=status.HTTP_401_UNAUTHORIZED
+                {'success': False, 'message': 'Unauthorized', 'detail': 'Unauthorized', 'data': None},
+                status=status.HTTP_401_UNAUTHORIZED,
             )
 
         updatable_fields = {
             'username', 'email', 'first_name', 'last_name', 'password', 'profile',
-            'skin_type', 'skin_tone', 'skin_disease', 'age_bracket', 'gender', 'allergies', 
-            'is_pregnant_or_breastfeeding', 'current_products'
+            'skin_type', 'skin_tone', 'skin_disease', 'age_bracket', 'gender', 'allergies',
+            'is_pregnant_or_breastfeeding', 'current_products',
         }
         if not request.data or not any(field in request.data for field in updatable_fields):
             return Response(
                 {'success': False, 'message': 'No data provided to update', 'data': None},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        username = request.data.get('username', user.username)
-        email = request.data.get('email', user.email)
-        first_name = request.data.get('first_name', user.first_name)
-        last_name = request.data.get('last_name', user.last_name)
-        password = request.data.get('password', None)
-        profile = request.data.get('profile', user.profile)
-        
-        skin_type = request.data.get('skin_type', user.skin_type)
-        skin_tone = request.data.get('skin_tone', user.skin_tone)
-        skin_disease = request.data.get('skin_disease', user.skin_disease)
-        age_bracket = request.data.get('age_bracket', user.age_bracket)
-        gender = request.data.get('gender', user.gender)
-        allergies = request.data.get('allergies', user.allergies)
-        
-        is_pregnant = request.data.get('is_pregnant_or_breastfeeding', user.is_pregnant_or_breastfeeding)
-        if 'is_pregnant_or_breastfeeding' in request.data:
-            is_pregnant = str(is_pregnant).lower() in ('true', '1', 't', 'yes', 'y')
-            
-        current_products = request.data.get('current_products', user.current_products)
+        payload = {k: request.data.get(k) for k in updatable_fields if k in request.data}
+        if 'is_pregnant_or_breastfeeding' in payload:
+            raw = payload['is_pregnant_or_breastfeeding']
+            if not isinstance(raw, bool):
+                payload['is_pregnant_or_breastfeeding'] = str(raw).lower() in ('true', '1', 't', 'yes', 'y')
 
-        # Username validation
-        if 'username' in request.data:
-            valid_username, message = Validations().isValidUsername(username)
-            if not valid_username:
-                response_data['message'] = message
-                return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+        serializer = ProfileUpdateSerializer(data=payload, context={'user': user}, partial=True)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.update(user, serializer.validated_data)
 
-        # Email validation
-        if 'email' in request.data:
-            try:
-                validate_email(email)
-            except ValidationError:
-                response_data['message'] = 'Invalid email format'
-                return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
-
-        # First name validation
-        if 'first_name' in request.data and first_name:
-            valid_firstname, message = Validations().isValidName(first_name)
-            if not valid_firstname:
-                response_data['message'] = 'Invalid first name: ' + message
-                return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
-
-        # Last name validation
-        if 'last_name' in request.data and last_name:
-            valid_lastname, message = Validations().isValidName(last_name)
-            if not valid_lastname:
-                response_data['message'] = 'Invalid last name: ' + message
-                return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
-
-        # Password validation & hashing
-        if password:
-            valid_password, message = Validations().isValidPassword(password)
-            if not valid_password:
-                response_data['message'] = message
-                return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
-            password = make_password(password)
-        else:
-            password = user.password
-
-        # Check if skin profile changed
-        skin_changed = (
-            user.skin_type != skin_type or
-            user.skin_tone != skin_tone or
-            user.skin_disease != skin_disease
+        return Response(
+            {
+                'success': True,
+                'message': 'User updated successfully',
+                'data': public_user_payload(user),
+            },
+            status=status.HTTP_200_OK,
         )
 
-        # Save updates
-        try:
-            user.username = username
-            user.email = email
-            user.first_name = first_name
-            user.last_name = last_name
-            user.password = password
-            user.profile = profile
-            user.skin_type = skin_type
-            user.skin_tone = skin_tone
-            user.skin_disease = skin_disease
-            user.age_bracket = age_bracket
-            user.gender = gender
-            user.allergies = allergies
-            user.is_pregnant_or_breastfeeding = is_pregnant
-            user.current_products = current_products
-            user.updated_at = timezone.now()
-            user.save()
+    @require_token
+    def put(self, request):
+        return self._apply_update(request)
 
-        except IntegrityError as e:
-            if '1062' in str(e):
-                if 'username' in str(e):
-                    response_data['message'] = 'Username already exists'
-                elif 'email' in str(e):
-                    response_data['message'] = 'Email already exists'
-                else:
-                    response_data['message'] = 'Duplicate entry detected'
-                return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
-            else:
-                response_data['message'] = str(e)
-                return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
-
-        response_data['success'] = True
-        response_data['message'] = 'User updated successfully'
-        response_data['data'] = {
-            'id': user.id,
-            'username': user.username,
-            'email': user.email,
-            'first_name': user.first_name,
-            'last_name': user.last_name,
-            'profile': user.profile,
-            'skin_type': user.skin_type,
-            'skin_tone': user.skin_tone,
-            'skin_disease': user.skin_disease,
-            'age_bracket': user.age_bracket,
-            'gender': user.gender,
-            'allergies': user.allergies,
-            'is_pregnant_or_breastfeeding': user.is_pregnant_or_breastfeeding,
-            'current_products': user.current_products,
-            'created_at': user.created_at.isoformat(),
-            'updated_at': user.updated_at.isoformat()
-        }
-
-        return Response(response_data, status=status.HTTP_200_OK)
+    @require_token
+    def patch(self, request):
+        return self._apply_update(request)
 
 
 # ─── Fetch All Users (Protected) ────────────────────────────────────────────

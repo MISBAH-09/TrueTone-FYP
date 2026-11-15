@@ -9,7 +9,6 @@ without artificial fill or masking.
 from pathlib import Path
 import numpy as np
 from PIL import Image
-import mediapipe as mp
 
 MODELS_DIR = Path(__file__).resolve().parent
 FACE_LANDMARKER_PATH = str(MODELS_DIR / "face_landmarker.task")
@@ -17,15 +16,31 @@ FACE_LANDMARKER_PATH = str(MODELS_DIR / "face_landmarker.task")
 OVAL_INDICES = [
     10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365,
     379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93,
-    234, 127, 162, 21, 54, 103, 67, 109
+    20, 234, 127, 162, 21, 54, 103, 67, 109
 ]
 
 _landmarker = None
+_mediapipe_import_error = None
+
+
+def _import_mediapipe():
+    """Lazy import so a missing mediapipe install does not crash the API at import time."""
+    global _mediapipe_import_error
+    try:
+        import mediapipe as mp
+        return mp
+    except Exception as e:
+        _mediapipe_import_error = e
+        return None
 
 
 def get_landmarker():
     global _landmarker
     if _landmarker is None and Path(FACE_LANDMARKER_PATH).exists():
+        mp = _import_mediapipe()
+        if mp is None:
+            print(f"[face_crop] Warning: mediapipe unavailable: {_mediapipe_import_error}")
+            return None
         try:
             options = mp.tasks.vision.FaceLandmarkerOptions(
                 base_options=mp.tasks.BaseOptions(model_asset_path=FACE_LANDMARKER_PATH),
@@ -42,6 +57,10 @@ def detect_face_landmarks(img_np):
     """Detect landmarks using MediaPipe FaceLandmarker. Returns list of landmarks or None."""
     landmarker = get_landmarker()
     if landmarker is None:
+        return None, 0
+
+    mp = _import_mediapipe()
+    if mp is None:
         return None, 0
 
     try:
@@ -83,8 +102,5 @@ def crop_face_natural(pil_img, pad_x_ratio=0.20, pad_y_ratio=0.15):
     x2 = min(w, int(x_max + pad_x))
     y2 = min(h, int(y_max + pad_y))
 
-    if x2 <= x1 or y2 <= y1:
-        return pil_img, (0, 0, w, h), landmarks, True, num_faces
-
-    cropped_pil = pil_img.crop((x1, y1, x2, y2))
-    return cropped_pil, (x1, y1, x2, y2), landmarks, True, num_faces
+    crop_box = (x1, y1, x2, y2)
+    return pil_img.crop(crop_box), crop_box, landmarks, True, num_faces

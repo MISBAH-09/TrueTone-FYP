@@ -10,11 +10,14 @@ import {
   Package,
   Eye,
   EyeOff,
+  X,
 } from "lucide-react";
-import { getUserProfile } from "../services/user";
+import { getUserProfile, PROFILE_UPDATED_EVENT } from "../services/user";
 import { getSkinScanHistory } from "../services/analysis";
 import { getScanHistory } from "../services/scanner";
 import { getRecommendations } from "../services/recommendations";
+
+const RECOVERY_BANNER_KEY = "truetone_dismiss_recovery_banner";
 
 const CONDITION_LABELS = {
   common_acne: "Acne",
@@ -273,6 +276,26 @@ const Dashboard = () => {
         const [pickedProducts, setPickedProducts] = useState([]);
         const [loading, setLoading] = useState(true);
         const [recsLoading, setRecsLoading] = useState(true);
+        const [dismissRecoveryBanner, setDismissRecoveryBanner] = useState(
+          () => localStorage.getItem(RECOVERY_BANNER_KEY) === "1"
+        );
+
+  useEffect(() => {
+    const onProfileUpdated = (event) => {
+      const { first_name, last_name } = event.detail || {};
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              first_name: first_name ?? prev.first_name,
+              last_name: last_name ?? prev.last_name,
+            }
+          : prev
+      );
+    };
+    window.addEventListener(PROFILE_UPDATED_EVENT, onProfileUpdated);
+    return () => window.removeEventListener(PROFILE_UPDATED_EVENT, onProfileUpdated);
+  }, []);
 
   useEffect(() => {
           let cancelled = false;
@@ -385,8 +408,37 @@ const Dashboard = () => {
     },
         ];
 
+        const showRecoveryBanner =
+          profile && profile.has_recovery_question === false && !dismissRecoveryBanner;
+
         return (
         <div className="w-full pb-10 text-ink">
+          {showRecoveryBanner ? (
+            <div className="mb-4 flex items-start justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+              <p>
+                Add a security question to help you recover your account.{" "}
+                <button
+                  type="button"
+                  onClick={() => navigate("/profile#security-question")}
+                  className="font-semibold underline underline-offset-2"
+                >
+                  Set it up in Profile
+                </button>
+              </p>
+              <button
+                type="button"
+                aria-label="Dismiss"
+                onClick={() => {
+                  localStorage.setItem(RECOVERY_BANNER_KEY, "1");
+                  setDismissRecoveryBanner(true);
+                }}
+                className="rounded-md p-1 text-amber-800/70 hover:bg-amber-100 hover:text-amber-950"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : null}
+
           {/* Top Welcome Banner & CTA */}
           <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-7">
             <div>

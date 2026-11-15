@@ -1,11 +1,15 @@
 import { useState, useEffect } from "react";
 import {
   getUserProfile,
+  parseApiError,
   RECOVERY_QUESTIONS,
   setupPasswordRecovery,
   updateUser,
 } from "../services/user";
 import { CheckCircle2, Loader2, Save } from "lucide-react";
+
+const FieldError = ({ message }) =>
+  message ? <p className="mt-1 text-xs font-medium text-[var(--tt-avoid)]">{message}</p> : null;
 
 const ageBrackets = [
   { value: "teen", label: "Teen", desc: "Under 18" },
@@ -45,12 +49,16 @@ const selectClass = (active) =>
 const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [nameSaving, setNameSaving] = useState(false);
   const [recoverySaving, setRecoverySaving] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const [success, setSuccess] = useState("");
 
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [ageBracket, setAgeBracket] = useState("");
   const [skinTone, setSkinTone] = useState("");
   const [skinType, setSkinType] = useState("");
@@ -59,6 +67,8 @@ const Profile = () => {
   const [allergiesText, setAllergiesText] = useState("");
   const [isPregnantOrBreastfeeding, setIsPregnantOrBreastfeeding] = useState(false);
   const [currentProductsText, setCurrentProductsText] = useState("");
+  const [hasRecoveryQuestion, setHasRecoveryQuestion] = useState(false);
+  const [savedRecoveryQuestion, setSavedRecoveryQuestion] = useState("");
   const [recoveryQuestion, setRecoveryQuestion] = useState("");
   const [recoveryAnswer, setRecoveryAnswer] = useState("");
   const [recoveryCurrentPassword, setRecoveryCurrentPassword] = useState("");
@@ -71,6 +81,10 @@ const Profile = () => {
           const p = response.data;
           setUsername(p.username || "");
           setEmail(p.email || "");
+          setFirstName(p.first_name || "");
+          setLastName(p.last_name || "");
+          setHasRecoveryQuestion(Boolean(p.has_recovery_question));
+          setSavedRecoveryQuestion(p.recovery_question || "");
           setRecoveryQuestion(p.recovery_question || "");
           setAgeBracket(p.age_bracket || "");
           setSkinTone(p.skin_tone || "");
@@ -82,8 +96,8 @@ const Profile = () => {
           setCurrentProductsText(p.current_products || "");
         }
       } catch (err) {
-        console.error("Profile fetch error:", err);
-        setError(err.response?.data?.message || err.message || "Failed to load profile.");
+        const parsed = parseApiError(err);
+        setError(parsed.message);
       } finally {
         setLoading(false);
       }
@@ -91,15 +105,41 @@ const Profile = () => {
     fetchProfile();
   }, []);
 
+  const handleNameSave = async (e) => {
+    e.preventDefault();
+    setNameSaving(true);
+    setError("");
+    setFieldErrors({});
+    setSuccess("");
+    try {
+      const response = await updateUser({
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+      });
+      if (response.success) {
+        setFirstName(response.data.first_name || "");
+        setLastName(response.data.last_name || "");
+        setSuccess("Name updated successfully.");
+      } else {
+        setError(response.message || "Failed to update name.");
+      }
+    } catch (err) {
+      const parsed = parseApiError(err);
+      setFieldErrors(parsed.errors);
+      setError(parsed.message);
+    } finally {
+      setNameSaving(false);
+    }
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
     setError("");
+    setFieldErrors({});
     setSuccess("");
     try {
       const updates = {
-        username,
-        email,
         age_bracket: ageBracket,
         skin_tone: skinTone,
         skin_type: skinType,
@@ -117,7 +157,9 @@ const Profile = () => {
         setError(response.message || "Failed to update profile.");
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to update profile.");
+      const parsed = parseApiError(err);
+      setFieldErrors(parsed.errors);
+      setError(parsed.message);
     } finally {
       setSaving(false);
     }
@@ -127,7 +169,20 @@ const Profile = () => {
     e.preventDefault();
     setRecoverySaving(true);
     setError("");
+    setFieldErrors({});
     setSuccess("");
+
+    const local = {};
+    if (!recoveryQuestion) local.recovery_question = ["Please choose a security question."];
+    if (!recoveryAnswer.trim()) local.recovery_answer = ["Please enter an answer."];
+    if (!recoveryCurrentPassword) local.current_password = ["Current password is required."];
+    if (Object.keys(local).length) {
+      setFieldErrors(local);
+      setError("Please complete the security question form.");
+      setRecoverySaving(false);
+      return;
+    }
+
     try {
       const response = await setupPasswordRecovery({
         current_password: recoveryCurrentPassword,
@@ -135,15 +190,19 @@ const Profile = () => {
         recovery_answer: recoveryAnswer,
       });
       if (response.success) {
+        setSavedRecoveryQuestion(response.data.recovery_question);
         setRecoveryQuestion(response.data.recovery_question);
+        setHasRecoveryQuestion(true);
         setRecoveryAnswer("");
         setRecoveryCurrentPassword("");
-        setSuccess("Password recovery question updated.");
+        setSuccess("Security question saved.");
       } else {
         setError(response.message || "Failed to update password recovery.");
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to update password recovery.");
+      const parsed = parseApiError(err);
+      setFieldErrors(parsed.errors);
+      setError(parsed.message);
     } finally {
       setRecoverySaving(false);
     }
@@ -182,35 +241,82 @@ const Profile = () => {
         </div>
       )}
 
-      <form onSubmit={handleSave} className="space-y-6">
-        <div className="space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold text-[var(--tt-ink)]">Account Details</h2>
-            <p className="text-sm text-[var(--tt-secondary)]">Your basic TrueTone account info.</p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-[var(--tt-ink)]">Username</label>
-              <input
-                type="text"
-                value={username}
-                disabled
-                className="h-[var(--tt-control-h)] w-full cursor-not-allowed rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-paper)] px-3 text-sm text-[var(--tt-secondary)] outline-none"
-              />
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-[var(--tt-ink)]">Email Address</label>
-              <input
-                type="email"
-                value={email}
-                disabled
-                className="h-[var(--tt-control-h)] w-full cursor-not-allowed rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-paper)] px-3 text-sm text-[var(--tt-secondary)] outline-none"
-              />
-            </div>
-          </div>
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold text-[var(--tt-ink)]">Account Details</h2>
+          <p className="text-sm text-[var(--tt-secondary)]">Your basic TrueTone account info.</p>
         </div>
 
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-[var(--tt-ink)]">Username</label>
+            <input
+              type="text"
+              value={username}
+              disabled
+              className="h-[var(--tt-control-h)] w-full cursor-not-allowed rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-paper)] px-3 text-sm text-[var(--tt-secondary)] outline-none"
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-[var(--tt-ink)]">Email Address</label>
+            <input
+              type="email"
+              value={email}
+              disabled
+              className="h-[var(--tt-control-h)] w-full cursor-not-allowed rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-paper)] px-3 text-sm text-[var(--tt-secondary)] outline-none"
+            />
+          </div>
+        </div>
+      </div>
+
+      <form onSubmit={handleNameSave} className="space-y-4 rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] p-4">
+        <div>
+          <h2 className="text-lg font-semibold text-[var(--tt-ink)]">Your name</h2>
+          <p className="text-sm text-[var(--tt-secondary)]">
+            Shown on your dashboard greeting. Leave blank to use your username.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-[var(--tt-ink)]">First name</label>
+            <input
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              maxLength={100}
+              autoComplete="given-name"
+              disabled={nameSaving}
+              className="h-[var(--tt-control-h)] w-full rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-paper)] px-3 text-sm outline-none focus:border-[var(--tt-primary)] focus:ring-1 focus:ring-[var(--tt-primary)]"
+            />
+            <FieldError message={fieldErrors.first_name?.[0]} />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-[var(--tt-ink)]">Last name</label>
+            <input
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              maxLength={100}
+              autoComplete="family-name"
+              disabled={nameSaving}
+              className="h-[var(--tt-control-h)] w-full rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-paper)] px-3 text-sm outline-none focus:border-[var(--tt-primary)] focus:ring-1 focus:ring-[var(--tt-primary)]"
+            />
+            <FieldError message={fieldErrors.last_name?.[0]} />
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={nameSaving}
+            className="inline-flex h-[var(--tt-control-h)] items-center gap-2 rounded-[var(--tt-radius)] bg-[var(--tt-primary)] px-5 text-sm font-medium text-white hover:bg-[var(--tt-primary-hover)] disabled:opacity-50"
+          >
+            {nameSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {nameSaving ? "Saving..." : "Save name"}
+          </button>
+        </div>
+      </form>
+
+      <form onSubmit={handleSave} className="space-y-6">
         <div className="space-y-4">
           <div>
             <h2 className="text-lg font-semibold text-[var(--tt-ink)]">Skin Profile</h2>
@@ -412,22 +518,35 @@ const Profile = () => {
         </div>
       </form>
 
-      <section className="space-y-4 border-t border-[var(--tt-border)] pt-6">
+      <section id="security-question" className="space-y-4 border-t border-[var(--tt-border)] pt-6">
         <div>
-          <h2 className="text-lg font-semibold text-[var(--tt-ink)]">Password Recovery</h2>
+          <h2 className="text-lg font-semibold text-[var(--tt-ink)]">Security question</h2>
           <p className="text-sm text-[var(--tt-secondary)]">
-            {recoveryQuestion
-              ? "Update your recovery question or answer. Your current password is required."
-              : "Set a recovery question for this account. Your current password is required."}
+            Used for password recovery. Your answer is stored as a hash and is never shown again.
           </p>
         </div>
-        <form onSubmit={handleRecoverySave} className="grid gap-3 sm:grid-cols-2">
+
+        {hasRecoveryQuestion ? (
+          <div className="rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-paper)] px-4 py-3 text-sm text-[var(--tt-ink)]">
+            <p className="font-medium">
+              {RECOVERY_QUESTIONS.find((q) => q.value === savedRecoveryQuestion)?.label || savedRecoveryQuestion}
+            </p>
+            <p className="mt-1 text-xs text-[var(--tt-secondary)]">Answer is hidden.</p>
+          </div>
+        ) : (
+          <div className="rounded-[var(--tt-radius)] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Add a security question to help you recover your account.
+          </div>
+        )}
+
+        <form onSubmit={handleRecoverySave} className="grid gap-3 sm:grid-cols-2" noValidate>
           <label className="block space-y-1.5 text-sm font-medium text-[var(--tt-ink)]">
-            Security question
+            Security question *
             <select
               value={recoveryQuestion}
               onChange={(e) => setRecoveryQuestion(e.target.value)}
               required
+              disabled={recoverySaving}
               className="h-[var(--tt-control-h)] w-full rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] px-3 text-sm font-normal text-[var(--tt-ink)] focus:border-[var(--tt-primary)] focus:outline-none"
             >
               <option value="" disabled>Choose a question</option>
@@ -435,29 +554,34 @@ const Profile = () => {
                 <option key={question.value} value={question.value}>{question.label}</option>
               ))}
             </select>
+            <FieldError message={fieldErrors.recovery_question?.[0]} />
           </label>
           <label className="block space-y-1.5 text-sm font-medium text-[var(--tt-ink)]">
-            Recovery answer
+            Answer *
             <input
               type="text"
               value={recoveryAnswer}
               onChange={(e) => setRecoveryAnswer(e.target.value)}
-              placeholder="Enter a private answer"
+              placeholder={hasRecoveryQuestion ? "Enter a new private answer" : "Enter a private answer"}
               autoComplete="off"
               required
+              disabled={recoverySaving}
               className="h-[var(--tt-control-h)] w-full rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] px-3 text-sm font-normal text-[var(--tt-ink)] focus:border-[var(--tt-primary)] focus:outline-none"
             />
+            <FieldError message={fieldErrors.recovery_answer?.[0]} />
           </label>
           <label className="block space-y-1.5 text-sm font-medium text-[var(--tt-ink)] sm:col-span-2">
-            Current password
+            Current password *
             <input
               type="password"
               value={recoveryCurrentPassword}
               onChange={(e) => setRecoveryCurrentPassword(e.target.value)}
               autoComplete="current-password"
               required
+              disabled={recoverySaving}
               className="h-[var(--tt-control-h)] w-full rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] px-3 text-sm font-normal text-[var(--tt-ink)] focus:border-[var(--tt-primary)] focus:outline-none"
             />
+            <FieldError message={fieldErrors.current_password?.[0]} />
           </label>
           <p className="text-xs text-[var(--tt-secondary)] sm:col-span-2">
             Use an answer others cannot easily guess. Recovery questions are less secure than email verification.
@@ -469,7 +593,7 @@ const Profile = () => {
               className="inline-flex h-[var(--tt-control-h)] items-center gap-2 rounded-[var(--tt-radius)] bg-[var(--tt-primary)] px-5 text-sm font-medium text-white hover:bg-[var(--tt-primary-hover)] disabled:opacity-50"
             >
               {recoverySaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {recoverySaving ? "Saving..." : "Save Recovery Question"}
+              {recoverySaving ? "Saving..." : hasRecoveryQuestion ? "Update security question" : "Save security question"}
             </button>
           </div>
         </form>

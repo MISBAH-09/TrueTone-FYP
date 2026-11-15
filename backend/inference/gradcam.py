@@ -106,12 +106,21 @@ def render_dynamic_region_overlay(rgb_display_image, grayscale_cam, task_type="s
             y_coords, x_coords = np.where(disease_mask > 0)
             if len(x_coords) > 10:
                 weights = cam_norm[y_coords, x_coords]
-                weights = np.maximum(weights, 0.02)
-                probs = weights / weights.sum()
+                weights = np.nan_to_num(np.maximum(weights, 0.02), nan=0.02)
+                total = float(weights.sum())
+                if not np.isfinite(total) or total <= 0:
+                    probs = None
+                else:
+                    probs = weights / total
 
                 np.random.seed(42)
                 num_dots = min(45, len(x_coords))
-                sampled = np.random.choice(len(x_coords), size=num_dots, replace=False, p=probs)
+                sampled = np.random.choice(
+                    len(x_coords),
+                    size=num_dots,
+                    replace=False,
+                    p=probs if probs is not None else None,
+                )
                 dot_radius = max(1, int(round(min(w, h) * 0.0025)))
                 for i, idx in enumerate(sampled):
                     px, py = int(x_coords[idx]), int(y_coords[idx])
@@ -159,7 +168,13 @@ def generate_heatmap(model, input_tensor, rgb_display_image, target_class_idx, t
 
     # Strictly mask out grayscale_cam before ANY visualizations
     grayscale_cam = grayscale_cam * face_mask_uint8.astype(np.float32)
-    
+    # Guard against all-zero / NaN CAMs (show_cam_on_image divides by max)
+    cam_max = float(np.nanmax(grayscale_cam)) if grayscale_cam.size else 0.0
+    if not np.isfinite(cam_max) or cam_max <= 1e-8:
+        grayscale_cam = np.zeros_like(grayscale_cam, dtype=np.float32)
+    else:
+        grayscale_cam = np.nan_to_num(grayscale_cam, nan=0.0, posinf=0.0, neginf=0.0)
+
     # 1. Full Heatmap
     visualization = show_cam_on_image(rgb_display_image, grayscale_cam, use_rgb=True, image_weight=0.55)
     vis_bgr = cv2.cvtColor(visualization, cv2.COLOR_RGB2BGR)

@@ -31,41 +31,32 @@ const buildFormData = (file, skipFaceCheck = false) => {
 
 /** Run all 3 models (skin type + tone + disease). */
 export const analyzeAll = async (file, skipFaceCheck = false) => {
-  const { data } = await api.post("/analyze_all", buildFormData(file, skipFaceCheck), {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  // Do NOT set Content-Type manually — the browser must add the multipart boundary.
+  const { data } = await api.post("/analyze_all", buildFormData(file, skipFaceCheck));
   return data;
 };
 
 /** Run skin type + skin tone (no disease). */
 export const analyzeSkin = async (file, skipFaceCheck = false) => {
-  const { data } = await api.post("/analyze_skin", buildFormData(file, skipFaceCheck), {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  const { data } = await api.post("/analyze_skin", buildFormData(file, skipFaceCheck));
   return data;
 };
 
 /** Run only skin type model. */
 export const analyzeSkinType = async (file, skipFaceCheck = false) => {
-  const { data } = await api.post("/analyze_skin_type", buildFormData(file, skipFaceCheck), {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  const { data } = await api.post("/analyze_skin_type", buildFormData(file, skipFaceCheck));
   return data;
 };
 
 /** Run only skin tone model. */
 export const analyzeSkinTone = async (file, skipFaceCheck = false) => {
-  const { data } = await api.post("/analyze_skin_tone", buildFormData(file, skipFaceCheck), {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  const { data } = await api.post("/analyze_skin_tone", buildFormData(file, skipFaceCheck));
   return data;
 };
 
 /** Run only skin disease model. */
 export const analyzeSkinDisease = async (file, skipFaceCheck = false) => {
-  const { data } = await api.post("/analyze_skin_disease", buildFormData(file, skipFaceCheck), {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  const { data } = await api.post("/analyze_skin_disease", buildFormData(file, skipFaceCheck));
   return data;
 };
 

@@ -370,8 +370,15 @@ def validate_and_preprocess_bytes(image_bytes, filename="upload.jpg", skip_face_
 
     pil_img = pil_img.convert("RGB")
     orig_w, orig_h = pil_img.size  # inspector-patch: size before the face crop
-    from inference.face_crop import crop_face_natural
-    pil_img, crop_box, _landmarks, _found, num_faces = crop_face_natural(pil_img)
+    try:
+        from inference.face_crop import crop_face_natural
+        pil_img, crop_box, _landmarks, _found, num_faces = crop_face_natural(pil_img)
+    except Exception as e:
+        # Never let face-crop / mediapipe import failures become an opaque 500.
+        logger.error("Face crop failed (%s); continuing without crop", e)
+        crop_box = (0, 0, orig_w, orig_h)
+        _found = False
+        num_faces = 0
 
     if num_faces > 1 and not skip_face_check:
         raise ImageValidationError("Multiple faces detected! Please crop to a single face before uploading.", "MULTIPLE_FACES")
@@ -534,10 +541,26 @@ def _infer_one(model, tensor, class_labels, device, confidence_threshold, displa
     with torch.no_grad():
         logits = model(tensor)
         probs = torch.softmax(logits, dim=1)[0]
-    n = probs.shape[0]
+    n = int(probs.shape[0])
+    label_count = len(class_labels)
 
-    if n != len(class_labels):
-        class_labels = class_labels[:n]
+    # Keep probs and labels the same length. A mismatched checkpoint (e.g. 128-d
+    # ImageNet head vs 3 skin-type labels) previously let top_idx land past
+    # members[] and raised IndexError → HTTP 500.
+    if n != label_count:
+        logger.warning(
+            "%s: model outputs %s classes but config has %s labels — aligning to %s",
+            model_name or "model",
+            n,
+            label_count,
+            min(n, label_count),
+        )
+        if n > label_count:
+            probs = probs[:label_count]
+            n = label_count
+        else:
+            class_labels = class_labels[:n]
+            label_count = n
 
     raw_probs = probs.tolist()
     raw_labels = list(class_labels)  # inspector-patch: labels as the model outputs them
@@ -546,13 +569,19 @@ def _infer_one(model, tensor, class_labels, device, confidence_threshold, displa
         class_labels, prob_list, members = _group_probs(raw_probs, class_labels)
     else:
         prob_list = raw_probs
-        members = [[i] for i in range(len(class_labels))]
+        members = [[i] for i in range(len(prob_list))]
+
+    if not prob_list:
+        raise RuntimeError(f"{model_name or 'model'}: empty probability vector after alignment")
 
     top_idx = max(range(len(prob_list)), key=lambda i: prob_list[i])
-    top_prob = prob_list[top_idx]
+    top_prob = float(prob_list[top_idx])
+    if top_prob != top_prob:  # NaN guard
+        top_prob = 0.0
     is_confident = top_prob >= confidence_threshold
     # actual model output to explain with Grad-CAM (strongest member of the group)
-    cam_idx = max(members[top_idx], key=lambda i: raw_probs[i])
+    member_idxs = members[top_idx] if top_idx < len(members) else [min(top_idx, len(raw_probs) - 1)]
+    cam_idx = max(member_idxs, key=lambda i: raw_probs[i] if i < len(raw_probs) else -1.0)
 
     top_label = class_labels[top_idx] if top_idx < len(class_labels) else f"class_{top_idx}"
     # "healthy" prediction from the disease model -> nothing to highlight
@@ -653,10 +682,17 @@ def _infer_one(model, tensor, class_labels, device, confidence_threshold, displa
         except Exception as e:
             logger.error(f"Overlay for skin_tone failed: {e}")
 
+    def _safe_round(v, nd=4):
+        try:
+            v = float(v)
+            return round(v, nd) if v == v else 0.0
+        except (TypeError, ValueError):
+            return 0.0
+
     return {
         "predicted_class": top_label,
-        "confidence": round(top_prob, 4),
-        "all_probs": {cls: round(prob_list[i], 4) for i, cls in enumerate(class_labels)},
+        "confidence": _safe_round(top_prob, 4),
+        "all_probs": {cls: _safe_round(prob_list[i], 4) for i, cls in enumerate(class_labels)},
         "low_confidence": not is_confident,
         "is_confident": is_confident,
         "is_healthy": is_healthy_pred,
@@ -888,6 +924,12 @@ class SkinAnalysisPipeline:
         t_all = time.perf_counter()
         starts = {}
         futures = {}
+        if not _executor_is_alive(self):
+            logger.warning("Recreating thread pool for SkinAnalysisPipeline")
+            self._executor = ThreadPoolExecutor(
+                max_workers=Config.MAX_WORKERS,
+                thread_name_prefix="TrueTone",
+            )
         for name, (mdl, labels, thresh) in jobs.items():
             starts[name] = time.perf_counter()
             futures[name] = self._executor.submit(
@@ -913,12 +955,24 @@ class SkinAnalysisPipeline:
         )
 
         if errors:
+            clean_info = {
+                "filename": info.get("filename"),
+                "size_bytes": info.get("size_bytes"),
+                "width": info.get("width"),
+                "height": info.get("height"),
+                "crop_box": info.get("crop_box"),
+                "original_width": info.get("original_width"),
+                "original_height": info.get("original_height"),
+                "faces_detected": info.get("faces_detected"),
+                "face_found": info.get("face_found"),
+                "display_image_base64": info.get("display_image_base64"),
+            }
             return {
                 "status": "partial_error",
                 "request_id": request_id,
                 "errors": errors,
                 "results": {k: v for k, v in results.items()},
-                "image_info": info,
+                "image_info": clean_info,
                 "latency_ms": latencies,
             }
 
@@ -1116,9 +1170,34 @@ _pipeline_instance = None
 _pipeline_lock = threading.Lock()
 
 
+def _executor_is_alive(pipeline):
+    """Return False if the thread pool was shut down (common after Django autoreload)."""
+    executor = getattr(pipeline, "_executor", None)
+    if executor is None:
+        return False
+    # ThreadPoolExecutor sets _shutdown=True after shutdown(); also guard broken state.
+    if getattr(executor, "_shutdown", False):
+        return False
+    return True
+
+
 def get_pipeline():
-    """Get or create the singleton pipeline instance. Thread-safe."""
+    """Get or create the singleton pipeline instance. Thread-safe.
+
+    Recreates the pipeline if a previous instance's thread pool was shut down
+    (Django's StatReloader can leave a stale singleton after code reloads).
+    """
     global _pipeline_instance
+    if _pipeline_instance is not None and not _executor_is_alive(_pipeline_instance):
+        logger.warning("Pipeline thread pool is dead — recreating SkinAnalysisPipeline")
+        with _pipeline_lock:
+            if _pipeline_instance is not None and not _executor_is_alive(_pipeline_instance):
+                try:
+                    _pipeline_instance.shutdown()
+                except Exception:
+                    pass
+                _pipeline_instance = None
+
     if _pipeline_instance is None:
         with _pipeline_lock:
             if _pipeline_instance is None:

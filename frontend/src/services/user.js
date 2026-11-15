@@ -7,6 +7,77 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+export const PROFILE_UPDATED_EVENT = "truetone-profile-updated";
+
+/** Never render raw response bodies or Error objects in the UI. */
+export function parseApiError(err) {
+  const status = err?.response?.status;
+  const data = err?.response?.data;
+
+  if (!err?.response) {
+    return {
+      status: 0,
+      message: "Something went wrong. Please try again.",
+      errors: {},
+      isServerError: true,
+    };
+  }
+
+  if (status >= 500) {
+    return {
+      status,
+      message: "Something went wrong. Please try again.",
+      errors: {},
+      isServerError: true,
+    };
+  }
+
+  const errors =
+    data?.errors && typeof data.errors === "object" && !Array.isArray(data.errors)
+      ? Object.fromEntries(
+          Object.entries(data.errors).map(([k, v]) => [
+            k,
+            Array.isArray(v) ? v.map(String) : [String(v)],
+          ])
+        )
+      : {};
+
+  const message =
+    (typeof data?.message === "string" && data.message) ||
+    (typeof data?.detail === "string" && data.detail) ||
+    (Object.values(errors)[0]?.[0]) ||
+    "Please check the form and try again.";
+
+  // Reject anything that looks like a SQL / Integrity dump
+  const unsafe =
+    /null value in column|integrityerror|relation "|duplicate key|traceback|psycopg|django\.db/i.test(
+      message
+    );
+
+  return {
+    status,
+    message: unsafe ? "Something went wrong. Please try again." : message,
+    errors: unsafe ? {} : errors,
+    isServerError: false,
+  };
+}
+
+export function rememberProfileNames({ first_name, last_name } = {}) {
+  if (typeof first_name === "string") {
+    localStorage.setItem("truetone_first_name", first_name);
+  }
+  if (typeof last_name === "string") {
+    localStorage.setItem("truetone_last_name", last_name);
+  }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent(PROFILE_UPDATED_EVENT, {
+        detail: { first_name, last_name },
+      })
+    );
+  }
+}
+
 // Attach token to every request automatically
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("truetone_token");
@@ -82,6 +153,10 @@ export const loginUser = async ({
   localStorage.setItem("truetone_user_id", data.data.id);
   localStorage.setItem("truetone_role", role);
   localStorage.setItem("truetone_view_mode", role === "evaluator" ? "evaluator" : "end_user");
+  rememberProfileNames({
+    first_name: data.data.first_name || "",
+    last_name: data.data.last_name || "",
+  });
 
   return data;
 };
@@ -137,6 +212,12 @@ export const getUserProfile = async () => {
       localStorage.setItem("truetone_view_mode", "evaluator");
     }
   }
+  if (data?.data) {
+    rememberProfileNames({
+      first_name: data.data.first_name || "",
+      last_name: data.data.last_name || "",
+    });
+  }
   return data;
 };
 
@@ -144,7 +225,13 @@ export const isEvaluatorRole = () =>
   localStorage.getItem("truetone_role") === "evaluator";
 
 export const updateUser = async (updates) => {
-  const { data } = await api.put("/update/", updates);
+  const { data } = await api.patch("/update/", updates);
+  if (data?.data) {
+    rememberProfileNames({
+      first_name: data.data.first_name || "",
+      last_name: data.data.last_name || "",
+    });
+  }
   return data;
 };
 

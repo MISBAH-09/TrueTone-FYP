@@ -4,6 +4,7 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 import {
   getPasswordRecoveryQuestion,
   loginUser,
+  parseApiError,
   RECOVERY_QUESTIONS,
   resetPassword,
   signupUser,
@@ -12,6 +13,9 @@ import TrueToneLogo from "../components/TrueToneLogo";
 import AuthFaceScanPanel from "../components/AuthFaceScanPanel";
 import { Button, Input, InlineAlert } from "../components/ui";
 
+const FieldError = ({ message }) =>
+  message ? <p className="mt-1 text-xs font-medium text-[var(--tt-avoid)]">{message}</p> : null;
+
 const Auth = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -19,6 +23,7 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const [success, setSuccess] = useState("");
   const [forgotPassword, setForgotPassword] = useState(false);
 
@@ -33,31 +38,51 @@ const Auth = () => {
   const [loginAsEvaluator, setLoginAsEvaluator] = useState(false);
   const [evaluatorCode, setEvaluatorCode] = useState("");
 
+  const clearErrors = () => {
+    setError("");
+    setFieldErrors({});
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    setLoading(true);
+    clearErrors();
 
+    const local = {};
+    if (!username.trim()) local.username = ["Username is required."];
+    if (!password) local.password = ["Password is required."];
+    if (isSignUp) {
+      if (!email.trim()) local.email = ["Email is required."];
+      if (!recoveryQuestion) local.recovery_question = ["Please choose a security question."];
+      if (!recoveryAnswer.trim()) local.recovery_answer = ["Please enter an answer."];
+    }
+    if (Object.keys(local).length) {
+      setFieldErrors(local);
+      setError("Please fill in the required fields.");
+      return;
+    }
+
+    setLoading(true);
     try {
       if (isSignUp) {
         await signupUser({
-          username,
-          email,
+          username: username.trim(),
+          email: email.trim(),
           password,
-          first_name: firstName,
-          last_name: lastName,
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
           recovery_question: recoveryQuestion,
           recovery_answer: recoveryAnswer,
         });
 
         setIsSignUp(false);
-        setError("");
+        clearErrors();
         setSuccess("Account created successfully. Please sign in to continue.");
         setPassword("");
-        alert("Account created successfully! Please login to continue.");
+        setRecoveryQuestion("");
+        setRecoveryAnswer("");
       } else {
         const data = await loginUser({
-          username,
+          username: username.trim(),
           password,
           login_as_evaluator: loginAsEvaluator,
           evaluator_code: loginAsEvaluator ? evaluatorCode : "",
@@ -72,8 +97,9 @@ const Auth = () => {
         }
       }
     } catch (err) {
-      const msg = err.response?.data?.message || "Network error. Make sure the backend server is running.";
-      setError(msg);
+      const parsed = parseApiError(err);
+      setFieldErrors(parsed.errors);
+      setError(parsed.message);
     } finally {
       setLoading(false);
     }
@@ -81,23 +107,30 @@ const Auth = () => {
 
   const handleRecoverySubmit = async (e) => {
     e.preventDefault();
-    setError("");
+    clearErrors();
     setSuccess("");
+
+    if (!username.trim() || !email.trim()) {
+      setError("Please enter your username and email.");
+      return;
+    }
 
     if (recoveryQuestion && password !== confirmPassword) {
       setError("The new passwords do not match.");
+      setFieldErrors({ password: ["The new passwords do not match."] });
       return;
     }
 
     setLoading(true);
     try {
       if (!recoveryQuestion) {
-        const result = await getPasswordRecoveryQuestion({ username, email });
+        const result = await getPasswordRecoveryQuestion({
+          username: username.trim(),
+          email: email.trim(),
+        });
         const question = result.data?.question;
         if (!question) {
-          setError(
-            "We couldn't verify those details or recovery isn't set up for this account. Existing users can configure a recovery question in Profile while signed in.",
-          );
+          setError("We couldn't verify this account. Please contact support.");
           return;
         }
         setRecoveryQuestion(question);
@@ -105,8 +138,8 @@ const Auth = () => {
       }
 
       const result = await resetPassword({
-        username,
-        email,
+        username: username.trim(),
+        email: email.trim(),
         recovery_question: recoveryQuestion,
         recovery_answer: recoveryAnswer,
         password,
@@ -118,7 +151,9 @@ const Auth = () => {
       setConfirmPassword("");
       setSuccess(result.message || "Password updated. Please sign in.");
     } catch (err) {
-      setError(err.response?.data?.message || "Unable to reset the password. Please try again later.");
+      const parsed = parseApiError(err);
+      setFieldErrors(parsed.errors);
+      setError(parsed.message);
     } finally {
       setLoading(false);
     }
@@ -131,7 +166,7 @@ const Auth = () => {
     setRecoveryAnswer("");
     setPassword("");
     setConfirmPassword("");
-    setError("");
+    clearErrors();
     setSuccess("");
   };
 
@@ -141,7 +176,7 @@ const Auth = () => {
     setRecoveryAnswer("");
     setPassword("");
     setConfirmPassword("");
-    setError("");
+    clearErrors();
     setSuccess("");
   };
 
@@ -244,15 +279,19 @@ const Auth = () => {
               </button>
             </form>
           ) : (
-          <form onSubmit={handleSubmit} className="mt-6 space-y-3">
-            <Input
-              type="text"
-              placeholder="Username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              autoComplete="username"
-            />
+          <form onSubmit={handleSubmit} className="mt-6 space-y-3" noValidate>
+            <div>
+              <Input
+                type="text"
+                placeholder="Username *"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                autoComplete="username"
+                disabled={loading}
+              />
+              <FieldError message={fieldErrors.username?.[0]} />
+            </div>
 
             {isSignUp && (
               <>
@@ -262,6 +301,7 @@ const Auth = () => {
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   autoComplete="given-name"
+                  disabled={loading}
                 />
                 <Input
                   type="text"
@@ -269,36 +309,45 @@ const Auth = () => {
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   autoComplete="family-name"
+                  disabled={loading}
                 />
-                <Input
-                  type="email"
-                  placeholder="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                />
+                <div>
+                  <Input
+                    type="email"
+                    placeholder="Email *"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                    disabled={loading}
+                  />
+                  <FieldError message={fieldErrors.email?.[0]} />
+                </div>
               </>
             )}
 
-            <div className="relative">
-              <Input
-                type={showPassword ? "text" : "password"}
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="pr-10"
-                required
-                autoComplete={isSignUp ? "new-password" : "current-password"}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-[var(--tt-radius)] text-[var(--tt-secondary)] hover:bg-[var(--tt-paper)] hover:text-[var(--tt-ink)]"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
+            <div>
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password *"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pr-10"
+                  required
+                  autoComplete={isSignUp ? "new-password" : "current-password"}
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-[var(--tt-radius)] text-[var(--tt-secondary)] hover:bg-[var(--tt-paper)] hover:text-[var(--tt-ink)]"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              <FieldError message={fieldErrors.password?.[0]} />
             </div>
 
             {isSignUp && (
@@ -307,11 +356,12 @@ const Auth = () => {
                   Min 8 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special character
                 </p>
                 <label className="block space-y-1.5 text-sm font-medium text-[var(--tt-ink)]">
-                  Password recovery question
+                  Password recovery question *
                   <select
                     value={recoveryQuestion}
                     onChange={(e) => setRecoveryQuestion(e.target.value)}
                     required
+                    disabled={loading}
                     className="h-[var(--tt-control-h)] w-full rounded-[var(--tt-radius)] border border-[var(--tt-border)] bg-[var(--tt-surface)] px-3 text-sm font-normal text-[var(--tt-ink)] focus:border-[var(--tt-primary)] focus:outline-none"
                   >
                     <option value="" disabled>Choose a question</option>
@@ -319,9 +369,10 @@ const Auth = () => {
                       <option key={question.value} value={question.value}>{question.label}</option>
                     ))}
                   </select>
+                  <FieldError message={fieldErrors.recovery_question?.[0]} />
                 </label>
                 <label className="block space-y-1.5 text-sm font-medium text-[var(--tt-ink)]">
-                  Your answer
+                  Your answer *
                   <Input
                     type="text"
                     placeholder="Enter a private answer"
@@ -329,7 +380,9 @@ const Auth = () => {
                     onChange={(e) => setRecoveryAnswer(e.target.value)}
                     required
                     autoComplete="off"
+                    disabled={loading}
                   />
+                  <FieldError message={fieldErrors.recovery_answer?.[0]} />
                 </label>
                 <p className="text-xs text-[var(--tt-secondary)]">
                   Choose an answer that is hard for others to guess. We store it securely, but recovery questions are less secure than email verification.
@@ -407,7 +460,7 @@ const Auth = () => {
               type="button"
               onClick={() => {
                 setIsSignUp(!isSignUp);
-                setError("");
+                clearErrors();
                 setSuccess("");
               }}
               className="font-medium text-[var(--tt-primary)] hover:underline"

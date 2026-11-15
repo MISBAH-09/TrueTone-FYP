@@ -12,10 +12,13 @@ load_dotenv(BASE_DIR / '.env', override=True)
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'truetone-dev-key-change-in-production-2026')
 
-# DEBUG should be False in production; use env var to control it
-DEBUG = os.environ.get('DEBUG', 'True').lower() in ('1', 'true', 'yes')
+# DEBUG defaults to False; enable only via .env for local development (DEBUG=True)
+DEBUG = os.environ.get('DEBUG', 'False').lower() in ('1', 'true', 'yes')
 
-ALLOWED_HOSTS = ['*']
+_allowed = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver').strip()
+ALLOWED_HOSTS = [h.strip() for h in _allowed.split(',') if h.strip()] or ['localhost', '127.0.0.1', 'testserver']
+if DEBUG and 'testserver' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('testserver')
 
 INSTALLED_APPS = [
     'django.contrib.auth',
@@ -116,6 +119,11 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],
+    'EXCEPTION_HANDLER': 'Users.exception_handler.custom_exception_handler',
+    'DEFAULT_THROTTLE_RATES': {
+        'password_recovery': '20/hour',
+        'password_recovery_setup': '30/hour',
+    },
 }
 
 LANGUAGE_CODE = 'en-us'

@@ -4,7 +4,7 @@ from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
 from .models import User
-from .views import normalize_recovery_answer
+from .views_helpers import normalize_recovery_answer, NEUTRAL_RECOVERY_MESSAGE
 
 
 @override_settings(CACHES={
@@ -161,3 +161,158 @@ class PasswordRecoveryTests(TestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.recovery_question, 'first_school')
         self.assertTrue(check_password('north school', self.user.recovery_answer_hash))
+
+
+@override_settings(CACHES={
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'users-auth-profile-tests',
+    },
+}, PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher'])
+class SignupLoginProfileTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient()
+        self.legacy = User.objects.create(
+            username='legacy_user',
+            email='legacy@example.com',
+            password=make_password('LegacyPass1!'),
+            token='legacy-token',
+            first_name='',
+            last_name='',
+            recovery_question=None,
+            recovery_answer_hash=None,
+        )
+
+    def test_signup_missing_question_returns_400_field_error(self):
+        response = self.client.post(
+            '/users/signup/',
+            {
+                'username': 'freshuser01',
+                'email': 'fresh01@example.com',
+                'password': 'NewSecurePass2!',
+                'recovery_answer': 'milo',
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('errors', response.data)
+        self.assertIn('recovery_question', response.data['errors'])
+        self.assertNotIn('null value', str(response.data).lower())
+        self.assertNotIn('password', str(response.data).lower())
+
+    def test_signup_duplicate_email_friendly_400(self):
+        self.client.post(
+            '/users/signup/',
+            {
+                'username': 'freshuser02',
+                'email': 'dup@example.com',
+                'password': 'NewSecurePass2!',
+                'recovery_question': 'first_pet',
+                'recovery_answer': 'milo',
+            },
+            format='json',
+        )
+        response = self.client.post(
+            '/users/signup/',
+            {
+                'username': 'freshuser03',
+                'email': 'dup@example.com',
+                'password': 'NewSecurePass2!',
+                'recovery_question': 'first_pet',
+                'recovery_answer': 'milo',
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+        body = str(response.data).lower()
+        self.assertIn('already', body)
+        self.assertNotIn('integrity', body)
+        self.assertNotIn('duplicate key', body)
+
+    def test_legacy_user_login_without_recovery_question(self):
+        response = self.client.post(
+            '/users/login/',
+            {'username': 'legacy_user', 'password': 'LegacyPass1!'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data['success'])
+        self.assertFalse(response.data['data']['has_recovery_question'])
+
+    def test_profile_patch_first_last_name(self):
+        self.client.credentials(HTTP_AUTHORIZATION=self.legacy.token)
+        response = self.client.patch(
+            '/users/update/',
+            {'first_name': 'Ada', 'last_name': 'Lovelace'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['data']['first_name'], 'Ada')
+        self.assertEqual(response.data['data']['last_name'], 'Lovelace')
+        self.assertNotIn('recovery_answer', response.data['data'])
+        self.assertNotIn('recovery_answer_hash', response.data['data'])
+        self.legacy.refresh_from_db()
+        self.assertEqual(self.legacy.first_name, 'Ada')
+
+    def test_legacy_user_can_set_recovery_question(self):
+        self.client.credentials(HTTP_AUTHORIZATION=self.legacy.token)
+        response = self.client.post(
+            '/users/password-recovery/setup/',
+            {
+                'current_password': 'LegacyPass1!',
+                'recovery_question': 'first_pet',
+                'recovery_answer': '  Spot  ',
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.legacy.refresh_from_db()
+        self.assertEqual(self.legacy.recovery_question, 'first_pet')
+        self.assertTrue(check_password('spot', self.legacy.recovery_answer_hash))
+        profile = self.client.get('/users/profile/')
+        self.assertTrue(profile.data['data']['has_recovery_question'])
+        self.assertEqual(profile.data['data']['recovery_question'], 'first_pet')
+        self.assertNotIn('recovery_answer_hash', profile.data['data'])
+        self.assertNotIn('recovery_answer', profile.data['data'])
+
+    def test_change_recovery_rejects_wrong_password(self):
+        self.legacy.recovery_question = 'first_pet'
+        self.legacy.recovery_answer_hash = make_password('spot')
+        self.legacy.save(update_fields=['recovery_question', 'recovery_answer_hash'])
+        self.client.credentials(HTTP_AUTHORIZATION=self.legacy.token)
+        response = self.client.post(
+            '/users/password-recovery/setup/',
+            {
+                'current_password': 'WrongPass1!',
+                'recovery_question': 'first_school',
+                'recovery_answer': 'North',
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.legacy.refresh_from_db()
+        self.assertEqual(self.legacy.recovery_question, 'first_pet')
+
+    def test_recovery_for_user_without_question_is_neutral(self):
+        response = self.client.post(
+            '/users/password-recovery/question/',
+            {'username': 'legacy_user', 'email': 'legacy@example.com'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.data['data']['question'])
+        self.assertEqual(response.data['message'], NEUTRAL_RECOVERY_MESSAGE)
+
+    def test_exception_handler_hides_database_errors(self):
+        from Users.exception_handler import custom_exception_handler, GENERIC_500
+        from django.db import IntegrityError
+
+        response = custom_exception_handler(
+            IntegrityError('null value in column "recovery_question" of relation "users"'),
+            {'request': None, 'view': None},
+        )
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.data['detail'], GENERIC_500)
+        self.assertNotIn('recovery_question', str(response.data))
+        self.assertNotIn('null value', str(response.data))
